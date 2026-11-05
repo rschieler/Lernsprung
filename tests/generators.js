@@ -18,9 +18,13 @@ setTimeout(() => {
     }
   }
   let qb = 0;
-  w.eval('CATALOG').forEach(s => s.grades.forEach(gr => gr.books.forEach(b => b.units.forEach(u => (u.quiz || []).forEach(q => {
+  w.eval('CATALOG').forEach(s => s.grades.forEach(gr => gr.books.forEach(b => b.units.forEach(u => [...(u.quiz || []), ...((u.grammar || {}).quiz || [])].forEach(q => {
     if (q.length < 3 || new Set(q.slice(1)).size !== q.length - 1) { qb++; console.log('Quiz', u.id, q[0]); }
   })))));
+  w.eval('CATALOG').forEach(s => s.grades.forEach(gr => gr.books.forEach(b => b.units.forEach(u => { const g = u.grammar; if (!g) return;
+    if (!g.title || !g.tips.length || !g.examples.length || g.quiz.length < 7 || g.write.length < 3) { qb++; console.log('Grammatik unvollständig', u.id); }
+    g.write.forEach(x => { if (x.length !== 2 || !String(x[1]).trim()) { qb++; console.log('Grammatik Schreiben', u.id, x[0]); } });
+  }))));
   console.log(bad + qb ? `FEHLER: ${bad} Generator, ${qb} Quiz` : 'OK: alle Generatoren und Quizfragen');
   process.exit(bad + qb ? 1 : 0);
 }, 300);

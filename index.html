@@ -244,7 +244,8 @@ mark{background:#ffe27a;color:#1b2238;border-radius:6px;padding:0 4px}
 const CATALOG = [
 { id:'en', name:'Englisch', icon:'🌍', color:'#3B6EF5', lang:'en-GB', grades:[
   { grade:4, books:[ { id:'yw2', name:'Young World 2', units:[
-  { id:'intro', no:'Intro', title:'Say it in English', de:'Alphabet, Begrüssungen und Sätze für den Alltag', icon:'👋', abc:true,
+  { id:'intro', no:'Intro', title:'Say it in English', de:'Alphabet, Begrüssungen und Sätze für den Alltag', icon:'👋', lp:"FS1E.3.A.1 Dialogisches Sprechen, FS1E.5.C.1 Aussprache, FS1E.5.D.1 Grammatik",
+    grammar:{"title": "I am, you are, she is", "tips": ["«sein» heisst auf Englisch «be». Es hat drei Formen: am, is, are.", "I → am. He, she, it → is. You, we, they → are.", "Kurzformen: I am = I'm, you are = you're, she is = she's, it is = it's."], "examples": ["I am Lea.", "You are my friend.", "She is nine.", "We are in class 4.", "How are you?", "What is your name?"], "quiz": [["I ___ Lea.", "am", "is", "are"], ["You ___ my friend.", "are", "am", "is"], ["She ___ from St. Gallen.", "is", "am", "are"], ["He ___ nine years old.", "is", "am", "are"], ["We ___ in class 4b.", "are", "am", "is"], ["It ___ a cat.", "is", "am", "are"], ["They ___ in the garden.", "are", "is", "am"], ["My name ___ Noah.", "is", "am", "are"], ["How ___ you?", "are", "is", "am"], ["What ___ your name?", "is", "are", "am"], ["Mia and Tim ___ friends.", "are", "is", "am"], ["I ___ fine, thank you.", "am", "is", "are"]], "write": [["I ___ happy.", "am"], ["He ___ my brother.", "is"], ["We ___ tired.", "are"], ["Kurzform: I am = ?", "I'm"], ["Kurzform: you are = ?", "you're"], ["Kurzform: she is = ?", "she's"]]}, abc:true,
     words:[
       ['hello','hallo','👋'],['goodbye','tschüss, auf Wiedersehen','🙋'],['good morning','guten Morgen','🌅'],
       ['please','bitte','🙏'],['thank you','danke','💐'],['sorry','Entschuldigung, tut mir leid','😔'],
@@ -262,7 +263,8 @@ const CATALOG = [
       ['Can you ___ me, please?','help',['help','spell','hello'],'Kannst du mir bitte helfen?','🆘'],
       ['How do you ___ your name?','spell',['spell','help','are'],'Wie buchstabierst du deinen Namen?','🔤']
     ]},
-  { id:'u1', no:'Unit 1', title:'Five sensational senses', de:'Die fünf Sinne, Geschmack und Gefühl, Chilbi', icon:'👃',
+  { id:'u1', no:'Unit 1', title:'Five sensational senses', de:'Die fünf Sinne, Geschmack und Gefühl, Chilbi', icon:'👃', lp:"FS1E.1.A.1 Hören, FS1E.5.B.1 Wortschatz, FS1E.5.D.1 Grammatik",
+    grammar:{"title": "It tastes sweet. I like it.", "tips": ["Mit den Sinnen beschreiben: It tastes … (schmeckt), It smells … (riecht), It sounds … (tönt), It feels … (fühlt sich an), It looks … (sieht aus).", "Nach he, she, it kommt ein -s ans Verb: I like → she likes.", "Verneinen: I don't like … Bei he, she, it: He doesn't like …", "Fragen: Do you like …? Antwort: Yes, I do. / No, I don't."], "examples": ["The lemon tastes sour.", "The music sounds loud.", "I like candyfloss.", "I don't like spiders.", "She likes apples.", "Do you like cheese? – Yes, I do."], "quiz": [["The lemon ___ sour.", "tastes", "sounds", "hears"], ["The music ___ loud.", "sounds", "tastes", "smells"], ["The teddy bear ___ soft.", "feels", "tastes", "sounds"], ["I like candyfloss. It ___ sweet.", "tastes", "sounds", "hears"], ["I ___ like spiders.", "don't", "not", "no"], ["Do you like cheese? – Yes, I ___.", "do", "am", "like"], ["Do you like curry? – No, I ___.", "don't", "not", "no"], ["I ___ toffee. It is very sweet.", "like", "likes", "liking"], ["She ___ apples.", "likes", "like", "liking"], ["He ___ like loud noise.", "doesn't", "don't", "not"], ["___ you like biscuits?", "Do", "Does", "Are"], ["Tim ___ crunchy biscuits.", "likes", "like", "liking"]], "write": [["I ___ like apples. (verneinen)", "don't|do not"], ["Lemons taste ___. (sauer)", "sour"], ["Crisps taste ___. (salzig)", "salty"], ["She ___ toffee. (like)", "likes"], ["Do you like fruit? – Yes, I ___.", "do"], ["A pillow feels ___. (weich)", "soft"]]},
     words:[
       ['eye','das Auge','👁️'],['ear','das Ohr','👂'],['nose','die Nase','👃'],['mouth','der Mund','👄'],['tongue','die Zunge','👅'],
       ['hand','die Hand','✋'],['finger','der Finger','☝️'],['skin','die Haut','🤚',1],['sense','der Sinn','✨',1],
@@ -289,7 +291,8 @@ const CATALOG = [
       ['The flower ___ good.','smells',['smells','sounds','tastes'],'Die Blume riecht gut.','🌸'],
       ['The music ___ great.','sounds',['sounds','tastes','smells'],'Die Musik tönt super.','🎵']
     ]},
-  { id:'u2', no:'Unit 2', title:'A town like mine', de:'Gebäude, Läden, Berufe und den Weg beschreiben', icon:'🏘️',
+  { id:'u2', no:'Unit 2', title:'A town like mine', de:'Gebäude, Läden, Berufe und den Weg beschreiben', icon:'🏘️', lp:"FS1E.3.B.1 Monologisches Sprechen, FS1E.5.B.1 Wortschatz, FS1E.5.D.1 Grammatik",
+    grammar:{"title": "There is, there are", "tips": ["There is … = Es gibt (ein Ding). There are … = Es gibt (mehrere Dinge).", "Frage: Is there a cinema? – Yes, there is. / No, there isn't. Mehrere: Are there any shops?", "Wo ist es? next to = neben, opposite = gegenüber, between = zwischen."], "examples": ["There is a church.", "There are two parks.", "Is there a library?", "The bakery is next to the school.", "The park is opposite the station.", "The café is between the bank and the cinema."], "quiz": [["There ___ a church in my village.", "is", "are", "am"], ["There ___ two parks in the town.", "are", "is", "am"], ["There ___ a bakery next to the school.", "is", "are", "be"], ["There ___ three restaurants in the city.", "are", "is", "be"], ["___ there a cinema in your town? – Yes, there is.", "Is", "Are", "Do"], ["___ there any shops in the village? – No, there aren't.", "Are", "Is", "Do"], ["The bakery is ___ the school and the church. (zwischen)", "between", "opposite", "next to"], ["The park is ___ the station. (gegenüber)", "opposite", "between", "next to"], ["The library is ___ the post office. (neben)", "next to", "between", "opposite"], ["Go straight on and turn ___. (links)", "left", "right", "straight"], ["Is there a hospital? – Yes, there ___.", "is", "are", "does"], ["There isn't a farm in the city. Was heisst das?", "Es gibt keinen Bauernhof in der Stadt.", "Es gibt einen Bauernhof in der Stadt.", "Der Bauer wohnt in der Stadt."]], "write": [["There ___ a station in my town.", "is"], ["There ___ four shops.", "are"], ["neben = ?", "next to"], ["gegenüber = ?", "opposite"], ["zwischen = ?", "between"], ["Turn ___! (rechts)", "right"]]},
     words:[
       ['town','die Stadt','🏘️',0,'Orte in der Stadt'],['city','die Grossstadt','🏙️',0,'Orte in der Stadt'],['village','das Dorf','🏡',0,'Orte in der Stadt'],
       ['church','die Kirche','⛪',0,'Orte in der Stadt'],['hospital','das Spital','🏥',0,'Orte in der Stadt'],['park','der Park','🌳',0,'Orte in der Stadt'],
@@ -323,7 +326,8 @@ const CATALOG = [
       ['I buy bread at the ___.','bakery',['bakery',"butcher's",'post office'],'Ich kaufe Brot in der Bäckerei.','🥖'],
       ['We watch a film at the ___.','cinema',['cinema','church','hospital'],'Wir schauen einen Film im Kino.','🎬']
     ]},
-  { id:'u3', no:'Unit 3', title:'A world of colour', de:'Farben mischen, Formen und Bilder beschreiben', icon:'🎨',
+  { id:'u3', no:'Unit 3', title:'A world of colour', de:'Farben mischen, Formen und Bilder beschreiben', icon:'🎨', lp:"FS1E.4.A.1 Schreiben, FS1E.5.B.1 Wortschatz, FS1E.5.D.1 Grammatik",
+    grammar:{"title": "A red circle, two red circles", "tips": ["Die Farbe steht vor dem Nomen, wie im Deutschen: a red circle = ein roter Kreis.", "Auf Englisch ändert sich die Farbe nie: a red star, two red stars.", "Mehrzahl: meistens ein -s anhängen: one star → two stars.", "Frage nach der Farbe: What colour is it? – It's blue."], "examples": ["a red circle", "two yellow stars", "The square is green.", "What colour is it? – It's pink.", "Red and yellow make orange."], "quiz": [["Was ist richtig?", "a red circle", "a circle red", "red a circle"], ["Was ist richtig?", "The star is yellow.", "The star yellow is.", "Yellow the star is."], ["Was ist richtig?", "I see a green tree.", "I see a tree green.", "I a green tree see."], ["one star, two ___", "stars", "star", "starses"], ["one triangle, three ___", "triangles", "triangle", "triangels"], ["one rectangle, two ___", "rectangles", "rectangle", "rectangls"], ["The painting has got five ___.", "stripes", "stripe", "stripies"], ["___ colour is the sky? – It's blue.", "What", "Who", "How"], ["Red and yellow ___ orange.", "make", "makes", "is"], ["Blue and yellow make ___.", "green", "violet", "orange"], ["What shape is it? – It's a ___.", "square", "squares", "red"], ["Mix red and white. What colour do you get?", "pink", "grey", "brown"]], "write": [["one heart, two ___", "hearts"], ["one circle, four ___", "circles"], ["Auf Englisch: ein blauer Kreis", "a blue circle|blue circle"], ["Auf Englisch: ein gelber Stern", "a yellow star|yellow star"], ["What colour is the sun? – It is ___.", "yellow"], ["Red and blue make ___.", "violet|purple"]]},
     words:[
       ['colour','die Farbe','🎨'],['red','rot','🔴'],['blue','blau','🔵'],['yellow','gelb','🟡'],['green','grün','🟢'],['orange','orange','🟠'],
       ['violet','violett','🟣'],['pink','rosa','🎀'],['brown','braun','🟤'],['black','schwarz','⚫'],['white','weiss','⚪'],['grey','grau','🐘',1],
@@ -343,7 +347,8 @@ const CATALOG = [
       ['The flag of Japan is white with a red ___.','circle',['circle','star','stripe'],'Die Flagge von Japan ist weiss mit einem roten Kreis.','⚪'],
       ['What is your favourite ___?','colour',['colour','glue','light'],'Was ist deine Lieblingsfarbe?','🎨']
     ]},
-  { id:'u4', no:'Unit 4', title:'Exploring nature', de:'Wald, Bäume und Tiere im Wald', icon:'🌳',
+  { id:'u4', no:'Unit 4', title:'Exploring nature', de:'Wald, Bäume und Tiere im Wald', icon:'🌳', lp:"FS1E.2.A.1 Lesen, FS1E.5.B.1 Wortschatz, FS1E.5.D.1 Grammatik",
+    grammar:{"title": "A squirrel lives in a tree.", "tips": ["Nach he, she, it oder einem Tier in der Einzahl kommt ein -s ans Verb: A fox lives in the forest.", "In der Mehrzahl kein -s: Foxes live in the forest.", "haben = have got / has got: A spider has got eight legs. Birds have got wings.", "Frage: Does a frog live in a pond? – Yes, it does."], "examples": ["A squirrel lives in a tree.", "Owls hunt at night.", "A spider has got eight legs.", "Birds have got wings.", "The bee flies to the flower."], "quiz": [["A squirrel ___ in a tree.", "lives", "live", "living"], ["Owls ___ at night.", "hunt", "hunts", "hunting"], ["A spider ___ eight legs.", "has got", "have got", "is got"], ["Birds ___ nests.", "build", "builds", "building"], ["A hedgehog ___ in the leaves.", "sleeps", "sleep", "sleeping"], ["Foxes ___ a long tail.", "have got", "has got", "is got"], ["The woodpecker ___ on the tree trunk.", "knocks", "knock", "knocking"], ["Ants ___ very strong.", "are", "is", "am"], ["A snail ___ slow.", "is", "are", "am"], ["___ a frog live in a pond? – Yes, it does.", "Does", "Do", "Is"], ["The bee ___ from flower to flower.", "flies", "fly", "flys"], ["Rabbits ___ carrots.", "like", "likes", "liking"]], "write": [["A rabbit ___ carrots. (like)", "likes"], ["The owl ___ well at night. (see)", "sees"], ["A bird ___ got two wings.", "has"], ["Frogs ___ got long legs.", "have"], ["A mouse ___ in the grass. (hide)", "hides"], ["A forester ___ in the forest. (work)", "works"]]},
     words:[
       ['nature','die Natur','🌳',1],['forest','der Wald','🌲'],['tree','der Baum','🌳'],['tree trunk','der Baumstamm','🪵'],['branch','der Ast','🌿'],
       ['root','die Wurzel','🌱'],['bark','die Rinde','🪵',1],['leaf','das Blatt','🍃'],['tree house','das Baumhaus','🛖'],['rope','das Seil','🪢'],
@@ -365,7 +370,8 @@ const CATALOG = [
       ['A bird lays its eggs in a ___.','nest',['nest','leaf','board'],'Ein Vogel legt seine Eier in ein Nest.','🥚'],
       ['Ants are very small but very ___.','strong',['strong','slow','loud'],'Ameisen sind sehr klein, aber sehr stark.','🐜']
     ]},
-  { id:'u5', no:'Unit 5', title:'Are we there yet?', de:'Reisen, Verkehrsmittel, schnell und langsam', icon:'🚲',
+  { id:'u5', no:'Unit 5', title:'Are we there yet?', de:'Reisen, Verkehrsmittel, schnell und langsam', icon:'🚲', lp:"FS1E.3.A.1 Dialogisches Sprechen, FS1E.5.B.1 Wortschatz, FS1E.5.D.1 Grammatik",
+    grammar:{"title": "faster than, by bike", "tips": ["Vergleichen: -er anhängen und than (als) benutzen: A plane is faster than a car.", "Kurze Wörter mit einem Vokal: Endbuchstabe doppelt: big → bigger, hot → hotter.", "Am meisten: the …-est: The plane is the fastest.", "Unterwegs: by bike, by bus, by car, by train, aber: on foot (zu Fuss)."], "examples": ["A plane is faster than a car.", "A snail is slower than a bike.", "The plane is the fastest.", "I go to school by bike.", "I go to school on foot."], "quiz": [["A plane is ___ than a car.", "faster", "fast", "fastest"], ["A snail is ___ than a bike.", "slower", "slow", "more slow"], ["A train is ___ than a bike.", "bigger", "big", "biger"], ["I go to school ___ bike.", "by", "with", "in"], ["I go to school ___ foot.", "on", "by", "with"], ["A bus is ___ than a taxi.", "bigger", "big", "more big"], ["Is a car faster ___ a bike?", "than", "then", "as"], ["The plane is the ___ of all.", "fastest", "faster", "fast"], ["How ___ you get to school? – By bus.", "do", "are", "does"], ["A bike is ___ than a car.", "cheaper", "cheap", "more cheap"], ["Walking is ___ than going by car.", "slower", "slow", "slowest"], ["___ we there yet?", "Are", "Is", "Do"]], "write": [["fast → ___ (schneller)", "faster"], ["slow → ___ (langsamer)", "slower"], ["big → ___ (grösser)", "bigger"], ["I go to school ___ bus.", "by"], ["I go to school ___ foot.", "on"], ["A plane is faster ___ a train.", "than"]]},
     words:[
       ['transport','der Transport','🚦',1],['travel','reisen','🧳'],['trip','die Reise, der Ausflug','🗺️',1],['bike','das Velo','🚲'],['car','das Auto','🚗'],
       ['bus','der Bus','🚌'],['train','der Zug','🚆'],['tram','das Tram','🚋'],['cable car','die Seilbahn','🚡'],['plane','das Flugzeug','✈️'],
@@ -385,7 +391,7 @@ const CATALOG = [
       ['A canoe is a small ___.','boat',['boat','plane','road'],'Ein Kanu ist ein kleines Boot.','🛶'],
       ['Are we there ___?','yet',['yet','fast','slow'],'Sind wir schon da?','🙄']
     ]},
-  { id:'halloween', no:'Special', title:'Halloween', de:'Wörter rund um Halloween', icon:'🎃',
+  { id:'halloween', no:'Special', title:'Halloween', de:'Wörter rund um Halloween', icon:'🎃', lp:"FS1E.6.A.1 Kulturen, FS1E.5.B.1 Wortschatz",
     words:[
       ['pumpkin','der Kürbis','🎃'],['witch','die Hexe','🧙'],['ghost','das Gespenst','👻'],['bat','die Fledermaus','🦇'],['skeleton','das Skelett','💀'],
       ['cat','die Katze','🐈'],['spider','die Spinne','🕷️'],['broom','der Besen','🧹'],['moon','der Mond','🌕'],['candle','die Kerze','🕯️'],
@@ -400,7 +406,7 @@ const CATALOG = [
       ['Halloween is on 31st ___.','October',['October','March','May'],'Halloween ist am 31. Oktober.','🍂'],
       ['A bat flies at ___.','night',['night','day','school'],'Eine Fledermaus fliegt in der Nacht.','🦇']
     ]},
-  { id:'pancake', no:'Special', title:'Pancake Day', de:'Pfannkuchen backen und das Pancake-Rennen', icon:'🥞',
+  { id:'pancake', no:'Special', title:'Pancake Day', de:'Pfannkuchen backen und das Pancake-Rennen', icon:'🥞', lp:"FS1E.6.A.1 Kulturen, FS1E.5.B.1 Wortschatz",
     words:[
       ['pancake','der Pfannkuchen','🥞'],['flour','das Mehl','🌾'],['egg','das Ei','🥚'],['milk','die Milch','🥛'],['butter','die Butter','🧈'],
       ['sugar','der Zucker','🧁',1],['lemon','die Zitrone','🍋'],['frying pan','die Bratpfanne','🍳'],['bowl','die Schüssel','🥣'],
@@ -1644,10 +1650,11 @@ function showLearn(){
     ${mbtn('rev','🔁','Karten: Deutsch → ' + lang,'Weisst du das Wort auf ' + lang + '?')}
     ${hard.length ? mbtn('hard','💪','Schwierige Wörter','Nur die ' + hard.length + ' Wörter, die du noch übst') : ''}
     ${mbtn('list','📋','Wörterliste','Alle ' + u.words.length + ' Wörter auf einen Blick')}
+    ${u.grammar ? mbtn('gram','🧠','Grammatik: ' + u.grammar.title,'So funktioniert es, mit Beispielen') : ''}
   </div>`;
   app.querySelectorAll('.mitem').forEach(b => b.onclick = () => {
     const k = b.dataset.k;
-    if (k === 'abc') abcBoard(); else if (k === 'list') wordList();
+    if (k === 'abc') abcBoard(); else if (k === 'list') wordList(); else if (k === 'gram') showGrammar();
     else flash(k === 'rev' ? 'rev' : 'fwd', k === 'hard');
   });
 }
@@ -1712,6 +1719,18 @@ function abcBoard(){
   $('#back').onclick = showLearn;
 }
 
+function showGrammar(){
+  stop(); const g = NAV.u.grammar;
+  app.innerHTML = `<h1 class="h1">${esc(g.title)}</h1><p class="lead">Grammatik: so funktioniert es.</p>
+  ${g.tips.map(t => `<div class="tip">💡 ${esc(t)}</div>`).join('')}
+  <h2 class="h2">Beispiele</h2><div class="examples">${g.examples.map(e => `<span>${esc(e)}</span>`).join('')}</div>
+  <div class="row"><button class="btn primary" id="go">Grammatik üben</button></div>`;
+  $('#go').onclick = () => startPractice('gram');
+}
+function grammarTasks(u, nq, nw){
+  const g = u.grammar, en = x => Object.assign(x, { uml:false });
+  return shuffle([...shuffle(g.quiz).slice(0,nq).map(qItem), ...shuffle(g.write).slice(0,nw).map(wItem).map(en)]);
+}
 function showLearnGen(){
   const L = NAV.u.learn || {};
   let table = '';
@@ -1810,6 +1829,7 @@ function practiceTypes(u){
     t.push({ k:'write', icon:'⌨️', name:'Schreiben', desc:'Schreib das Wort richtig' });
   }
   if (u.sentences.length) t.push({ k:'gaps', icon:'✏️', name:'Lückensätze', desc:'Welches Wort passt in den Satz?' });
+  if (u.grammar) t.push({ k:'gram', icon:'🧠', name:'Grammatik', desc:u.grammar.title });
   if (u.abc && canSpeak()) t.push({ k:'letters', icon:'🅰️', name:'Buchstaben hören', desc:'Welchen Buchstaben hörst du?' });
   if (u.quiz) t.push({ k:'quiz', icon:'💬', name:'Quiz', desc: u.quiz.length + ' Fragen zum Thema' });
   if (u.write) t.push({ k:'qwrite', icon:'✏️', name:'Schreiben', desc:'Schreib die Antwort selbst' });
@@ -1832,6 +1852,7 @@ function buildPractice(k,u,n = 10){
     case 'write':   return shuffle(W.filter(canWrite)).slice(0,n).map(B.write);
     case 'gaps':    return shuffle(u.sentences).slice(0,n).map(B.gap);
     case 'letters': return Array.from({ length:n }, B.letter);
+    case 'gram':    return grammarTasks(u, n - 3, 3);
     case 'quiz':    return shuffle(u.quiz).slice(0,n).map(qItem);
     case 'qwrite':  return shuffle(u.write).slice(0,n).map(wItem);
     case 'calc':    return Array.from({ length:n }, () => B.calc(u));
@@ -1875,6 +1896,7 @@ function testPlan(u){
   if (u.abc && canSpeak()) plan.push({ name:'Buchstaben', n:3, make: () => Array.from({ length:3 }, B.letter) });
   if (wr.length) plan.push({ name:'Schreiben', n:Math.min(5, wr.length), make: () => shuffle(wr).slice(0,5).map(B.write) });
   if (u.sentences.length) plan.push({ name:'Sätze', n:Math.min(5, u.sentences.length), make: () => shuffle(u.sentences).slice(0,5).map(B.gap) });
+  if (u.grammar) plan.push({ name:'Grammatik', n:5, make: () => grammarTasks(u, 3, 2) });
   return label(plan);
 }
 function reviewPool(n, exclude){

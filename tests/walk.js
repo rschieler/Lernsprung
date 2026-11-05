@@ -16,6 +16,7 @@ setTimeout(() => { try {
     const n = d.querySelectorAll('.unit').length;
     for (let u = 0; u < n; u++) {
       w.eval('showUnits()'); d.querySelectorAll('.unit')[u].click(); d.querySelector('#tLearn').click();
+      const gl = d.querySelector('.mitem[data-k="gram"]'); if (gl) { gl.click(); if (!d.querySelector('.tip')) throw new Error(`Grammatik-Seite leer: Fach ${si} Unit ${u}`); d.querySelector('#go').click(); if (!d.querySelector('.progress')) throw new Error(`Grammatik-Übung startet nicht: Fach ${si} Unit ${u}`); }
       w.eval('showPractice()'); const k = d.querySelectorAll('.mitem').length; if (!k) throw new Error(`keine Übung: Fach ${si} Unit ${u}`);
       for (let j = 0; j < k; j++) {
         w.eval('showPractice()'); d.querySelectorAll('.mitem')[j].click();
