@@ -37,4 +37,5 @@ cd tests && npm install --silent && node generators.js && node walk.js
 - Beide müssen ohne Fehler durchlaufen. Bei Layout-Änderungen zusätzlich Screenshots in Handy-Grösse (390 px) mit Playwright prüfen.
 
 ## Veröffentlichen
+Vor jedem Push `APP_VERSION` (unten im Script) hochzählen, z.B. `2026-11-05-2`. Die App vergleicht sie mit der Online-Version und zeigt «Neue Version da – tippen zum Laden».
 Commit auf `main` und pushen. GitHub Pages ist nach etwa einer Minute aktualisiert. Danach die App auf dem Handy schliessen und neu öffnen.

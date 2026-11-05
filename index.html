@@ -2305,6 +2305,22 @@ $('#homeBtn').onclick = showHome;
 $('#playBtn').onclick = showGame;
 updateStars(); updatePlay();
 showHome();
+
+/* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
+const APP_VERSION = '2026-11-05-1';
+async function checkUpdate(){
+  if (!isHosted()) return;
+  try {
+    const r = await fetch(location.pathname + '?v=' + Date.now(), { cache:'no-store' }); if (!r.ok) return;
+    const m = (await r.text()).match(/APP_VERSION = '([^']+)'/);
+    if (!m || m[1] === APP_VERSION || $('#upd')) return;
+    const bar = document.createElement('button'); bar.id = 'upd'; bar.className = 'toast'; bar.style.border = 'none'; bar.style.cursor = 'pointer';
+    bar.textContent = '✨ Neue Version da – tippen zum Laden'; bar.onclick = () => location.reload();
+    document.body.appendChild(bar);
+  } catch (e) {}
+}
+setTimeout(checkUpdate, 1500);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 </script>
 </body>
 </html>
