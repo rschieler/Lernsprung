@@ -34,5 +34,15 @@ setTimeout(() => { try {
   d.querySelector('#pf').dispatchEvent(new w.Event('submit', { cancelable: true }));
   if (!d.querySelector('#pmax')) throw new Error('Eltern-Bereich öffnet nicht');
   if (errs.length) throw new Error('JS-Fehler: ' + errs.slice(0, 3).join(' | '));
+  // Zurücksetzen im Eltern-Bereich
+  if (!(w.eval('DB.stars') > 0)) throw new Error('Vor dem Zurücksetzen keine Sterne gesammelt');
+  d.querySelector('#pr1').click(); d.querySelector('#pr2').click();
+  if (w.eval('DB.stars') !== 0 || w.eval('Object.keys(DB.known).length + Object.keys(DB.tests).length') !== 0 || !w.eval('DB.settings.pin')) throw new Error('Zurücksetzen hat nicht alles gelöscht oder den PIN verloren');
+  // Zweites Gerät mit altem Stand darf den Lernstand nicht zurückbringen, neuer Stand nach dem Zurücksetzen bleibt
+  const m1 = w.eval(`mergeDB(DB, { known:{ x:{ cat:1 } }, tests:{ x:[{ d:1, note:6 }] }, stars:99, best:50, play:null, settings:DB.settings, reset:0 }, true)`);
+  if (m1.stars !== 0 || Object.keys(m1.known).length || Object.keys(m1.tests).length) throw new Error('Alter Stand kommt nach dem Zurücksetzen zurück');
+  const m2 = w.eval(`mergeDB({ known:{ x:{ dog:0 } }, tests:{}, stars:1, best:0, play:null, settings:{ max:30, pin:'' }, reset:0 }, Object.assign({}, DB, { stars:3, known:{ y:{ cat:1 } } }), true)`);
+  if (m2.stars !== 3 || m2.known.x || !m2.known.y || !m2.reset) throw new Error('Zurücksetzen kommt auf dem zweiten Gerät nicht an');
+  console.log('OK: Zurücksetzen');
   console.log('OK: alles durchgeklickt'); process.exit(0);
 } catch (e) { console.log('FEHLER:', e.message); process.exit(1); } }, 300);

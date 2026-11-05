@@ -1422,7 +1422,7 @@ CATALOG.forEach(s => s.grades.forEach(g => g.books.forEach(b => b.units.forEach(
 }))));
 
 const STORE = 'lernheft-v1';
-let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0 };
+let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0, reset:0 };
 try { const r = localStorage.getItem(STORE); if (r) DB = Object.assign(DB, JSON.parse(r)); } catch (e) {}
 function save(){ try { localStorage.setItem(STORE, JSON.stringify(DB)); } catch (e) {} scheduleCloud(); }
 
@@ -1437,7 +1437,11 @@ function setSync(state, err){
   el.title = state === 'off' ? 'Online-Speicherung im Moment nicht möglich. Der Lernstand bleibt auf diesem Gerät.' : 'Lernstand wird online gespeichert';
 }
 function mergeDB(local, remote, remoteWins){
-  const out = { known:{}, tests:{}, stars: Math.max(local.stars || 0, remote.stars || 0), best: Math.max(local.best || 0, remote.best || 0) };
+  // Zurücksetzen: Wer einen älteren Stand als das letzte Zurücksetzen hat, verliert seinen Lernstand (Einstellungen bleiben)
+  const R = Math.max(local.reset || 0, remote.reset || 0), blank = d => ({ known:{}, tests:{}, stars:0, best:0, play:null, settings:d.settings, reset:R });
+  if ((local.reset || 0) < R) local = blank(local);
+  if ((remote.reset || 0) < R) remote = blank(remote);
+  const out = { reset:R, known:{}, tests:{}, stars: Math.max(local.stars || 0, remote.stars || 0), best: Math.max(local.best || 0, remote.best || 0) };
   const ls = local.settings || {}, rs = remote.settings || {};
   out.settings = Object.assign({ max:30, pin:'' }, (rs.t || 0) >= (ls.t || 0) && remote.settings ? rs : ls);
   const lp = local.play, rp = remote.play;
@@ -1454,13 +1458,13 @@ function mergeDB(local, remote, remoteWins){
   });
   return out;
 }
-const snapshotOf = d => JSON.stringify({ known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0 });
-const remoteOf = r => ({ known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0 });
+const snapshotOf = d => JSON.stringify({ known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0, reset:d.reset || 0 });
+const remoteOf = r => ({ known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0 });
 function scheduleCloud(){ if (!CLOUD) return; cloudDirty = true; clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 1500); }
 async function pushCloud(){
   if (!CLOUD || cloudBusy || !cloudDirty) return;
   cloudBusy = true; cloudDirty = false; setSync('saving');
-  try { await CLOUD.set({ known:DB.known, tests:DB.tests, stars:DB.stars, play:DB.play || null, settings:DB.settings || null, best:DB.best || 0, updated:Date.now() }); setSync('ok'); }
+  try { await CLOUD.set({ known:DB.known, tests:DB.tests, stars:DB.stars, play:DB.play || null, settings:DB.settings || null, best:DB.best || 0, reset:DB.reset || 0, updated:Date.now() }); setSync('ok'); }
   catch (e) { setSync('off'); if (e && e.code === 'unavailable') cloudDirty = true; else if (e && ['revoked','not_granted','capability_disabled','capability_removed'].includes(e.code)) CLOUD = null; }
   finally { cloudBusy = false; if (cloudDirty && CLOUD) { clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 4000 + Math.random() * 2000); } }
 }
@@ -2265,7 +2269,19 @@ function parentPanel(){
   ${isHosted() ? familyBox() : ''}
   <h2 class="h2">Letzte Probetests</h2>
   ${res.length ? `<div class="hist">${res.map(r => `<div><span>${new Date(r.d).toLocaleDateString('de-CH')}</span><span class="hn">${esc(names[r.k] || r.k)}</span><b>Note ${fmtNote(r.note)}</b></div>`).join('')}</div>` : '<p class="small">Noch keine Probetests gemacht.</p>'}
+  <h2 class="h2">Lernstand zurücksetzen</h2>
+  <div class="card" id="preset"><p class="small" style="margin-top:0">Löscht auf allen verbundenen Geräten: gelernte Wörter, Probetest-Noten, Sterne, Spiel-Rekord und die heute verdienten Spielminuten. PIN und Tagesmaximum bleiben.</p>
+    <button class="btn" id="pr1">Lernstand zurücksetzen</button></div>
   <div class="row"><button class="btn" id="ppin">PIN ändern</button><button class="btn primary" id="pdone">Fertig</button></div>`;
+  $('#pr1').onclick = () => {
+    $('#preset').innerHTML = `<p style="margin-top:0"><b>Wirklich alles löschen?</b> Das kann nicht rückgängig gemacht werden.</p>
+      <div class="row" style="justify-content:flex-start"><button class="btn" id="pr2" style="background:var(--bad);border-color:var(--bad);color:#fff;box-shadow:0 4px 0 #a51e1e">Ja, alles löschen</button><button class="btn" id="pr0">Abbrechen</button></div>`;
+    $('#pr0').onclick = parentPanel;
+    $('#pr2').onclick = () => {
+      Object.assign(DB, { known:{}, tests:{}, stars:0, best:0, play:null, reset:Date.now() });
+      save(); updateStars(); updatePlay(); toast('Lernstand zurückgesetzt'); parentPanel();
+    };
+  };
   $('#psave').onclick = () => { const v = Math.max(0, Math.min(120, Math.round(+$('#pmax').value || 0))); S.max = v; S.t = Date.now(); save(); updatePlay(); toast('Gespeichert: höchstens ' + v + ' Minuten pro Tag'); parentPanel(); };
   const bonus = n => { P.bonus = (P.bonus || 0) + n; save(); updatePlay(); toast('+' + n + ' Minuten für heute'); parentPanel(); };
   $('#pb5').onclick = () => bonus(5);
@@ -2346,7 +2362,7 @@ window.addEventListener('popstate', () => {
 showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-05-2';
+const APP_VERSION = '2026-11-05-3';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
