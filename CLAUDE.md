@@ -1,11 +1,13 @@
 # Lernsprung – Hinweise für Claude
 
-Lern-App für die Tochter von Ronny (4. Klasse, Primarschule, Kanton St. Gallen).
+Lern-App für die Tochter von Ronny (Schuljahr 2026/27 in der 4. Klasse, ab August 2027 5. Klasse, Primarschule, Kanton St. Gallen). Inhalte für die 4. und 5. Klasse.
 Live: https://rschieler.github.io/Lernsprung/ (GitHub Pages, Branch `main`, Root).
 
 ## Grundsätze
 - Inhalte immer nach **Lehrplan 21 (Lehrplan Volksschule St. Gallen)**. Bringt Ronny Lernziel-Blätter oder Arbeitsblätter als Scan, werden Übungen und Probetests darauf abgestimmt.
-- Englisch folgt **Young World 2** (Klett und Balmer). Mathe, Deutsch und NMG folgen dem Lehrplan 21, nicht einem Lehrmittel.
+- Englisch folgt **Young World 2** (4. Klasse) und **Young World 3** (5. Klasse, Ausgabe 2020) von Klett und Balmer. Französisch (ab 5. Klasse) folgt den Themen von **dis donc! 5** (LMVZ). Mathe, Deutsch und NMG folgen dem Lehrplan 21, nicht einem Lehrmittel.
+- Französisch: Der Kantonsrat hat im September 2025 beschlossen, Französisch in die Oberstufe zu verschieben; Umsetzung offen (Stand Nov. 2026, Vorarbeiten bis Q1 2027). Bei Änderung das Fach `fr` entfernen oder ausblenden.
+- Zyklus 2: Plusquamperfekt und die vier Fälle nur entdecken, nicht abfragen; indirekte Rede erst Zyklus 3.
 - **Keine Inhalte aus Lehrmitteln abschreiben** (Klett untersagt die Nutzung in KI-Systemen). Nur Struktur und Themen übernehmen, Aufgaben selbst formulieren.
 - Schweizer Schreibweise: «ss» statt «ß», Velo, Guetzli, Spital usw. Anführungszeichen « ».
 - Ronny will knappe, präzise Antworten und fertige Lösungen statt Optionen. Er kommuniziert auf Deutsch.
@@ -22,8 +24,8 @@ Alles steckt in **einer Datei: `index.html`** (HTML, CSS, JS, keine Build-Schrit
   - **Quiz-Units**: `quiz: [[Frage, richtig, falsch1, falsch2, falsch3]]`, `write: [[Frage, 'Antwort|Alternative']]`.
   - `sort: { bins:[…], items:[[Text, Kiste]] }` für das Lernspiel Sortieren (sonst aus Wort-Kategorien oder Generatoren mit `fixed`-Optionen). `grammar: { title, tips, examples, quiz, write }` für Grammatik in Wort-Units.
   - `learn: { tips, examples, table?, conj? }` für die Lernseite, `lp` für den Lehrplan-Code, `labels` für eigene Übungsnamen.
-- Lernspiele unter «Üben»: Blitz-Sprung (`showBlitz`), Memory (`showMemory`), Sortieren (`showSort`), Uhr stellen (`showClock`, Unit-Flag `clockGame:true`), Kantonskarte (`showMap`, Unit-Flag `mapGame:'sg1'|'sg2'`, Kartendaten `SGMAP.sg1` (weiter Ausschnitt mit Nachbarkantonen) und `SGMAP.sg2` (Wahlkreise) aus swiss-maps 2024 / BFS). Rekorde in `DB.games`. Memory und Kantonskarte geben keine Spielminuten.
-- Schreiben: Deutsch prüft Gross-/Kleinschreibung (`inputCheck`, `t.cs`). Englisch-Wörter auch Englisch → Deutsch (`B.writeDe`). Nach einem Schreibfehler muss beim Üben richtig abgeschrieben werden.
+- Lernspiele unter «Üben»: Blitz-Sprung (`showBlitz`), Memory (`showMemory`), Sortieren (`showSort`), Uhr stellen (`showClock`, Unit-Flag `clockGame:true`), Kantonskarte (`showMap`, Unit-Flag `mapGame:'sg1'|'sg2'|'ch'`, Kartendaten `SGMAP.sg1` (weiter Ausschnitt mit Nachbarkantonen) und `SGMAP.sg2` (Wahlkreise) aus swiss-maps 2024 / BFS). Rekorde in `DB.games`. Memory und Kantonskarte geben keine Spielminuten.
+- Schreiben: Deutsch prüft Gross-/Kleinschreibung (`inputCheck`, `t.cs`). Dezimalzahlen: `dec:true` (Punkt oder Komma). Französisch: Artikel optional, fehlende Akzente gelten mit Hinweis als richtig. Englisch-Wörter auch Englisch → Deutsch (`B.writeDe`). Nach einem Schreibfehler muss beim Üben richtig abgeschrieben werden.
 - Spielminuten nur nach Note (`noteOf`, Tabellen `MIN_PRACTICE` und `MIN_TEST`, `earnNote`). Lernkarten geben keine Minuten, «Fehler üben» 1 Min wenn alles korrigiert, unter 2 s Denkzeit pro Aufgabe (`tooFast`) 0 Min, Verbesserung im Probetest +2 Min. Jede Übung zählt höchstens zweimal pro Tag.
 - Spielminuten-Technik: `earn()`, `playState()`, Spiel `showGame()`, Eltern-Bereich `showParents()` (PIN, Tagesmaximum Standard 30 Min, änderbar).
 

@@ -11,8 +11,8 @@ const step = () => { const o = d.querySelector('.opt:not([disabled])'), f = d.qu
   if (o) o.click(); else if (f && !d.querySelector('#inp').disabled) submit(); else if (d.querySelector('.ltile:not(.used)')) d.querySelectorAll('.ltile').forEach(b => b.click()); };
 setTimeout(() => { try {
   const cat = w.eval('CATALOG'), games = {};
-  for (let si = 0; si < cat.length; si++) {
-    w.eval(`NAV.n=4;NAV.s=CATALOG[${si}];NAV.g=NAV.s.grades[0];setColor();showUnits()`);
+  for (let si = 0; si < cat.length; si++) for (let gi = 0; gi < cat[si].grades.length; gi++) {
+    w.eval(`NAV.s=CATALOG[${si}];NAV.g=NAV.s.grades[${gi}];NAV.n=NAV.g.grade;setColor();showUnits()`);
     const n = d.querySelectorAll('.unit').length;
     for (let u = 0; u < n; u++) {
       w.eval('showUnits()'); d.querySelectorAll('.unit')[u].click(); d.querySelector('#tLearn').click();
@@ -34,7 +34,7 @@ setTimeout(() => { try {
       for (let g = 0; g < 60 && !d.querySelector('.note'); g++) { step(); w.eval('nextTask()'); }
       if (!d.querySelector('.note')) throw new Error(`Probetest nicht fertig: Fach ${si} Unit ${u}`);
     }
-    console.log(`${cat[si].name}: ${n} Units OK`);
+    console.log(`${cat[si].name} ${cat[si].grades[gi].grade}. Klasse: ${n} Units OK`);
   }
   w.eval('showGame()'); if (d.querySelector('#gGo')) d.querySelector('#gGo').click();
   w.eval('showParents()'); d.querySelector('#p1').value = '1234'; if (d.querySelector('#p2')) d.querySelector('#p2').value = '1234';
