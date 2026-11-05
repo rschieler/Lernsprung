@@ -1,0 +1,1 @@
+{ "name": "lernsprung-tests", "private": true, "devDependencies": { "jsdom": "24.1.3" } }
