@@ -2301,13 +2301,52 @@ function familyBox(){
 }
 
 /* Start */
-$('#homeBtn').onclick = showHome;
-$('#playBtn').onclick = showGame;
+$('#homeBtn').onclick = () => showHome();
+$('#playBtn').onclick = () => showGame();
 updateStars(); updatePlay();
+/* Zurück-Taste (Android, Browser): eine Ebene zurück statt App schliessen */
+const SCREENS = { showHome:'home', showSubjects:'subjects', showUnits:'units', showUnit:'unit', showLearn:'learn', showLearnGen:'learnGen',
+  flash:'sub', wordList:'sub', abcBoard:'sub', showGrammar:'sub', showPractice:'practice', showCustomTest:'testIntro', showTestIntro:'testIntro',
+  run:'run', showGame:'game', showParents:'parents' };
+let CUR = 'home', RET = null, ARMED = false, SKIP = false, BACKWARN = 0;
+const hist = (fn, ...a) => { try { history[fn](...a); } catch (e) {} };
+Object.entries(SCREENS).forEach(([n, id]) => {
+  const f = window[n];
+  window[n] = function(...args){
+    if ((id === 'game' || id === 'parents') && CUR !== 'game' && CUR !== 'parents') RET = CUR;
+    CUR = id; const r = f.apply(this, args);
+    if (id === 'home') { if (ARMED) { ARMED = false; SKIP = true; hist('back'); } }
+    else if (!ARMED) { ARMED = true; hist('pushState', { ls:1 }, ''); }
+    return r;
+  };
+});
+const PARENT = { subjects:'showHome', units:'showSubjects', unit:'showUnits', learn:'showUnit', learnGen:'showUnit', sub:'showLearn',
+  practice:'showUnit', testIntro:'showUnit' };
+function appBack(){
+  if (CUR === 'run') {
+    const done = $('.bigstars') || $('.note');
+    if (!done && Date.now() - BACKWARN > 2500) { BACKWARN = Date.now(); toast('Nochmals zurück drücken, um aufzuhören.'); return false; }
+    return (SES && SES.test ? showUnit : showPractice)(), true;
+  }
+  if (CUR === 'game' || CUR === 'parents') {
+    const to = { home:'showHome', subjects:'showSubjects', units:'showUnits', unit:'showUnit', learn:'showUnit', learnGen:'showUnit', sub:'showLearn', practice:'showPractice', testIntro:'showUnit', run:'showUnit' }[RET] || 'showHome';
+    if (to !== 'showHome' && !NAV.s) return showHome(), true;
+    return window[to](), true;
+  }
+  window[PARENT[CUR] || 'showHome'](); return true;
+}
+window.addEventListener('popstate', () => {
+  if (SKIP) { SKIP = false; return; }
+  ARMED = false;
+  if (CUR === 'home') { hist('back'); return; }
+  appBack();
+  if (CUR !== 'home' && !ARMED) { ARMED = true; hist('pushState', { ls:1 }, ''); }
+});
+
 showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-05-1';
+const APP_VERSION = '2026-11-05-2';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
