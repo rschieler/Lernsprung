@@ -44,5 +44,16 @@ setTimeout(() => { try {
   const m2 = w.eval(`mergeDB({ known:{ x:{ dog:0 } }, tests:{}, stars:1, best:0, play:null, settings:{ max:30, pin:'' }, reset:0 }, Object.assign({}, DB, { stars:3, known:{ y:{ cat:1 } } }), true)`);
   if (m2.stars !== 3 || m2.known.x || !m2.known.y || !m2.reset) throw new Error('Zurücksetzen kommt auf dem zweiten Gerät nicht an');
   console.log('OK: Zurücksetzen');
+  // Spielminuten nach Note
+  const em = w.eval(`(() => { const o = [];
+    DB.play = null; DB.settings.max = 30;
+    o.push(noteOf(10,10), noteOf(9,10), noteOf(7,10), noteOf(3,10));
+    o.push(earnNote(6, MIN_PRACTICE, 'tA').add, earnNote(5.5, MIN_PRACTICE, 'tB').add, earnNote(4, MIN_PRACTICE, 'tC').add, earnNote(4, MIN_TEST, 'tD').add, earnNote(6, MIN_TEST, 'tE', 2).add);
+    earnNote(6, MIN_PRACTICE, 'tA'); o.push(earnNote(6, MIN_PRACTICE, 'tA').why);
+    SES = { results:[1,2,3,4,5], think:5 * 900 }; o.push(tooFast());
+    SES = { results:[1,2,3,4,5], think:5 * 4000 }; o.push(tooFast());
+    return JSON.stringify(o); })()`);
+  if (em !== JSON.stringify([6, 5.5, 4.5, 2.5, 4, 3, 0, 2, 12, 'repeat', true, false])) throw new Error('Spielminuten-Regeln falsch: ' + em);
+  console.log('OK: Spielminuten nach Note');
   console.log('OK: alles durchgeklickt'); process.exit(0);
 } catch (e) { console.log('FEHLER:', e.message); process.exit(1); } }, 300);

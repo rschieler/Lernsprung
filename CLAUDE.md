@@ -21,7 +21,8 @@ Alles steckt in **einer Datei: `index.html`** (HTML, CSS, JS, keine Build-Schrit
   - **Generator-Units**: `gen: 'name'` → Funktion in `GEN`. Rückgabe `{ prompt, q, answer, options?|choices?, fixed?, alts?, uml?, unit?, html?, sol }`. Zahlen-Antworten = Eingabe, `options` = immer Auswahl, `choices` = Ablenker für den Auswahl-Modus. `choiceOnly: true` = nur Auswahl.
   - **Quiz-Units**: `quiz: [[Frage, richtig, falsch1, falsch2, falsch3]]`, `write: [[Frage, 'Antwort|Alternative']]`.
   - `learn: { tips, examples, table?, conj? }` für die Lernseite, `lp` für den Lehrplan-Code, `labels` für eigene Übungsnamen.
-- Spielminuten: `earn()`, `playState()`, Spiel `showGame()`, Eltern-Bereich `showParents()` (PIN, Tagesmaximum Standard 30 Min, änderbar).
+- Spielminuten nur nach Note (`noteOf`, Tabellen `MIN_PRACTICE` und `MIN_TEST`, `earnNote`). Lernkarten geben keine Minuten, «Fehler üben» 1 Min wenn alles korrigiert, unter 2 s Denkzeit pro Aufgabe (`tooFast`) 0 Min, Verbesserung im Probetest +2 Min. Jede Übung zählt höchstens zweimal pro Tag.
+- Spielminuten-Technik: `earn()`, `playState()`, Spiel `showGame()`, Eltern-Bereich `showParents()` (PIN, Tagesmaximum Standard 30 Min, änderbar).
 
 ## Synchronisation
 - Auf GitHub Pages: **Firebase Firestore**, Dokument `families/{Familien-Code}` (Projekt `lernsprung-ea1d2`, Anonym-Login). Der Code steckt im Link `?f=…` und im localStorage.

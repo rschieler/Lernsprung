@@ -1691,9 +1691,8 @@ function flash(dir, onlyHard){
   draw();
 }
 function flashDone(dir, onlyHard, total){
-  const er = earn(2, 'f:' + ukey() + ':' + dir);
   app.innerHTML = `<div class="card center"><div class="bigstars">★★★</div><h2 class="h1">Geschafft!</h2>
-    <p>Du hast alle ${total} Karten durch.</p>${earnHTML(er)}
+    <p>Du hast alle ${total} Karten durch.</p><p class="earn off">Spielminuten gibt es beim Üben und im Probetest. Je besser die Note, desto mehr Minuten.</p>
     <div class="row"><button class="btn primary" id="p">Jetzt üben</button><button class="btn" id="a">Nochmal lernen</button><button class="btn" id="b">Zurück</button></div></div>`;
   $('#p').onclick = showPractice;
   $('#a').onclick = () => flash(dir, onlyHard && hardWords(NAV.u).length > 0);
@@ -1953,7 +1952,7 @@ let SES = null;
 function run(tasks, opt){ stop(); SES = Object.assign({ tasks, i:0, right:0, streak:0, results:[], test:false, locked:false }, opt); showTask(); }
 
 function showTask(){
-  SES.locked = false;
+  SES.locked = false; SES.shown = Date.now();
   const t = SES.tasks[SES.i], n = SES.tasks.length;
   let h = '';
   if (t.part) h += `<span class="part">${esc(t.part)}</span>`;
@@ -2039,6 +2038,7 @@ function answer(ok, given){
   if (SES.locked) return; SES.locked = true;
   const t = SES.tasks[SES.i];
   SES.results.push({ t, given, ok });
+  SES.think = (SES.think || 0) + Math.min(60000, Date.now() - (SES.shown || Date.now()));
   if (ok) SES.right++;
   if (t.word && !ok) markWord(t.word, 0, t.wkey);
   const tk = ++TOKEN;
@@ -2070,9 +2070,13 @@ function endPractice(){
   stop();
   const n = SES.tasks.length, p = SES.right / n, st = p >= .9 ? 3 : p >= .6 ? 2 : 1;
   const msg = st === 3 ? 'Fantastisch!' : st === 2 ? 'Sehr gut! Noch ein bisschen üben.' : 'Gut gemacht! Probier es gleich nochmals.';
-  const er = earn(p >= .7 ? 3 : 2, SES.ekey || ('fix:' + ukey()));
+  const note = noteOf(SES.right, n), fast = tooFast();
+  const msg2 = SES.fix ? msg : note >= 5.5 ? 'Fantastisch!' : note >= 4.5 ? 'Gut gemacht! Noch ein bisschen üben.' : 'Probier es gleich nochmals.';
+  const er = fast ? { add:0, why:'fast' }
+    : SES.fix ? (SES.right === n ? earn(1, 'fix:' + ukey()) : { add:0, why:'fix' })
+    : earnNote(note, MIN_PRACTICE, SES.ekey || ('p:' + ukey()));
   app.innerHTML = `<div class="card center"><div class="bigstars" aria-label="${st} von 3 Sternen">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</div>
-    <h2 class="h1">${msg}</h2><p class="word">${SES.right} von ${n} richtig</p>${earnHTML(er)}
+    <h2 class="h1">${msg2}</h2><p class="word">${SES.right} von ${n} richtig</p>${SES.fix ? '' : `<p style="margin:-6px 0 0;font-weight:800">Note ${fmtNote(note)}</p>`}${earnHTML(er)}
     <div class="row">${SES.restart ? '<button class="btn primary" id="again">Nochmal spielen</button>' : ''}<button class="btn" id="other">Anderes Spiel</button><button class="btn" id="unit">Zur Unit</button></div></div>`;
   if ($('#again')) $('#again').onclick = SES.restart;
   $('#other').onclick = showPractice;
@@ -2084,8 +2088,11 @@ function endTest(){
   const R = SES.results, n = R.length, pts = R.filter(r => r.ok).length;
   const note = Math.round((pts / n * 5 + 1) * 2) / 2;
   const k = SES.histKey || ukey(), again = SES.restart || showTestIntro;
+  const prev = (DB.tests[k] || []).reduce((m, t) => Math.max(m, t.note || 0), 0);
   DB.tests[k] = (DB.tests[k] || []).concat({ d:Date.now(), note, pts, n }).slice(-10); save();
-  const er = earn(5, 't:' + k);
+  const better = prev > 0 && note > prev && (MIN_TEST[note] || 0) > 0;
+  const er = tooFast() ? { add:0, why:'fast' } : earnNote(note, MIN_TEST, 't:' + k, better ? 2 : 0);
+  if (er.add > 0 && better) er.better = true;
   const wrong = R.filter(r => !r.ok);
   const msg = note >= 5.5 ? 'Super vorbereitet! Du bist bereit für den Test.'
     : note >= 4.5 ? 'Gut gemacht! Schau dir die Fehler nochmals an.'
@@ -2099,7 +2106,7 @@ function endTest(){
       <div>${r.t.grid === 'pics' ? '' : (r.t.pic ? r.t.pic + ' ' : '')}${esc(r.t.prompt)} ${r.t.grid === 'pics' ? '' : (r.t.plain ? esc(r.t.plain) : strip(r.t.text))}</div>
       <div class="mg">Deine Antwort: ${esc(r.given || '–')}</div>
       <div class="ma">Richtig: <b>${esc(r.t.solution)}</b></div></div>`).join('')}</div>` : ''}`;
-  if ($('#fix')) $('#fix').onclick = () => run(wrong.map(r => Object.assign({}, r.t, { part:null })), { restart:null });
+  if ($('#fix')) $('#fix').onclick = () => run(wrong.map(r => Object.assign({}, r.t, { part:null })), { restart:null, fix:true });
   $('#again').onclick = again;
   $('#unit').onclick = showUnit;
 }
@@ -2121,6 +2128,18 @@ const maxMin = () => { const m = DB.settings && DB.settings.max; return typeof m
 const remaining = () => { const P = playState(); return Math.max(0, Math.min(P.earned, maxMin()) + (P.bonus || 0) - P.used); };
 const fmtRest = () => { const r = remaining(); return r >= 1 ? String(Math.floor(r)) : r > 0 ? '<1' : '0'; };
 function updatePlay(){ const b = $('#playBtn'); if (b) b.textContent = '🎮 ' + fmtRest() + ' Min'; }
+/* Spielminuten nach Note (Schweizer Skala 1–6) */
+const MIN_PRACTICE = { 6:4, 5.5:3, 5:2, 4.5:1 };
+const MIN_TEST = { 6:10, 5.5:8, 5:6, 4.5:4, 4:2 };
+const noteOf = (right, n) => n ? Math.round((right / n * 5 + 1) * 2) / 2 : 1;
+const tooFast = () => SES && SES.results.length >= 3 && (SES.think || 0) / SES.results.length < 2000;
+function earnNote(note, table, key, extra){
+  const base = table[note] || 0;
+  const r = base > 0 ? earn(base + (extra || 0), key) : { add:0, why:'low' };
+  const next = Object.keys(table).map(Number).sort((a,b) => a - b).find(x => x > note);
+  if (next) r.hint = `Mit Note ${fmtNote(next)} ${base > 0 ? 'hättest du' : 'gibt es'} ${table[next]} Minute${table[next] > 1 ? 'n' : ''}${base > 0 ? ' bekommen' : ''}.`;
+  return r;
+}
 function earn(min, key){
   const P = playState(), max = maxMin();
   if (P.earned >= max) return { add:0, why:'max' };
@@ -2130,7 +2149,10 @@ function earn(min, key){
   return { add:Math.round(P.earned - before), why: P.earned >= max ? 'max' : '' };
 }
 const earnHTML = r => r.add > 0
-  ? `<p class="earn">🎮 +${r.add} Spielminuten${r.why === 'max' ? '. Für heute hast du jetzt alle Minuten gesammelt.' : ''}</p>`
+  ? `<p class="earn">🎮 +${r.add} Spielminute${r.add > 1 ? 'n' : ''}${r.better ? ' (mit 2 Extra-Minuten, weil du dich verbessert hast)' : ''}${r.why === 'max' ? '. Für heute hast du jetzt alle Minuten gesammelt.' : ''}</p>${r.hint && r.why !== 'max' ? `<p class="small">${r.hint}</p>` : ''}`
+  : r.why === 'fast' ? '<p class="earn off">Zu schnell! Lies die Aufgaben genau, dann gibt es Spielminuten.</p>'
+  : r.why === 'low' ? `<p class="earn off">Diesmal keine Spielminuten. ${r.hint || ''}</p>`
+  : r.why === 'fix' ? '<p class="earn off">Korrigiere alle Fehler, dann gibt es 1 Spielminute.</p>'
   : r.why === 'repeat' ? '<p class="earn off">Für diese Übung gibt es heute keine Spielminuten mehr. Probier eine andere Übung!</p>'
   : '<p class="earn off">Für heute hast du alle Spielminuten gesammelt. Super gelernt!</p>';
 
@@ -2143,8 +2165,9 @@ function showGame(){
   <div class="gamewrap"><canvas id="cv" width="720" height="320" aria-label="Spielfeld"></canvas><div class="gover" id="gover" hidden></div></div>
   <p class="small center">Tippe aufs Spielfeld oder drücke die Leertaste, um zu springen. Sammle Sterne und spring über die Steine.</p>
   <h2 class="h2">So verdienst du Spielminuten</h2>
-  <div class="tip">🎯 Übungsrunde fertig: 2 Minuten. Mit mindestens 7 von 10 richtig: 3 Minuten.</div>
-  <div class="tip">📝 Probetest: 5 Minuten · 📖 Alle Lernkarten durch: 2 Minuten</div>
+  <div class="tip">🎯 Übungsrunde: Note 6 = 4 Min, 5,5 = 3 Min, 5 = 2 Min, 4,5 = 1 Min</div>
+  <div class="tip">📝 Probetest: Note 6 = 10 Min, 5,5 = 8 Min, 5 = 6 Min, 4,5 = 4 Min, 4 = 2 Min. Besser als dein bisher bester Test: +2 Min</div>
+  <div class="tip">🛠️ Alle Fehler korrigiert: 1 Min · Wer zu schnell tippt, bekommt keine Minuten.</div>
   <div class="tip">🔁 Jede Übung zählt höchstens zweimal pro Tag. Heute sind höchstens ${max} Minuten möglich.</div>
   <p class="center"><button class="linkbtn" id="gParents">👪 Eltern-Bereich</button></p>`;
   $('#gParents').onclick = showParents;
@@ -2362,7 +2385,7 @@ window.addEventListener('popstate', () => {
 showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-05-3';
+const APP_VERSION = '2026-11-05-4';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
