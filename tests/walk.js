@@ -47,13 +47,13 @@ setTimeout(() => { try {
   // Spielminuten nach Note
   const em = w.eval(`(() => { const o = [];
     DB.play = null; DB.settings.max = 30;
-    o.push(noteOf(10,10), noteOf(9,10), noteOf(7,10), noteOf(3,10));
+    o.push(noteOf(10,10), noteOf(9,10), noteOf(7,10), noteOf(3,10), earnNote(5, MIN_PRACTICE, 'tF').add, earnNote(5, MIN_TEST, 'tG').add);
     o.push(earnNote(6, MIN_PRACTICE, 'tA').add, earnNote(5.5, MIN_PRACTICE, 'tB').add, earnNote(4, MIN_PRACTICE, 'tC').add, earnNote(4, MIN_TEST, 'tD').add, earnNote(6, MIN_TEST, 'tE', 2).add);
     earnNote(6, MIN_PRACTICE, 'tA'); o.push(earnNote(6, MIN_PRACTICE, 'tA').why);
     SES = { results:[1,2,3,4,5], think:5 * 900 }; o.push(tooFast());
     SES = { results:[1,2,3,4,5], think:5 * 4000 }; o.push(tooFast());
     return JSON.stringify(o); })()`);
-  if (em !== JSON.stringify([6, 5.5, 4.5, 2.5, 4, 3, 0, 2, 12, 'repeat', true, false])) throw new Error('Spielminuten-Regeln falsch: ' + em);
+  if (em !== JSON.stringify([6, 5.5, 4.5, 2.5, 0, 0, 4, 3, 0, 0, 12, 'repeat', true, false])) throw new Error('Spielminuten-Regeln falsch: ' + em);
   console.log('OK: Spielminuten nach Note');
   console.log('OK: alles durchgeklickt'); process.exit(0);
 } catch (e) { console.log('FEHLER:', e.message); process.exit(1); } }, 300);

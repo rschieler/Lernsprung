@@ -2129,8 +2129,8 @@ const remaining = () => { const P = playState(); return Math.max(0, Math.min(P.e
 const fmtRest = () => { const r = remaining(); return r >= 1 ? String(Math.floor(r)) : r > 0 ? '<1' : '0'; };
 function updatePlay(){ const b = $('#playBtn'); if (b) b.textContent = '🎮 ' + fmtRest() + ' Min'; }
 /* Spielminuten nach Note (Schweizer Skala 1–6) */
-const MIN_PRACTICE = { 6:4, 5.5:3, 5:2, 4.5:1 };
-const MIN_TEST = { 6:10, 5.5:8, 5:6, 4.5:4, 4:2 };
+const MIN_PRACTICE = { 6:4, 5.5:3 };
+const MIN_TEST = { 6:10, 5.5:8 };
 const noteOf = (right, n) => n ? Math.round((right / n * 5 + 1) * 2) / 2 : 1;
 const tooFast = () => SES && SES.results.length >= 3 && (SES.think || 0) / SES.results.length < 2000;
 function earnNote(note, table, key, extra){
@@ -2165,8 +2165,8 @@ function showGame(){
   <div class="gamewrap"><canvas id="cv" width="720" height="320" aria-label="Spielfeld"></canvas><div class="gover" id="gover" hidden></div></div>
   <p class="small center">Tippe aufs Spielfeld oder drücke die Leertaste, um zu springen. Sammle Sterne und spring über die Steine.</p>
   <h2 class="h2">So verdienst du Spielminuten</h2>
-  <div class="tip">🎯 Übungsrunde: Note 6 = 4 Min, 5,5 = 3 Min, 5 = 2 Min, 4,5 = 1 Min</div>
-  <div class="tip">📝 Probetest: Note 6 = 10 Min, 5,5 = 8 Min, 5 = 6 Min, 4,5 = 4 Min, 4 = 2 Min. Besser als dein bisher bester Test: +2 Min</div>
+  <div class="tip">🎯 Übungsrunde: Note 6 = 4 Min, Note 5,5 = 3 Min</div>
+  <div class="tip">📝 Probetest: Note 6 = 10 Min, Note 5,5 = 8 Min. Besser als dein bisher bester Test: +2 Min</div>
   <div class="tip">🛠️ Alle Fehler korrigiert: 1 Min · Wer zu schnell tippt, bekommt keine Minuten.</div>
   <div class="tip">🔁 Jede Übung zählt höchstens zweimal pro Tag. Heute sind höchstens ${max} Minuten möglich.</div>
   <p class="center"><button class="linkbtn" id="gParents">👪 Eltern-Bereich</button></p>`;
@@ -2385,7 +2385,7 @@ window.addEventListener('popstate', () => {
 showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-05-4';
+const APP_VERSION = '2026-11-05-5';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
