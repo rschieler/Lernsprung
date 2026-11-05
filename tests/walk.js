@@ -52,6 +52,9 @@ setTimeout(() => { try {
     inputCheck({ answer:'Library' }, 'library').ok ])`);
   if (ck !== '[true,false,true,true,false,true]') throw new Error('Schreib-Prüfung falsch: ' + ck);
   console.log('OK: Gross- und Kleinschreibung');
+  const cp = w.eval(`JSON.stringify([clockPhrase(3,0), clockPhrase(3,15), clockPhrase(3,30), clockPhrase(3,45), clockPhrase(12,45), clockPhrase(3,25), clockPhrase(3,35), clockPhrase(3,40), clockPhrase(11,50)])`);
+  if (cp !== JSON.stringify(['3 Uhr','Viertel nach 3','halb 4','Viertel vor 4','Viertel vor 1','5 vor halb 4','5 nach halb 4','20 vor 4','10 vor 12'])) throw new Error('Uhrzeit-Formulierung falsch: ' + cp);
+  console.log('OK: Uhrzeiten');
   // Zurücksetzen im Eltern-Bereich
   if (!(w.eval('DB.stars') > 0)) throw new Error('Vor dem Zurücksetzen keine Sterne gesammelt');
   d.querySelector('#pr1').click(); d.querySelector('#pr2').click();

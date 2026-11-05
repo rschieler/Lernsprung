@@ -22,7 +22,7 @@ Alles steckt in **einer Datei: `index.html`** (HTML, CSS, JS, keine Build-Schrit
   - **Quiz-Units**: `quiz: [[Frage, richtig, falsch1, falsch2, falsch3]]`, `write: [[Frage, 'Antwort|Alternative']]`.
   - `sort: { bins:[…], items:[[Text, Kiste]] }` für das Lernspiel Sortieren (sonst aus Wort-Kategorien oder Generatoren mit `fixed`-Optionen). `grammar: { title, tips, examples, quiz, write }` für Grammatik in Wort-Units.
   - `learn: { tips, examples, table?, conj? }` für die Lernseite, `lp` für den Lehrplan-Code, `labels` für eigene Übungsnamen.
-- Lernspiele unter «Üben»: Blitz-Sprung (`showBlitz`), Memory (`showMemory`), Sortieren (`showSort`). Rekorde in `DB.games`.
+- Lernspiele unter «Üben»: Blitz-Sprung (`showBlitz`), Memory (`showMemory`), Sortieren (`showSort`), Uhr stellen (`showClock`, Unit-Flag `clockGame:true`), Kantonskarte (`showMap`, Unit-Flag `mapGame:'sg1'|'sg2'`, Kartendaten `SGMAP` aus swiss-maps 2024 / BFS). Rekorde in `DB.games`. Memory und Kantonskarte geben keine Spielminuten.
 - Schreiben: Deutsch prüft Gross-/Kleinschreibung (`inputCheck`, `t.cs`). Englisch-Wörter auch Englisch → Deutsch (`B.writeDe`). Nach einem Schreibfehler muss beim Üben richtig abgeschrieben werden.
 - Spielminuten nur nach Note (`noteOf`, Tabellen `MIN_PRACTICE` und `MIN_TEST`, `earnNote`). Lernkarten geben keine Minuten, «Fehler üben» 1 Min wenn alles korrigiert, unter 2 s Denkzeit pro Aufgabe (`tooFast`) 0 Min, Verbesserung im Probetest +2 Min. Jede Übung zählt höchstens zweimal pro Tag.
 - Spielminuten-Technik: `earn()`, `playState()`, Spiel `showGame()`, Eltern-Bereich `showParents()` (PIN, Tagesmaximum Standard 30 Min, änderbar).
