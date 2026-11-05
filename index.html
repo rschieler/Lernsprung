@@ -215,6 +215,25 @@ mark{background:#ffe27a;color:#1b2238;border-radius:6px;padding:0 4px}
 @keyframes pop{50%{transform:scale(1.06)}}
 @keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Lernspiele */
+.bhead{display:flex;align-items:baseline;gap:6px;font-weight:700}.bhead b{font-size:1.8rem;font-weight:900}.bsc{margin-left:auto}
+.btrack{position:relative;height:46px;background:var(--soft);border-radius:14px;margin:8px 0 14px;overflow:hidden}
+.bbar{position:absolute;left:0;top:0;bottom:0;width:100%;background:color-mix(in srgb,var(--c) 22%,transparent);transition:width .1s linear}
+#broo{position:absolute;left:6%;top:6px;font-size:1.8rem;transition:left .25s}
+#broo.hop{animation:hop .35s}@keyframes hop{50%{transform:translateY(-14px)}}
+@media(prefers-reduced-motion:reduce){#broo.hop{animation:none}#broo{transition:none}}
+.memgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+@media(min-width:600px){.memgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.mcard{min-height:86px;display:flex;align-items:center;justify-content:center;overflow-wrap:anywhere;hyphens:auto;line-height:1.2;border-radius:14px;border:none;background:var(--c);color:#fff;font:inherit;font-weight:800;font-size:1rem;padding:8px;cursor:pointer;box-shadow:0 4px 0 color-mix(in srgb,var(--c) 70%,#000)}
+.mcard span{display:none}.mcard::before{content:"?";font-size:1.6rem}
+.mcard.open,.mcard.done{background:#fff;color:var(--ink);border:2px solid var(--c);box-shadow:none}.mcard.open::before,.mcard.done::before{content:none}
+.mcard.open span,.mcard.done span{display:block}.mcard.done{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,#fff)}
+.sortcard{min-height:120px;display:flex;align-items:center;justify-content:center}
+.bins{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:14px}
+.bin{border:2px dashed var(--c);background:#fff;border-radius:16px;padding:16px 8px;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink)}
+.bin b{font-size:1.05rem}.bin span{font-size:.85rem;color:var(--muted)}
+.bin.ok{background:color-mix(in srgb,var(--ok) 15%,#fff);border-color:var(--ok)}.bin.no{background:color-mix(in srgb,var(--bad) 12%,#fff);border-color:var(--bad)}
 </style>
 </head>
 <body>
@@ -526,7 +545,7 @@ const CATALOG = [
         'Oft kommt ein Umlaut dazu: alt → älter → am ältesten, gross → grösser → am grössten.',
         'Ein paar Adjektive sind ganz unregelmässig: gut → besser → am besten, viel → mehr → am meisten, gern → lieber → am liebsten.'],
         examples:['klein → kleiner → am kleinsten','kalt → kälter → am kältesten','hoch → höher → am höchsten','gut → besser → am besten'] }},
-    { id:'wfam', no:'Thema 8', title:'Wortstamm und Wortfamilien', de:'Wörter mit dem gleichen Stamm finden und zerlegen', icon:'🌿', lp:'D.5.D.1.c, D.5.E.1.c',
+    { id:'wfam', no:'Thema 8', title:'Wortstamm und Wortfamilien', de:'Wörter mit dem gleichen Stamm finden und zerlegen', icon:'🌿', sort:{"bins": ["fahren", "spielen", "Haus"], "items": [["Fahrer", "fahren"], ["Abfahrt", "fahren"], ["gefahren", "fahren"], ["Fahrkarte", "fahren"], ["Vorfahrt", "fahren"], ["Spieler", "spielen"], ["Spielplatz", "spielen"], ["verspielt", "spielen"], ["Spielzeug", "spielen"], ["Häuschen", "Haus"], ["Hausaufgabe", "Haus"], ["Haustür", "Haus"], ["Hausdach", "Haus"]]}, lp:'D.5.D.1.c, D.5.E.1.c',
       learn:{ tips:['Wörter mit dem gleichen Wortstamm gehören zu einer Wortfamilie: fahren, Fahrer, Fahrrad, abfahren.',
         'Den Wortstamm findest du, wenn du Vorsilben und Endungen weglässt: ge-spiel-t → spiel.',
         'Vor dem Stamm können Vorsilben stehen: ab-, an-, ver-, vor-. Nach dem Stamm können Endungen stehen: -er, -ung, -heit, -lich.',
@@ -556,7 +575,7 @@ const CATALOG = [
         ['Schreib den Wortstamm: Lehrerin','lehr'],['Schreib den Wortstamm: gelernt','lern'],['Schreib den Wortstamm: Wohnung','wohn'],
         ['Schreib den Wortstamm: Malerin','mal'],['Schreib den Wortstamm: Spieler','spiel']
       ]},
-    { id:'umlaut', no:'Thema 9', title:'ä oder e? äu oder eu?', de:'Die Stammregel hilft beim Schreiben', icon:'🔍', lp:'D.5.E.1.c',
+    { id:'umlaut', no:'Thema 9', title:'ä oder e? äu oder eu?', de:'Die Stammregel hilft beim Schreiben', icon:'🔍', sort:{"bins": ["ä", "e", "äu", "eu"], "items": [["H_nde", "ä"], ["Bl_tter", "ä"], ["W_lder", "ä"], ["l_nger", "ä"], ["k_lter", "ä"], ["B_tt", "e"], ["W_lt", "e"], ["h_lfen", "e"], ["F_nster", "e"], ["St_rn", "e"], ["B_me", "äu"], ["H_ser", "äu"], ["M_se", "äu"], ["tr_men", "äu"], ["h_te", "eu"], ["F_er", "eu"], ["Fr_nd", "eu"], ["L_te", "eu"]]}, lp:'D.5.E.1.c',
       learn:{ tips:['Hörst du «e», kann es auch «ä» sein. Suche ein verwandtes Wort mit «a»: Hände kommt von Hand, also ä.',
         'Hörst du «eu», kann es auch «äu» sein. Suche ein verwandtes Wort mit «au»: Bäume kommt von Baum, also äu.',
         'Findest du kein verwandtes Wort mit a oder au, schreibst du e oder eu: Berg, Freunde.'],
@@ -576,7 +595,7 @@ const CATALOG = [
         ['die Hand → die ...','Hände|die Hände'],['der Wald → die ...','Wälder|die Wälder'],['die Maus → die ...','Mäuse|die Mäuse'],
         ['das Blatt → die ...','Blätter|die Blätter'],['die Stadt → die ...','Städte|die Städte']
       ]},
-    { id:'ie', no:'Thema 10', title:'ie oder i? Wörter mit h', de:'Langes und kurzes i, das Dehnungs-h', icon:'🐝', lp:'D.5.E.1.c',
+    { id:'ie', no:'Thema 10', title:'ie oder i? Wörter mit h', de:'Langes und kurzes i, das Dehnungs-h', icon:'🐝', sort:{"bins": ["ie", "i"], "items": [["L_d", "ie"], ["Br_f", "ie"], ["Z_l", "ie"], ["v_l", "ie"], ["Sp_l", "ie"], ["T_r", "ie"], ["W_se", "ie"], ["R_se", "ie"], ["l_b", "ie"], ["K_nd", "i"], ["B_ld", "i"], ["W_nd", "i"], ["T_sch", "i"], ["F_sch", "i"], ["R_ng", "i"], ["M_lch", "i"], ["K_ste", "i"], ["Z_mmer", "i"]]}, lp:'D.5.E.1.c',
       learn:{ tips:['Klingt das i lang, schreibst du meistens «ie»: Biene, Spiel, Lied.',
         'Klingt das i kurz, schreibst du «i»: Kind, Fisch, Ring.',
         'Probe: Sprich das Wort langsam und deutlich. Hörst du ein langes «iiii»?',
@@ -598,7 +617,7 @@ const CATALOG = [
         ['Setze ie oder i ein: Br_f','Brief'],['Setze ie oder i ein: L_d','Lied'],['Setze ie oder i ein: F_sch','Fisch'],
         ['Setze ie oder i ein: T_r','Tier'],['Setze ie oder i ein: R_ng','Ring']
       ]},
-    { id:'cktz', no:'Thema 11', title:'ck oder k? tz oder z?', de:'Nach kurzem Vokal ck und tz', icon:'🐱', lp:'D.5.E.1.c',
+    { id:'cktz', no:'Thema 11', title:'ck oder k? tz oder z?', de:'Nach kurzem Vokal ck und tz', icon:'🐱', sort:{"bins": ["ck", "k", "tz", "z"], "items": [["Ja_e", "ck"], ["Zu_er", "ck"], ["Glü_", "ck"], ["Schne_e", "ck"], ["Brü_e", "ck"], ["Ban_", "k"], ["Dun_el", "k"], ["Gur_e", "k"], ["Fal_e", "k"], ["Ha_en", "k"], ["Ka_e", "tz"], ["Pla_", "tz"], ["Mü_e", "tz"], ["Hi_e", "tz"], ["Sa_", "tz"], ["Her_", "z"], ["Kran_", "z"], ["Wur_el", "z"], ["Pil_", "z"], ["Hol_", "z"]]}, lp:'D.5.E.1.c',
       learn:{ tips:['Nach einem kurzen Vokal schreibst du «ck» oder «tz»: Jacke, Glück, Katze, Platz.',
         'Nach einem Konsonanten (l, n, r) oder nach au, ei, eu schreibst du nur «k» oder «z»: Bank, Wolke, Herz, Salz, Kreuz.',
         'Probe: Klatsche das Wort. Ist der Vokal vor dem k oder z ganz kurz und kommt kein anderer Konsonant dazwischen?'],
@@ -617,7 +636,7 @@ const CATALOG = [
         ['Setze tz oder z ein: Pla_','Platz'],['Setze tz oder z ein: Mü_e','Mütze'],['Setze ck oder k ein: E_e','Ecke'],
         ['Setze ck oder k ein: Ban_','Bank'],['Setze tz oder z ein: Her_','Herz']
       ]},
-    { id:'spfv', no:'Thema 12', title:'sp und st, f und v, ei und ai', de:'Merkwörter richtig schreiben', icon:'🦊', lp:'D.5.E.1.b, D.5.E.1.c',
+    { id:'spfv', no:'Thema 12', title:'sp und st, f und v, ei und ai', de:'Merkwörter richtig schreiben', icon:'🦊', sort:{"bins": ["f", "v", "ei", "ai"], "items": [["_isch", "f"], ["_reund", "f"], ["_enster", "f"], ["_uss", "f"], ["_rau", "f"], ["_ogel", "v"], ["_iel", "v"], ["_ater", "v"], ["_ergessen", "v"], ["_ier", "v"], ["Kl_d", "ei"], ["Br_", "ei"], ["Z_t", "ei"], ["Schw_n", "ei"], ["R_se", "ei"], ["der H_fisch", "ai"], ["der M_s", "ai"], ["der K_ser", "ai"], ["der Monat M_", "ai"]]}, lp:'D.5.E.1.b, D.5.E.1.c',
       learn:{ tips:['Am Wortanfang sprichst du «schp» und «scht», schreibst aber «sp» und «st»: Spiel, Stein.',
         'Viele Wörter mit f schreibt man mit v: Vogel, Vater, vier, viel, vor. Diese Wörter musst du dir merken.',
         'Die Vorsilben ver- und vor- schreibt man immer mit v: verlieren, vorlesen.',
@@ -638,7 +657,7 @@ const CATALOG = [
         ['Schreib richtig: [Fater]','Vater'],['Schreib richtig: [fier] (die Zahl 4)','vier'],['Schreib richtig: [Keiser]','Kaiser'],
         ['Schreib richtig: [ferlieren]','verlieren'],['Schreib richtig: [Schport]','Sport']
       ]},
-    { id:'silben', no:'Thema 13', title:'Silben und Trennen', de:'Wörter in Silben klatschen und richtig trennen', icon:'👏', lp:'D.5.E.1.c',
+    { id:'silben', no:'Thema 13', title:'Silben und Trennen', de:'Wörter in Silben klatschen und richtig trennen', icon:'👏', sort:{"bins": ["1 Silbe", "2 Silben", "3 Silben"], "items": [["Hund", "1 Silbe"], ["Baum", "1 Silbe"], ["Tisch", "1 Silbe"], ["Ball", "1 Silbe"], ["Schnee", "1 Silbe"], ["Katze", "2 Silben"], ["Blume", "2 Silben"], ["Garten", "2 Silben"], ["Schule", "2 Silben"], ["Fenster", "2 Silben"], ["Banane", "3 Silben"], ["Elefant", "3 Silben"], ["Tomate", "3 Silben"], ["Kartoffel", "3 Silben"], ["Erdbeere", "3 Silben"]]}, lp:'D.5.E.1.c',
       learn:{ tips:['Klatsche das Wort langsam. Jeder Klatscher ist eine Silbe: Ba-na-ne hat 3 Silben.',
         'Jede Silbe hat einen Vokal (a, e, i, o, u, ä, ö, ü) oder einen Doppellaut (au, ei, eu).',
         'Am Zeilenende trennst du nach Silben: Ta-fel, Schu-le.',
@@ -655,7 +674,7 @@ const CATALOG = [
         ['Wie trennt man «Mutter»?','Mut-ter','Mu-tter','Mutt-er','M-utter'],['Wie trennt man «Wolke»?','Wol-ke','Wo-lke','Wolk-e','W-olke'],
         ['Was hat jede Silbe?','einen Vokal oder Doppellaut','einen Grossbuchstaben','ein ck','zwei Konsonanten']
       ]},
-    { id:'satz', no:'Thema 14', title:'Satzarten und Satzschlusszeichen', de:'Punkt, Fragezeichen oder Ausrufezeichen?', icon:'❗', lp:'D.5.E.1.c, D.5.D.1',
+    { id:'satz', no:'Thema 14', title:'Satzarten und Satzschlusszeichen', de:'Punkt, Fragezeichen oder Ausrufezeichen?', icon:'❗', sort:{"bins": ["Punkt .", "Fragezeichen ?", "Ausrufezeichen !"], "items": [["Ich gehe in die Schule", "Punkt ."], ["Der Hund schläft", "Punkt ."], ["Heute regnet es", "Punkt ."], ["Mia liest ein Buch", "Punkt ."], ["Wie heisst du", "Fragezeichen ?"], ["Kommst du mit", "Fragezeichen ?"], ["Wo wohnst du", "Fragezeichen ?"], ["Hast du Hunger", "Fragezeichen ?"], ["Komm sofort her", "Ausrufezeichen !"], ["Pass auf", "Ausrufezeichen !"], ["Hilfe", "Ausrufezeichen !"], ["Hör auf damit", "Ausrufezeichen !"]]}, lp:'D.5.E.1.c, D.5.D.1',
       learn:{ tips:['Aussagesatz: Er erzählt etwas. Am Ende steht ein Punkt. Die Sonne scheint.',
         'Fragesatz: Er fragt etwas. Am Ende steht ein Fragezeichen. Oft beginnt er mit einem Fragewort: Wer? Wo? Wann? Wie?',
         'Aufforderungs- oder Ausrufesatz: Er fordert etwas oder ruft. Am Ende steht ein Ausrufezeichen. Komm her!',
@@ -698,7 +717,7 @@ const CATALOG = [
 ]},
 { id:'nmg', name:'NMG', icon:'🌿', color:'#E08A1E', lang:'de-CH', grades:[
   { grade:4, books:[ { id:'nmg4', name:'Lehrplan 21 · Natur, Mensch, Gesellschaft', units:[
-    { id:'sg1', no:'Thema 1', title:'Kanton St.Gallen: Lage und Nachbarn', de:'Hauptort, Nachbarkantone und Nachbarländer', icon:'🗺️', lp:'NMG.8',
+    { id:'sg1', no:'Thema 1', title:'Kanton St.Gallen: Lage und Nachbarn', de:'Hauptort, Nachbarkantone und Nachbarländer', icon:'🗺️', sort:{"bins": ["Nachbarkanton", "Nachbarland"], "items": [["Thurgau", "Nachbarkanton"], ["Zürich", "Nachbarkanton"], ["Schwyz", "Nachbarkanton"], ["Glarus", "Nachbarkanton"], ["Graubünden", "Nachbarkanton"], ["Appenzell Ausserrhoden", "Nachbarkanton"], ["Appenzell Innerrhoden", "Nachbarkanton"], ["Österreich", "Nachbarland"], ["Liechtenstein", "Nachbarland"], ["Deutschland", "Nachbarland"]]}, lp:'NMG.8',
       learn:{ tips:['Der Hauptort des Kantons ist die Stadt St.Gallen.',
         'Der Kanton grenzt an drei Länder: Deutschland, Österreich und Liechtenstein.',
         'Nachbarkantone sind Thurgau, Zürich, Schwyz, Glarus, Graubünden, Appenzell Ausserrhoden und Appenzell Innerrhoden.',
@@ -722,7 +741,7 @@ const CATALOG = [
         ['Welche Länder liegen auf der anderen Seite des Rheins im Rheintal?','Österreich und Liechtenstein','Deutschland und Frankreich','Italien und Frankreich','nur Deutschland']
       ],
       write:[['Wie heisst der Hauptort des Kantons St.Gallen?','St.Gallen|St. Gallen'],['Welcher See liegt im Norden des Kantons?','Bodensee|der Bodensee'],['Welcher Fluss bildet die Grenze zu Österreich?','Rhein|der Rhein']]},
-    { id:'sg2', no:'Thema 2', title:'Kanton St.Gallen: Regionen, Berge und Gewässer', de:'Wahlkreise, Flüsse, Seen und Berge', icon:'⛰️', lp:'NMG.8',
+    { id:'sg2', no:'Thema 2', title:'Kanton St.Gallen: Regionen, Berge und Gewässer', de:'Wahlkreise, Flüsse, Seen und Berge', icon:'⛰️', sort:{"bins": ["Berg", "Fluss", "See"], "items": [["Säntis", "Berg"], ["Pizol", "Berg"], ["Speer", "Berg"], ["Churfirsten", "Berg"], ["Alvier", "Berg"], ["Rhein", "Fluss"], ["Thur", "Fluss"], ["Seez", "Fluss"], ["Sitter", "Fluss"], ["Necker", "Fluss"], ["Walensee", "See"], ["Zürichsee", "See"], ["Bodensee", "See"], ["Voralpsee", "See"]]}, lp:'NMG.8',
       learn:{ tips:['Der Kanton hat 8 Wahlkreise: St.Gallen, Rorschach, Rheintal, Werdenberg, Sarganserland, See-Gaster, Toggenburg und Wil.',
         'Wichtige Flüsse: Rhein (Rheintal), Thur (Toggenburg), Linth (Linthebene), Seez (Seeztal).',
         'Seen: Bodensee, Walensee und ein Teil des Zürichsees.',
@@ -792,7 +811,7 @@ const CATALOG = [
         ['Was ist eine bekannte St.Galler Spezialität?','die St.Galler Bratwurst','das Fondue','die Basler Läckerli','das Birchermüesli']
       ],
       write:[['Wie heisst der Mönch, nach dem die Stadt benannt ist?','Gallus'],['Welches Tier ist im Stadtwappen?','Bär|ein Bär|der Bär']]},
-    { id:'feste', no:'Thema 5', title:'Feste und Bräuche', de:'Feste im Jahreskreis', icon:'🎉', lp:'NMG.10, NMG.12',
+    { id:'feste', no:'Thema 5', title:'Feste und Bräuche', de:'Feste im Jahreskreis', icon:'🎉', sort:{"bins": ["Frühling", "Sommer", "Herbst", "Winter"], "items": [["Ostern", "Frühling"], ["Muttertag", "Frühling"], ["Pfingsten", "Frühling"], ["1. August", "Sommer"], ["Sommerferien", "Sommer"], ["Olma", "Herbst"], ["Räbeliechtli", "Herbst"], ["Erntedank", "Herbst"], ["Samichlaus", "Winter"], ["Weihnachten", "Winter"], ["Silvester", "Winter"]]}, lp:'NMG.10, NMG.12',
       learn:{ tips:['Im Winter: Samichlaus (6. Dezember), Weihnachten (24./25. Dezember), Silvester (31. Dezember), Fasnacht (Februar).',
         'Im Frühling: Ostern. Im Frühsommer ziehen die Kühe auf die Alp (Alpaufzug).',
         'Im Sommer: Am 1. August feiert die Schweiz ihren Nationalfeiertag mit Höhenfeuern und Lampions.',
@@ -836,7 +855,7 @@ const CATALOG = [
         ['Wie wusch man um 1900 meistens die Wäsche?','von Hand mit einem Waschbrett','mit der Waschmaschine','im Geschirrspüler','gar nicht'],
         ['Was heisst «früher und heute vergleichen»?','schauen, was sich verändert hat und was gleich geblieben ist','nur alte Sachen anschauen','in die Zukunft schauen','Zahlen zusammenzählen']
       ]},
-    { id:'wald', no:'Thema 7', title:'Lebensraum Wald', de:'Stockwerke, Tiere, Pflanzen und Regeln im Wald', icon:'🌲', lp:'NMG.2.1, NMG.2.6',
+    { id:'wald', no:'Thema 7', title:'Lebensraum Wald', de:'Stockwerke, Tiere, Pflanzen und Regeln im Wald', icon:'🌲', sort:{ bins:['Laubbaum','Nadelbaum'], items:[['Buche','Laubbaum'],['Eiche','Laubbaum'],['Ahorn','Laubbaum'],['Birke','Laubbaum'],['Linde','Laubbaum'],['Esche','Laubbaum'],['Rosskastanie','Laubbaum'],['Fichte','Nadelbaum'],['Weisstanne','Nadelbaum'],['Föhre','Nadelbaum'],['Lärche','Nadelbaum'],['Eibe','Nadelbaum'],['Arve','Nadelbaum']] }, lp:'NMG.2.1, NMG.2.6',
       learn:{ tips:['Der Wald hat Stockwerke: Moosschicht (Moose, Pilze), Krautschicht (Gräser, Farne, Blumen), Strauchschicht (Büsche) und Baumschicht (Kronen der Bäume).',
         'Laubbäume haben Blätter, zum Beispiel Buche, Eiche, Ahorn. Nadelbäume haben Nadeln, zum Beispiel Fichte, Tanne, Föhre.',
         'Zum Forschen helfen: Lupe für kleine Tiere, Feldstecher für weit entfernte Tiere, Bestimmungsbuch für Namen.',
@@ -903,7 +922,7 @@ const CATALOG = [
         ['Was passiert mit Kressesamen ohne Wasser?','Sie keimen nicht.','Sie wachsen besonders schnell.','Sie werden blau.','Sie blühen sofort.'],
         ['Was ist eine Frucht?','ein Apfel','ein Blatt','eine Wurzel','ein Stein']
       ]},
-    { id:'tiere', no:'Thema 10', title:'Säugetiere bei uns', de:'Merkmale, Nahrung, Junge und der Winter', icon:'🦔', lp:'NMG.2.2, NMG.2.4',
+    { id:'tiere', no:'Thema 10', title:'Säugetiere bei uns', de:'Merkmale, Nahrung, Junge und der Winter', icon:'🦔', sort:{ bins:['Säugetier','Vogel','Insekt'], items:[['Igel','Säugetier'],['Fuchs','Säugetier'],['Reh','Säugetier'],['Eichhörnchen','Säugetier'],['Dachs','Säugetier'],['Fledermaus','Säugetier'],['Feldhase','Säugetier'],['Maulwurf','Säugetier'],['Amsel','Vogel'],['Specht','Vogel'],['Eule','Vogel'],['Spatz','Vogel'],['Meise','Vogel'],['Bussard','Vogel'],['Biene','Insekt'],['Ameise','Insekt'],['Marienkäfer','Insekt'],['Schmetterling','Insekt'],['Libelle','Insekt'],['Heuschrecke','Insekt']] }, lp:'NMG.2.2, NMG.2.4',
       learn:{ tips:['Säugetiere haben Fell oder Haare, bringen lebende Junge zur Welt und die Jungen trinken Milch bei der Mutter.',
         'Pflanzenfresser: Reh, Hase. Fleischfresser: Wiesel. Allesfresser: Fuchs, Dachs, Wildschwein.',
         'Winterschlaf halten Igel, Murmeltier und Fledermaus. Reh und Fuchs bleiben im Winter wach.',
@@ -924,7 +943,7 @@ const CATALOG = [
         ['Was hilft dem Eichhörnchen beim Klettern?','spitze Krallen und ein buschiger Schwanz','Schwimmhäute','Flügel','ein Panzer'],
         ['Was gehört in einen Tier-Steckbrief?','Aussehen, Nahrung, Lebensraum und Junge','die Lieblingsfarbe des Tieres','der Name des Försters','eine Telefonnummer']
       ]},
-    { id:'wetter', no:'Thema 11', title:'Wetter', de:'Temperatur, Niederschlag, Wind und Wolken', icon:'🌦️', lp:'NMG.4.4',
+    { id:'wetter', no:'Thema 11', title:'Wetter', de:'Temperatur, Niederschlag, Wind und Wolken', icon:'🌦️', sort:{"bins": ["Niederschlag", "Messgerät"], "items": [["Regen", "Niederschlag"], ["Schnee", "Niederschlag"], ["Hagel", "Niederschlag"], ["Nieselregen", "Niederschlag"], ["Graupel", "Niederschlag"], ["Thermometer", "Messgerät"], ["Regenmesser", "Messgerät"], ["Windmesser", "Messgerät"], ["Barometer", "Messgerät"]]}, lp:'NMG.4.4',
       learn:{ tips:['Das Wetter beschreibt man mit Temperatur, Niederschlag, Wind und Bewölkung.',
         'Die Temperatur misst man mit dem Thermometer in Grad Celsius (°C). Bei 0 °C gefriert Wasser.',
         'Niederschlag ist Regen, Schnee oder Hagel. Man misst ihn mit dem Regenmesser.',
@@ -992,7 +1011,7 @@ const CATALOG = [
         ['Was hilft gegen Müdigkeit am Morgen?','genug Schlaf und ein Frühstück','nachts lange am Handy spielen','kein Frühstück','spät ins Bett gehen'],
         ['Warum solltest du vor dem Schlafen nicht auf Bildschirme schauen?','Das helle Licht macht das Einschlafen schwerer.','Die Augen werden blau.','Der Bildschirm wird müde.','Der Strom geht aus.']
       ]},
-    { id:'technik', no:'Thema 14', title:'Technik: Magnet, Strom und Hebel', de:'Einfache Versuche und Sicherheit', icon:'🧲', lp:'NMG.3, NMG.5',
+    { id:'technik', no:'Thema 14', title:'Technik: Magnet, Strom und Hebel', de:'Einfache Versuche und Sicherheit', icon:'🧲', sort:{"bins": ["leitet Strom", "leitet nicht"], "items": [["Kupferdraht", "leitet Strom"], ["Alufolie", "leitet Strom"], ["Büroklammer", "leitet Strom"], ["Eisennagel", "leitet Strom"], ["Münze", "leitet Strom"], ["Holz", "leitet nicht"], ["Plastik", "leitet nicht"], ["Gummi", "leitet nicht"], ["Papier", "leitet nicht"], ["Glas", "leitet nicht"], ["Wolle", "leitet nicht"]]}, lp:'NMG.3, NMG.5',
       learn:{ tips:['Ein Magnet zieht Dinge aus Eisen an, zum Beispiel Nägel. Holz, Plastik und Papier zieht er nicht an.',
         'Jeder Magnet hat einen Nordpol und einen Südpol. Gleiche Pole stossen sich ab, verschiedene ziehen sich an.',
         'Ein Lämpchen leuchtet, wenn der Stromkreis geschlossen ist: Batterie, Kabel, Lämpchen, Kabel zurück zur Batterie.',
@@ -1413,6 +1432,20 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const norm = s => String(s).toLowerCase().replace(/[’`´]/g, "'").replace(/[.?!,]/g, '').replace(/\s+/g, ' ').trim();
 /* Artikel (the, a, an) und «to» bei Verben sind beim Schreiben erlaubt, aber nicht nötig */
 const normWord = s => norm(s).replace(/^(the|a|an|to)\s+/, '');
+const normCS = s => String(s).replace(/[’`´]/g, "'").replace(/[.?!,]/g, '').replace(/\s+/g, ' ').trim();
+const umlCS = y => y.replace(/Ae/g,'Ä').replace(/Oe/g,'Ö').replace(/Ue/g,'Ü').replace(/ae/g,'ä').replace(/oe/g,'ö').replace(/ue/g,'ü');
+/* Eingabe prüfen. t.cs = Gross-/Kleinschreibung zählt (Deutsch), t.deart = Artikel der/die/das darf fehlen */
+function inputCheck(t, val){
+  if (t.numeric) return { ok: String(val).replace(/['’\s]/g, '') === t.answer };
+  const list = t.alts || [t.answer];
+  if (t.cs) {
+    const f = x => { let y = normCS(x); if (t.uml) y = umlCS(y); return t.deart ? y.replace(/^(der|die|das)\s+/i, '') : y; };
+    if (list.some(x => f(val) === f(x))) return { ok:true };
+    return { ok:false, caseOnly: list.some(x => f(val).toLowerCase() === f(x).toLowerCase()) };
+  }
+  const uml = x => t.uml ? norm(x).replace(/ae/g,'ä').replace(/oe/g,'ö').replace(/ue/g,'ü') : normWord(x);
+  return { ok: list.some(x => uml(val) === uml(x)) };
+}
 const fmtNote = n => (n % 1 ? n.toFixed(1) : String(n));
 const PRAISE = ['Super!','Toll gemacht!','Bravo!','Genau!','Spitze!','Richtig!'];
 
@@ -1422,7 +1455,7 @@ CATALOG.forEach(s => s.grades.forEach(g => g.books.forEach(b => b.units.forEach(
 }))));
 
 const STORE = 'lernheft-v1';
-let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0, reset:0 };
+let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0, reset:0, games:{} };
 try { const r = localStorage.getItem(STORE); if (r) DB = Object.assign(DB, JSON.parse(r)); } catch (e) {}
 function save(){ try { localStorage.setItem(STORE, JSON.stringify(DB)); } catch (e) {} scheduleCloud(); }
 
@@ -1438,10 +1471,10 @@ function setSync(state, err){
 }
 function mergeDB(local, remote, remoteWins){
   // Zurücksetzen: Wer einen älteren Stand als das letzte Zurücksetzen hat, verliert seinen Lernstand (Einstellungen bleiben)
-  const R = Math.max(local.reset || 0, remote.reset || 0), blank = d => ({ known:{}, tests:{}, stars:0, best:0, play:null, settings:d.settings, reset:R });
+  const R = Math.max(local.reset || 0, remote.reset || 0), blank = d => ({ known:{}, tests:{}, stars:0, best:0, play:null, games:{}, settings:d.settings, reset:R });
   if ((local.reset || 0) < R) local = blank(local);
   if ((remote.reset || 0) < R) remote = blank(remote);
-  const out = { reset:R, known:{}, tests:{}, stars: Math.max(local.stars || 0, remote.stars || 0), best: Math.max(local.best || 0, remote.best || 0) };
+  const out = { reset:R, games:{}, known:{}, tests:{}, stars: Math.max(local.stars || 0, remote.stars || 0), best: Math.max(local.best || 0, remote.best || 0) };
   const ls = local.settings || {}, rs = remote.settings || {};
   out.settings = Object.assign({ max:30, pin:'' }, (rs.t || 0) >= (ls.t || 0) && remote.settings ? rs : ls);
   const lp = local.play, rp = remote.play;
@@ -1451,6 +1484,9 @@ function mergeDB(local, remote, remoteWins){
     out.play = { day:lp.day, earned:Math.max(lp.earned || 0, rp.earned || 0), used:Math.max(lp.used || 0, rp.used || 0), bonus:Math.max(lp.bonus || 0, rp.bonus || 0), cnt }; }
   const order = remoteWins ? [local.known || {}, remote.known || {}] : [remote.known || {}, local.known || {}];
   order.forEach(src => { for (const u in src) out.known[u] = Object.assign({}, out.known[u] || {}, src[u]); });
+  const lg = local.games || {}, rg = remote.games || {};
+  new Set([...Object.keys(lg), ...Object.keys(rg)]).forEach(k => { const a = lg[k], b = rg[k];
+    out.games[k] = a == null ? b : b == null ? a : (k.endsWith(':mem') ? Math.min(a, b) : Math.max(a, b)); });
   const lt = local.tests || {}, rt = remote.tests || {};
   new Set([...Object.keys(lt), ...Object.keys(rt)]).forEach(k => {
     const m = new Map(); [...(lt[k] || []), ...(rt[k] || [])].forEach(t => m.set(t.d, t));
@@ -1458,13 +1494,13 @@ function mergeDB(local, remote, remoteWins){
   });
   return out;
 }
-const snapshotOf = d => JSON.stringify({ known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0, reset:d.reset || 0 });
-const remoteOf = r => ({ known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0 });
+const snapshotOf = d => JSON.stringify({ known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0, reset:d.reset || 0, games:d.games || {} });
+const remoteOf = r => ({ known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0, games:r.games || {} });
 function scheduleCloud(){ if (!CLOUD) return; cloudDirty = true; clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 1500); }
 async function pushCloud(){
   if (!CLOUD || cloudBusy || !cloudDirty) return;
   cloudBusy = true; cloudDirty = false; setSync('saving');
-  try { await CLOUD.set({ known:DB.known, tests:DB.tests, stars:DB.stars, play:DB.play || null, settings:DB.settings || null, best:DB.best || 0, reset:DB.reset || 0, updated:Date.now() }); setSync('ok'); }
+  try { await CLOUD.set({ known:DB.known, tests:DB.tests, stars:DB.stars, play:DB.play || null, settings:DB.settings || null, best:DB.best || 0, reset:DB.reset || 0, games:DB.games || {}, updated:Date.now() }); setSync('ok'); }
   catch (e) { setSync('off'); if (e && e.code === 'unavailable') cloudDirty = true; else if (e && ['revoked','not_granted','capability_disabled','capability_removed'].includes(e.code)) CLOUD = null; }
   finally { cloudBusy = false; if (cloudDirty && CLOUD) { clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 4000 + Math.random() * 2000); } }
 }
@@ -1567,6 +1603,8 @@ function stats(u,k){
 function markWord(w,v,kk){ const k = kk || ukey(); (DB.known[k] = DB.known[k] || {})[w.en] = v; save(); }
 const hardWords = u => { const kn = DB.known[ukey()] || {}; return u.words.filter(w => kn[w.en] === 0); };
 const canWrite = w => !w.en.includes('…') && w.en.length <= 24;
+const deAlts = w => String(w.de).split(/\s*[,\/]\s*/).map(x => x.trim()).filter(x => x && !/[…?()!]/.test(x) && x.length <= 24);
+const canWriteDe = w => !w.en.includes('…') && deAlts(w).length > 0;
 const canSpell = w => /^[a-z]{3,8}$/.test(w.en);
 
 function crumbs(){
@@ -1805,6 +1843,8 @@ const B = {
       solution:`${w.pic} ${w.en} = ${w.de}`, word:w };
   },
   write: w => ({ kind:'input', prompt:'Schreib das Wort auf ' + NAV.s.name + ':', text:esc(w.de), answer:w.en, solution:w.en, after:w.en, word:w }),
+  writeDe: w => { const a = deAlts(w); return { kind:'input', prompt:'Schreib das Wort auf Deutsch. Achte auf Gross- und Kleinschreibung:', text:esc(w.en), say:w.en,
+    answer:a[0], alts:a, solution:a.join(' / '), cs:true, deart:true, uml:true, word:w }; },
   spell: w => ({ kind:'spell', prompt:'Hör zu: Das Wort wird buchstabiert. Setz es zusammen!', hint:'Auf Deutsch: ' + w.de, word:w, answer:w.en, solution:w.en, after:w.en }),
   gap: s => ({ kind:'choice', prompt:'Welches Wort passt in die Lücke?',
     text: esc(s.s).replace('___', '<span class="gap">___</span>'),
@@ -1829,7 +1869,8 @@ function practiceTypes(u){
     t.push({ k:'vocab', icon:'🔤', name:'Wörter-Quiz', desc: NAV.s.name + ' und Deutsch' });
     if (canSpeak() && u.words.filter(w => !w.nl).length >= 4) t.push({ k:'listen', icon:'🎧', name:'Hörübung', desc:'Hör zu und wähle das Bild' });
     if (canSpeak() && u.words.some(canSpell)) t.push({ k:'spell', icon:'🧩', name:'Buchstabieren', desc:'Hör die Buchstaben und bau das Wort' });
-    t.push({ k:'write', icon:'⌨️', name:'Schreiben', desc:'Schreib das Wort richtig' });
+    t.push({ k:'write', icon:'⌨️', name:'Schreiben ' + NAV.s.name, desc:'Deutsch → ' + NAV.s.name });
+    if (u.words.some(canWriteDe)) t.push({ k:'writede', icon:'✍️', name:'Schreiben Deutsch', desc: NAV.s.name + ' → Deutsch, mit Gross- und Kleinschreibung' });
   }
   if (u.sentences.length) t.push({ k:'gaps', icon:'✏️', name:'Lückensätze', desc:'Welches Wort passt in den Satz?' });
   if (u.grammar) t.push({ k:'gram', icon:'🧠', name:'Grammatik', desc:u.grammar.title });
@@ -1853,6 +1894,7 @@ function buildPractice(k,u,n = 10){
     case 'listen':  return shuffle(W.filter(w => !w.nl)).slice(0,n).map(w => B.listen(w,u));
     case 'spell':   return shuffle(W.filter(canSpell)).slice(0,n).map(B.spell);
     case 'write':   return shuffle(W.filter(canWrite)).slice(0,n).map(B.write);
+    case 'writede': return shuffle(W.filter(canWriteDe)).slice(0,n).map(B.writeDe);
     case 'gaps':    return shuffle(u.sentences).slice(0,n).map(B.gap);
     case 'letters': return Array.from({ length:n }, B.letter);
     case 'gram':    return grammarTasks(u, n - 3, 3);
@@ -1860,21 +1902,165 @@ function buildPractice(k,u,n = 10){
     case 'qwrite':  return shuffle(u.write).slice(0,n).map(wItem);
     case 'calc':    return Array.from({ length:n }, () => B.calc(u));
     case 'blitz':   return Array.from({ length:n }, () => B.blitz(u));
-    case 'hard':    return shuffle(hardWords(u)).slice(0,n).map(w => canWrite(w) && Math.random() < .5 ? B.write(w) : B.vocab(w,u));
+    case 'hard':    return shuffle(hardWords(u)).slice(0,n).map(w => { const r = Math.random(); return canWrite(w) && r < .4 ? B.write(w) : canWriteDe(w) && r < .7 ? B.writeDe(w) : B.vocab(w,u); });
   }
   return [];
 }
 function showPractice(){
   stop(); crumbs();
-  const types = practiceTypes(NAV.u);
-  app.innerHTML = `<h1 class="h1">Üben</h1><p class="lead">Wähle ein Spiel. Eine Runde hat 10 Aufgaben.</p>
-  <div class="menu">${types.map(t => mbtn(t.k, t.icon, t.name, t.desc)).join('')}</div>`;
-  app.querySelectorAll('.mitem').forEach(b => b.onclick = () => startPractice(b.dataset.k));
+  const types = practiceTypes(NAV.u), games = gameTypes(NAV.u);
+  app.innerHTML = `<h1 class="h1">Üben</h1><p class="lead">Wähle eine Übung. Eine Runde hat 10 Aufgaben.</p>
+  <div class="menu">${types.map(t => mbtn(t.k, t.icon, t.name, t.desc)).join('')}</div>
+  ${games.length ? `<h2 class="h2">Lernspiele</h2><div class="menu">${games.map(t => mbtn(t.k, t.icon, t.name, t.desc)).join('')}</div>` : ''}`;
+  app.querySelectorAll('.mitem').forEach(b => b.onclick = () => b.dataset.k.startsWith('g-') ? startLearnGame(b.dataset.k) : startPractice(b.dataset.k));
 }
 function startPractice(k){
   const tasks = buildPractice(k, NAV.u);
   if (!tasks.length) { toast('Dafür gibt es in dieser Unit noch keine Aufgaben.'); return; }
   run(tasks, { restart: () => startPractice(k), ekey:'p:' + ukey() + ':' + k });
+}
+
+/* =====================================================================
+   6b) LERNSPIELE: Blitz-Sprung, Memory, Sortieren
+   ===================================================================== */
+let LG = null;
+const gkey = n => ukey() + ':' + n;
+function blitzPool(u){
+  const f = [];
+  if (u.words.length >= 4) f.push(() => B.vocab(pick(u.words), u));
+  if (u.gen) f.push(() => B.blitz(u));
+  if (u.quiz) f.push(() => qItem(pick(u.quiz)));
+  if (u.grammar) f.push(() => qItem(pick(u.grammar.quiz)));
+  return f.length ? () => pick(f)() : null;
+}
+function memoryPairs(u){
+  const P = [], seen = new Set();
+  const add = (a, b) => { a = String(a).trim(); b = String(b).trim();
+    if (!a || !b || a.toLowerCase() === b.replace(/^(der|die|das)\s+/i, '').toLowerCase() || a.length > 22 || b.length > 22 || seen.has(a) || seen.has(b)) return; seen.add(a); seen.add(b); P.push([a, b]); };
+  if (u.words.length) shuffle(u.words.filter(w => !w.en.includes('…') && !w.de.includes('…'))).forEach(w => add(w.en, w.de.split(/\s*,\s*/)[0]));
+  else if (u.gen) for (let i = 0; i < 300 && P.length < 6; i++) {
+    const g = GEN[u.gen](); if (g.html || g.options || !g.q || g.q.length > 18) continue;
+    add(g.q.replace(/\?\s*$/, '…'), typeof g.answer === 'number' ? fmt(g.answer) + (g.unit ? ' ' + g.unit : '') : g.answer);
+  }
+  return P.length >= 6 ? shuffle(P).slice(0, 6) : null;
+}
+function sortData(u){
+  if (u.sort) { const items = shuffle(u.sort.items).slice(0, 12).map(([x, b]) => ({ html:esc(x), bin:b })); return { bins:u.sort.bins, items }; }
+  if (u.words.length) {
+    const g = {}; u.words.filter(w => w.cat && !w.en.includes('…')).forEach(w => (g[w.cat] = g[w.cat] || []).push(w));
+    const cats = shuffle(Object.keys(g).filter(c => g[c].length >= 3)).slice(0, 3);
+    if (cats.length < 2) return null;
+    const per = Math.floor(12 / cats.length), items = shuffle(cats.flatMap(c => shuffle(g[c]).slice(0, per).map(w => ({ html:esc(w.en), bin:c }))));
+    return { bins:cats, items };
+  }
+  if (u.gen) {
+    const grp = {};
+    for (let i = 0; i < 400; i++) { const x = GEN[u.gen](); if (!x.fixed || !x.options || x.options.length < 2 || x.options.length > 4 || (x.q || '').length > 60) continue;
+      const k = x.options.join('|'), m = grp[k] = grp[k] || new Map(); if (!m.has(x.q)) m.set(x.q, { html:x.html || esc(x.q), bin:x.answer }); }
+    const best = Object.entries(grp).sort((a, b) => b[1].size - a[1].size)[0];
+    if (!best || best[1].size < 10) return null;
+    return { bins:best[0].split('|'), items:shuffle([...best[1].values()]).slice(0, 12) };
+  }
+  return null;
+}
+function gameTypes(u){
+  const t = [];
+  if (blitzPool(u)) t.push({ k:'g-blitz', icon:'⚡', name:'Blitz-Sprung', desc:'60 Sekunden: Jede richtige Antwort ist ein Sprung' + ((DB.games || {})[gkey('blitz')] ? ` · Rekord ${DB.games[gkey('blitz')]}` : '') });
+  if (memoryPairs(u)) t.push({ k:'g-mem', icon:'🃏', name:'Memory', desc:'Finde die Paare' });
+  if (sortData(u)) t.push({ k:'g-sort', icon:'🧺', name:'Sortieren', desc:'Leg jede Karte in die richtige Kiste' });
+  return t;
+}
+function startLearnGame(k){ if (k === 'g-blitz') showBlitz(); else if (k === 'g-mem') showMemory(); else if (k === 'g-sort') showSort(); }
+function lgEnd(title, lines, er, again){
+  stop(); LG = null;
+  app.innerHTML = `<div class="card center" id="lgend"><div class="bigstars">${title[0]}</div><h2 class="h1">${title[1]}</h2>${lines}${er ? earnHTML(er) : ''}
+    <div class="row"><button class="btn primary" id="again">Nochmal spielen</button><button class="btn" id="other">Anderes Spiel</button><button class="btn" id="unit">Zur Unit</button></div></div>`;
+  $('#again').onclick = again; $('#other').onclick = showPractice; $('#unit').onclick = showUnit;
+}
+const saveGame = (k, v, low) => { DB.games = DB.games || {}; const o = DB.games[k]; if (o == null || (low ? v < o : v > o)) { DB.games[k] = v; save(); return true; } return false; };
+function lgFinish(){ if (LG && LG.finish) LG.finish(); }
+
+/* ---- Blitz-Sprung ---- */
+function showBlitz(){
+  stop(); crumbs();
+  const make = blitzPool(NAV.u), tk = TOKEN, T = 60;
+  LG = { score:0, right:0, n:0, end:Date.now() + T * 1000 };
+  app.innerHTML = `<div id="lg" class="blitz"><div class="bhead"><b id="btime">${T}</b><span>Sekunden</span><span class="bsc">🦘 <b id="bsc">0</b> Sprünge</span></div>
+    <div class="btrack"><div class="bbar" id="bbar"></div><span id="broo">🦘</span></div><div class="card" id="bq"></div></div>`;
+  const draw = () => {
+    const t = make(); LG.t = t;
+    $('#bq').innerHTML = `<div class="q">${esc(t.prompt)}</div>${t.text ? `<div class="word ${t.plain && t.plain.length > 45 ? 'long' : ''}">${t.text}</div>` : ''}
+      <div class="opts ${t.grid || ''}">${t.options.map((o, i) => `<button class="btn opt gopt ${o.big ? 'bigopt' : ''}" data-i="${i}">${esc(o.label)}</button>`).join('')}</div><div id="bfb" class="small center"></div>`;
+    $('#bq').querySelectorAll('.gopt').forEach(b => b.onclick = () => {
+      if (LG.lock) return; const o = t.options[+b.dataset.i]; LG.n++;
+      if (o.ok) { LG.right++; LG.score++; $('#bsc').textContent = LG.score; const r = $('#broo'); r.classList.remove('hop'); void r.offsetWidth; r.classList.add('hop');
+        r.style.left = (6 + (LG.score % 10) * 9) + '%'; draw(); }
+      else { LG.lock = true; LG.end -= 3000; b.classList.add('no'); $('#bfb').innerHTML = `−3 Sekunden · Richtig: <b>${esc(t.solution)}</b>`;
+        setTimeout(() => { if (tk === TOKEN && LG) { LG.lock = false; draw(); } }, 900); }
+    });
+  };
+  LG.finish = () => {
+    if (!LG) return; const L = LG, note = noteOf(L.right, L.n), rec = saveGame(gkey('blitz'), L.score);
+    const er = L.n < 10 ? { add:0, why:'few' } : earnNote(note, MIN_PRACTICE, 'g:blitz:' + ukey());
+    lgEnd(['⚡', `${L.score} Sprünge!`], `<p class="word">${L.right} von ${L.n} richtig</p>${L.n ? `<p style="margin:-6px 0 0;font-weight:800">Note ${fmtNote(note)}</p>` : ''}
+      <p>${rec && L.score ? '🏆 Neuer Rekord!' : 'Rekord: ' + (DB.games[gkey('blitz')] || 0) + ' Sprünge'}</p>${er.why === 'few' ? '<p class="earn off">Beantworte mindestens 10 Aufgaben, dann gibt es Spielminuten.</p>' : ''}`,
+      er.why === 'few' ? null : er, showBlitz);
+  };
+  const tick = setInterval(() => {
+    if (tk !== TOKEN || !LG) return clearInterval(tick);
+    const left = Math.max(0, (LG.end - Date.now()) / 1000); $('#btime').textContent = Math.ceil(left);
+    $('#bbar').style.width = (left / T * 100) + '%';
+    if (left <= 0) { clearInterval(tick); LG.finish(); }
+  }, 100);
+  draw();
+}
+
+/* ---- Memory ---- */
+function showMemory(){
+  stop(); crumbs();
+  const pairs = memoryPairs(NAV.u), tk = TOKEN;
+  const cards = shuffle(pairs.flatMap((p, i) => [{ t:p[0], p:i }, { t:p[1], p:i }]));
+  LG = { open:[], found:0, tries:0 };
+  app.innerHTML = `<div id="lg"><h1 class="h1">Memory</h1><p class="lead">Finde die ${pairs.length} Paare. Versuche: <span id="mtries">0</span></p>
+    <div class="memgrid">${cards.map((c, i) => `<button class="mcard" data-i="${i}" aria-label="Karte ${i + 1}"><span>${esc(c.t)}</span></button>`).join('')}</div></div>`;
+  LG.finish = () => {
+    const rec = saveGame(gkey('mem'), LG.tries, true);
+    lgEnd(['🃏', 'Alle Paare gefunden!'], `<p class="word">${LG.tries} Versuche</p><p>${rec ? '🏆 Neuer Rekord!' : 'Rekord: ' + DB.games[gkey('mem')] + ' Versuche'}</p><p class="earn off">Memory trainiert dein Gedächtnis. Spielminuten gibt es beim Üben und im Probetest.</p>`, null, showMemory);
+  };
+  app.querySelectorAll('.mcard').forEach(b => b.onclick = () => {
+    const c = cards[+b.dataset.i]; if (LG.lock || b.classList.contains('open') || b.classList.contains('done')) return;
+    b.classList.add('open'); LG.open.push([b, c]);
+    if (LG.open.length < 2) return;
+    LG.tries++; $('#mtries').textContent = LG.tries;
+    const [[b1, c1], [b2, c2]] = LG.open; LG.open = [];
+    if (c1.p === c2.p) { b1.classList.add('done'); b2.classList.add('done'); LG.found++; if (LG.found === pairs.length) setTimeout(() => { if (tk === TOKEN) LG.finish(); }, 600); }
+    else { LG.lock = true; setTimeout(() => { if (tk !== TOKEN) return; b1.classList.remove('open'); b2.classList.remove('open'); LG.lock = false; }, 1000); }
+  });
+}
+
+/* ---- Sortieren ---- */
+function showSort(){
+  stop(); crumbs();
+  const D = sortData(NAV.u), tk = TOKEN, n = D.items.length;
+  LG = { i:0, right:0, think:0, shown:Date.now(), cnt:D.bins.map(() => 0) };
+  app.innerHTML = `<div id="lg"><h1 class="h1">Sortieren</h1><p class="lead">In welche Kiste gehört die Karte? <span id="sleft">${n}</span> Karten übrig.</p>
+    <div class="card center sortcard" id="scard"></div>
+    <div class="bins">${D.bins.map((b, i) => `<button class="bin" data-i="${i}"><b>${esc(b)}</b><span id="bc${i}">0</span></button>`).join('')}</div><div id="sfb" class="small center"></div></div>`;
+  const draw = () => { $('#scard').innerHTML = `<div class="word">${D.items[LG.i].html}</div>`; $('#sleft').textContent = n - LG.i; LG.shown = Date.now(); };
+  LG.finish = () => {
+    const note = noteOf(LG.right, n), fast = LG.i >= 3 && LG.think / LG.i < 1200;
+    const er = fast ? { add:0, why:'fast' } : earnNote(note, MIN_PRACTICE, 'g:sort:' + ukey());
+    lgEnd(['🧺', 'Alles einsortiert!'], `<p class="word">${LG.right} von ${n} richtig</p><p style="margin:-6px 0 0;font-weight:800">Note ${fmtNote(note)}</p>`, er, showSort);
+  };
+  app.querySelectorAll('.bin').forEach(b => b.onclick = () => {
+    if (LG.lock) return; const it = D.items[LG.i], bi = +b.dataset.i, ok = D.bins[bi] === it.bin;
+    LG.think += Math.min(60000, Date.now() - LG.shown);
+    if (ok) { LG.right++; LG.cnt[bi]++; $('#bc' + bi).textContent = LG.cnt[bi]; b.classList.add('ok'); $('#sfb').textContent = ''; }
+    else { b.classList.add('no'); $('#sfb').innerHTML = `Gehört zu: <b>${esc(it.bin)}</b>`; }
+    LG.lock = true;
+    setTimeout(() => { if (tk !== TOKEN) return; b.classList.remove('ok', 'no'); LG.lock = false; LG.i++; if (LG.i >= n) LG.finish(); else draw(); }, ok ? 350 : 1300);
+  });
+  draw();
 }
 
 /* =====================================================================
@@ -1897,7 +2083,9 @@ function testPlan(u){
   plan.push({ name:'Wörter', n:6, make: () => shuffle(u.words).slice(0,6).map(w => B.vocab(w,u)) });
   if (canSpeak() && L.length >= 4) plan.push({ name:'Hören', n:4, make: () => shuffle(L).slice(0,4).map(w => B.listen(w,u)) });
   if (u.abc && canSpeak()) plan.push({ name:'Buchstaben', n:3, make: () => Array.from({ length:3 }, B.letter) });
-  if (wr.length) plan.push({ name:'Schreiben', n:Math.min(5, wr.length), make: () => shuffle(wr).slice(0,5).map(B.write) });
+  if (wr.length) plan.push({ name:'Schreiben ' + NAV.s.name, n:Math.min(5, wr.length), make: () => shuffle(wr).slice(0,5).map(B.write) });
+  const wd = u.words.filter(canWriteDe);
+  if (wd.length) plan.push({ name:'Schreiben Deutsch', n:Math.min(3, wd.length), make: () => shuffle(wd).slice(0,3).map(B.writeDe) });
   if (u.sentences.length) plan.push({ name:'Sätze', n:Math.min(5, u.sentences.length), make: () => shuffle(u.sentences).slice(0,5).map(B.gap) });
   if (u.grammar) plan.push({ name:'Grammatik', n:5, make: () => grammarTasks(u, 3, 2) });
   return label(plan);
@@ -1952,8 +2140,9 @@ let SES = null;
 function run(tasks, opt){ stop(); SES = Object.assign({ tasks, i:0, right:0, streak:0, results:[], test:false, locked:false }, opt); showTask(); }
 
 function showTask(){
-  SES.locked = false; SES.shown = Date.now();
+  SES.locked = false; SES.shown = Date.now(); SES.caseHint = false;
   const t = SES.tasks[SES.i], n = SES.tasks.length;
+  if (t.kind === 'input' && !t.numeric && t.cs === undefined) t.cs = !!(NAV.s && NAV.s.id === 'de');
   let h = '';
   if (t.part) h += `<span class="part">${esc(t.part)}</span>`;
   if (t.prompt) h += `<div class="q">${esc(t.prompt)}</div>`;
@@ -1994,8 +2183,7 @@ function showTask(){
       e.preventDefault();
       if (SES.locked) return;
       if (!inp.value.trim()) { inp.focus(); return; }
-      const uml = x => t.uml ? norm(x).replace(/ae/g,'ä').replace(/oe/g,'ö').replace(/ue/g,'ü') : normWord(x);
-      const ok = t.numeric ? inp.value.replace(/['’\s]/g, '') === t.answer : (t.alts || [t.answer]).some(x => uml(inp.value) === uml(x));
+      const c = inputCheck(t, inp.value), ok = c.ok; SES.caseHint = !!c.caseOnly;
       if (!SES.test) { inp.classList.add(ok ? 'ok' : 'no'); inp.disabled = true; }
       answer(ok, inp.value.trim());
     };
@@ -2054,8 +2242,16 @@ function answer(ok, given){
   } else {
     SES.streak = 0;
     fb.className = 'fb wrong';
-    fb.innerHTML = `Richtig ist: ${esc(t.solution)}${t.note ? `<small>${esc(t.note)}</small>` : ''}<button class="btn primary" id="nx">Weiter</button>`;
-    $('#nx').onclick = nextTask; $('#nx').focus();
+    const copy = t.kind === 'input' && !t.numeric;
+    fb.innerHTML = `${SES.caseHint ? '<b>Achte auf Gross- und Kleinschreibung.</b><br>' : ''}Richtig ist: ${esc(t.solution)}${t.note ? `<small>${esc(t.note)}</small>` : ''}`
+      + (copy ? `<form class="inrow" id="cpf" autocomplete="off"><input id="cp" class="inp" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Abschreiben" aria-label="Richtig abschreiben"><button class="btn primary">OK</button></form>`
+              : '<button class="btn primary" id="nx">Weiter</button>');
+    if (copy) {
+      $('#cp').focus();
+      $('#cpf').onsubmit = e => { e.preventDefault(); const c = inputCheck(t, $('#cp').value);
+        if (c.ok) { if (tk === TOKEN) nextTask(); }
+        else { $('#cp').classList.add('no'); setTimeout(() => $('#cp') && $('#cp').classList.remove('no'), 600); toast(c.caseOnly ? 'Achte auf Gross- und Kleinschreibung.' : 'Noch nicht ganz. Schau genau hin.'); } };
+    } else { $('#nx').onclick = nextTask; $('#nx').focus(); }
   }
 }
 function nextTask(){
@@ -2293,7 +2489,7 @@ function parentPanel(){
   <h2 class="h2">Letzte Probetests</h2>
   ${res.length ? `<div class="hist">${res.map(r => `<div><span>${new Date(r.d).toLocaleDateString('de-CH')}</span><span class="hn">${esc(names[r.k] || r.k)}</span><b>Note ${fmtNote(r.note)}</b></div>`).join('')}</div>` : '<p class="small">Noch keine Probetests gemacht.</p>'}
   <h2 class="h2">Lernstand zurücksetzen</h2>
-  <div class="card" id="preset"><p class="small" style="margin-top:0">Löscht auf allen verbundenen Geräten: gelernte Wörter, Probetest-Noten, Sterne, Spiel-Rekord und die heute verdienten Spielminuten. PIN und Tagesmaximum bleiben.</p>
+  <div class="card" id="preset"><p class="small" style="margin-top:0">Löscht auf allen verbundenen Geräten: gelernte Wörter, Probetest-Noten, Sterne, Spiel-Rekorde und die heute verdienten Spielminuten. PIN und Tagesmaximum bleiben.</p>
     <button class="btn" id="pr1">Lernstand zurücksetzen</button></div>
   <div class="row"><button class="btn" id="ppin">PIN ändern</button><button class="btn primary" id="pdone">Fertig</button></div>`;
   $('#pr1').onclick = () => {
@@ -2301,7 +2497,7 @@ function parentPanel(){
       <div class="row" style="justify-content:flex-start"><button class="btn" id="pr2" style="background:var(--bad);border-color:var(--bad);color:#fff;box-shadow:0 4px 0 #a51e1e">Ja, alles löschen</button><button class="btn" id="pr0">Abbrechen</button></div>`;
     $('#pr0').onclick = parentPanel;
     $('#pr2').onclick = () => {
-      Object.assign(DB, { known:{}, tests:{}, stars:0, best:0, play:null, reset:Date.now() });
+      Object.assign(DB, { known:{}, tests:{}, stars:0, best:0, play:null, games:{}, reset:Date.now() });
       save(); updateStars(); updatePlay(); toast('Lernstand zurückgesetzt'); parentPanel();
     };
   };
@@ -2346,7 +2542,7 @@ updateStars(); updatePlay();
 /* Zurück-Taste (Android, Browser): eine Ebene zurück statt App schliessen */
 const SCREENS = { showHome:'home', showSubjects:'subjects', showUnits:'units', showUnit:'unit', showLearn:'learn', showLearnGen:'learnGen',
   flash:'sub', wordList:'sub', abcBoard:'sub', showGrammar:'sub', showPractice:'practice', showCustomTest:'testIntro', showTestIntro:'testIntro',
-  run:'run', showGame:'game', showParents:'parents' };
+  run:'run', showBlitz:'lgame', showMemory:'lgame', showSort:'lgame', showGame:'game', showParents:'parents' };
 let CUR = 'home', RET = null, ARMED = false, SKIP = false, BACKWARN = 0;
 const hist = (fn, ...a) => { try { history[fn](...a); } catch (e) {} };
 Object.entries(SCREENS).forEach(([n, id]) => {
@@ -2360,7 +2556,7 @@ Object.entries(SCREENS).forEach(([n, id]) => {
   };
 });
 const PARENT = { subjects:'showHome', units:'showSubjects', unit:'showUnits', learn:'showUnit', learnGen:'showUnit', sub:'showLearn',
-  practice:'showUnit', testIntro:'showUnit' };
+  practice:'showUnit', testIntro:'showUnit', lgame:'showPractice' };
 function appBack(){
   if (CUR === 'run') {
     const done = $('.bigstars') || $('.note');
@@ -2368,7 +2564,7 @@ function appBack(){
     return (SES && SES.test ? showUnit : showPractice)(), true;
   }
   if (CUR === 'game' || CUR === 'parents') {
-    const to = { home:'showHome', subjects:'showSubjects', units:'showUnits', unit:'showUnit', learn:'showUnit', learnGen:'showUnit', sub:'showLearn', practice:'showPractice', testIntro:'showUnit', run:'showUnit' }[RET] || 'showHome';
+    const to = { home:'showHome', subjects:'showSubjects', units:'showUnits', unit:'showUnit', learn:'showUnit', learnGen:'showUnit', sub:'showLearn', practice:'showPractice', testIntro:'showUnit', run:'showUnit', lgame:'showPractice' }[RET] || 'showHome';
     if (to !== 'showHome' && !NAV.s) return showHome(), true;
     return window[to](), true;
   }
@@ -2385,7 +2581,7 @@ window.addEventListener('popstate', () => {
 showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-05-5';
+const APP_VERSION = '2026-11-05-6';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {

@@ -10,7 +10,7 @@ const submit = () => { const f = d.querySelector('#inf'); d.querySelector('#inp'
 const step = () => { const o = d.querySelector('.opt:not([disabled])'), f = d.querySelector('#inf');
   if (o) o.click(); else if (f && !d.querySelector('#inp').disabled) submit(); else if (d.querySelector('.ltile:not(.used)')) d.querySelectorAll('.ltile').forEach(b => b.click()); };
 setTimeout(() => { try {
-  const cat = w.eval('CATALOG');
+  const cat = w.eval('CATALOG'), games = {};
   for (let si = 0; si < cat.length; si++) {
     w.eval(`NAV.n=4;NAV.s=CATALOG[${si}];NAV.g=NAV.s.grades[0];setColor();showUnits()`);
     const n = d.querySelectorAll('.unit').length;
@@ -19,7 +19,14 @@ setTimeout(() => { try {
       const gl = d.querySelector('.mitem[data-k="gram"]'); if (gl) { gl.click(); if (!d.querySelector('.tip')) throw new Error(`Grammatik-Seite leer: Fach ${si} Unit ${u}`); d.querySelector('#go').click(); if (!d.querySelector('.progress')) throw new Error(`Grammatik-Übung startet nicht: Fach ${si} Unit ${u}`); }
       w.eval('showPractice()'); const k = d.querySelectorAll('.mitem').length; if (!k) throw new Error(`keine Übung: Fach ${si} Unit ${u}`);
       for (let j = 0; j < k; j++) {
-        w.eval('showPractice()'); d.querySelectorAll('.mitem')[j].click();
+        w.eval('showPractice()'); const mk = d.querySelectorAll('.mitem')[j].dataset.k; d.querySelectorAll('.mitem')[j].click();
+        if (mk.startsWith('g-')) {
+          if (!d.querySelector('#lg')) throw new Error(`Lernspiel startet nicht: Fach ${si} Unit ${u} ${mk}`);
+          if (mk === 'g-sort') { const D = w.eval('sortData(NAV.u)'); if (D.items.some(x => !D.bins.includes(x.bin))) throw new Error(`Sortieren: Karte ohne Kiste in Fach ${si} Unit ${u}`); }
+          for (let q = 0; q < 4; q++) { const x = d.querySelector('.gopt, .mcard:not(.open):not(.done), .bin'); if (x) x.click(); }
+          w.eval('lgFinish()'); if (!d.querySelector('#lgend')) throw new Error(`Lernspiel endet nicht: Fach ${si} Unit ${u} ${mk}`);
+          games[mk] = (games[mk] || 0) + 1; continue;
+        }
         for (let q = 0; q < 25 && !d.querySelector('.bigstars'); q++) { step(); if (!d.querySelector('.bigstars')) w.eval('nextTask()'); }
         if (!d.querySelector('.bigstars')) throw new Error(`Übung nicht fertig: Fach ${si} Unit ${u} Übung ${j}`);
       }
@@ -34,6 +41,17 @@ setTimeout(() => { try {
   d.querySelector('#pf').dispatchEvent(new w.Event('submit', { cancelable: true }));
   if (!d.querySelector('#pmax')) throw new Error('Eltern-Bereich öffnet nicht');
   if (errs.length) throw new Error('JS-Fehler: ' + errs.slice(0, 3).join(' | '));
+  console.log('Lernspiele:', JSON.stringify(games));
+  // Schreiben: Gross-/Kleinschreibung im Deutsch, Artikel optional, Englisch ohne
+  const ck = w.eval(`JSON.stringify([
+    inputCheck({ answer:'das Auge', alts:['das Auge'], cs:true, deart:true, uml:true }, 'Auge').ok,
+    inputCheck({ answer:'das Auge', alts:['das Auge'], cs:true, deart:true, uml:true }, 'auge').ok,
+    inputCheck({ answer:'das Auge', alts:['das Auge'], cs:true, deart:true, uml:true }, 'auge').caseOnly,
+    inputCheck({ answer:'süss', alts:['süss'], cs:true, deart:true, uml:true }, 'suess').ok,
+    inputCheck({ answer:'sehen', alts:['sehen'], cs:true, deart:true, uml:true }, 'Sehen').ok,
+    inputCheck({ answer:'Library' }, 'library').ok ])`);
+  if (ck !== '[true,false,true,true,false,true]') throw new Error('Schreib-Prüfung falsch: ' + ck);
+  console.log('OK: Gross- und Kleinschreibung');
   // Zurücksetzen im Eltern-Bereich
   if (!(w.eval('DB.stars') > 0)) throw new Error('Vor dem Zurücksetzen keine Sterne gesammelt');
   d.querySelector('#pr1').click(); d.querySelector('#pr2').click();
