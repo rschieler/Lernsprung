@@ -2442,8 +2442,9 @@ function showHome(){
   stop(); if (!(DEV.parent && DEV.remember)) PARENT_OK = false; NAV.n = NAV.s = NAV.g = NAV.b = NAV.u = null; setColor(); crumbs();
   const P = activeProfile(), many = liveProfiles().length > 1;
   app.innerHTML = `<h1 class="h1">${many ? 'Hallo ' + esc(P.name) + '! ' : ''}In welche Klasse gehst du?</h1><p class="lead">Wähle deine Klasse.${many ? ` <button class="btn" id="hprof" style="padding:4px 12px;margin-left:6px">${P.icon} Profil wechseln</button>` : ''}</p>
-  <div class="menu">${allGrades().map(n => mbtn(n, n + '.', n + '. Klasse', CATALOG.filter(s => gradeOf(s,n)).map(s => s.name).join(', '))).join('')}</div>`;
-  app.querySelectorAll('.mitem').forEach(b => b.onclick = () => { NAV.n = +b.dataset.k; showSubjects(); });
+  ${(() => { const G = allGrades(), my = G.includes(+P.grade) ? +P.grade : 0, gb = n => mbtn(n, n + '.', n + '. Klasse' + (n === my ? ' · meine Klasse' : ''), CATALOG.filter(s => gradeOf(s,n)).map(s => s.name).join(', '));
+    return my ? `<div class="menu">${gb(my)}</div><h2 class="h2">Andere Klassen</h2><div class="menu">${G.filter(n => n !== my).map(gb).join('')}</div>` : `<div class="menu">${G.map(gb).join('')}</div>`; })()}`;
+  app.querySelectorAll('.mitem').forEach(b => b.onclick = () => { NAV.n = +b.dataset.k; if (!P.grade && !P.test && DB.profiles[ACTIVE]) touchProfile(ACTIVE, { grade:NAV.n }); showSubjects(); });
   const hx = homeExtras(); if (hx) { app.querySelector('.lead').insertAdjacentHTML('afterend', `<div class="hx">${hx}</div>`); bindExams(showHome); }
   if ($('#hprof')) $('#hprof').onclick = showProfiles;
   if (P.grade) { const m = app.querySelector(`.mitem[data-k="${P.grade}"]`); if (m) m.classList.add('mine'); }
@@ -4652,7 +4653,7 @@ try { applyTheme(); } catch (e) {}
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-30';
+const APP_VERSION = '2026-11-06-31';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
