@@ -264,6 +264,19 @@ setTimeout(() => { try {
     if (!d.querySelector('#lgend')) throw new Error('Paare finden endet nicht');
     w.eval('showPairs()'); d.querySelector('#mhard').click(); if (!d.querySelector('.mcard.mk-a') || !d.querySelector('.mcard.mk-r') || !d.querySelector('#measy')) throw new Error('Verdeckt-Modus für Mathe fehlt');
     console.log('OK: Mathe-Paare'); }
+  // Mein Design: Themes, Sterne-Stufen, Sperre durch Eltern
+  { w.eval("switchProfile(liveKids()[0].id, true); DB.stars = 10; touchProfile(ACTIVE, { ui:null, uiLock:false }); showDesign()");
+    if (d.querySelectorAll('.thcard').length !== w.eval('THEMES.length')) throw new Error('Themes fehlen');
+    d.querySelector('[data-th="weltall"]').click(); if (w.eval('uiOf(ACTIVE).th') !== 'std') throw new Error('Gesperrtes Theme wählbar');
+    d.querySelector('[data-th="nacht"]').click(); if (w.eval('uiOf(ACTIVE).th') !== 'nacht' || d.documentElement.dataset.theme !== 'dark' || d.documentElement.style.getPropertyValue('--bg') !== '#0e1322') throw new Error('Theme Nacht nicht angewendet');
+    w.eval('DB.stars = 60; showDesign()'); d.querySelector('[data-th="weltall"]').click(); if (w.eval('uiOf(ACTIVE).th') !== 'weltall') throw new Error('Freigeschaltetes Theme nicht wählbar');
+    d.querySelector('[data-acc="#db2777"]').click(); if (w.eval('themeAccent()') !== '#db2777') throw new Error('Lieblingsfarbe nicht gespeichert');
+    d.querySelector('#dbig').checked = true; d.querySelector('#dbig').dispatchEvent(new w.Event('change')); if (!d.documentElement.classList.contains('bigtxt')) throw new Error('Grosse Schrift fehlt');
+    w.eval("const T = liveProfiles().find(p => p.test); switchProfile(T.id, true); showDesign()"); if (d.querySelector('.thcard.lock')) throw new Error('Testprofil hat gesperrte Themes');
+    w.eval("switchProfile(liveKids()[0].id, true)"); if (w.eval('uiOf(ACTIVE).th') !== 'weltall' || d.documentElement.dataset.theme !== 'dark') throw new Error('Theme pro Profil nicht wiederhergestellt');
+    w.eval("touchProfile(ACTIVE, { uiLock:true }); showDesign()"); if (!d.querySelector('.thcard[disabled]') || d.querySelector('#dpat')) throw new Error('Sperre wirkt nicht');
+    w.eval("touchProfile(ACTIVE, { ui:null, uiLock:false }); applyTheme()"); if (d.documentElement.dataset.theme !== 'light') throw new Error('Standard-Theme nicht zurück');
+    console.log('OK: Mein Design'); }
   // Eigene Tastatur
   w.eval("touchProfile(ACTIVE, { kbd:'on' }); NAV.s = CATALOG[0]; NAV.g = NAV.s.grades[0]; NAV.b = NAV.g.books[0]; NAV.u = NAV.b.units[1]; NAV.n = NAV.g.grade; run([B.write(NAV.u.words[0])], { restart:null })");
   if (!d.querySelector('#kbd') || !d.querySelector('#inp').readOnly) throw new Error('Eigene Tastatur fehlt');

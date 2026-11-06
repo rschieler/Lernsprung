@@ -1,6 +1,6 @@
 # Lernsprung – Hinweise für Claude
 
-Lern-App für die Tochter von Ronny und für Familien im Bekanntenkreis (über Einladungen, siehe Synchronisation) (Schuljahr 2026/27 in der 4. Klasse, ab August 2027 5. Klasse, Primarschule, Kanton St. Gallen). Inhalte für die 4. und 5. Klasse.
+Lern-App für die Tochter von Ronny und für Familien im Bekanntenkreis (über Einladungen, siehe Synchronisation) (Schuljahr 2026/27 in der 4. Klasse, ab August 2027 5. Klasse, Primarschule, Kanton St. Gallen). Inhalte für die 4. und 5. Klasse, **später auch für ältere Kinder** (höhere Klassen über neue `grade`-Einträge im `CATALOG`; Design und Texte nicht nur auf Primarschul-Alter auslegen).
 Live: https://rschieler.github.io/Lernsprung/ (GitHub Pages, Branch `main`, Root).
 
 ## Grundsätze
@@ -33,6 +33,8 @@ Alles steckt in **einer Datei: `index.html`** (HTML, CSS, JS, keine Build-Schrit
 - Probetests und Übungstests lassen sich unterbrechen: Stand nach jeder Aufgabe in localStorage `lernsprung-pause` (pro Profil und Test, 14 Tage, nur dieses Gerät; `pauseSave`, `pauseGet`, `resume`, `pauseBox`). Knopf «Pause» unter der Aufgabe, Zurück-Taste speichert ebenfalls. Fertiger Test oder «Neu anfangen» löscht den Stand.
 - Spielminuten nur nach Note (`noteOf`, Tabellen `MIN_PRACTICE` und `MIN_TEST`, `earnNote`). Lernkarten geben keine Minuten, «Fehler üben» 1 Min wenn alles korrigiert, unter 2 s Denkzeit pro Aufgabe (`tooFast`) 0 Min, Verbesserung im Probetest +2 Min. Jede Übung zählt höchstens zweimal pro Tag.
 - Spielminuten-Technik: `earn()`, `playState()`, Spiel `showGame()`, Tagesmaximum pro Profil (Standard 30 Min).
+
+- Mein Design (`showDesign`, Menü «🎨 Mein Design»): pro Profil `DB.profiles[id].ui = {th, acc, pat, big, calm}`, Sperre `uiLock` (Profil-Einstellungen). `THEMES` (Themenwelten nach Interessen, nicht nach Geschlecht; dunkle mit `DARK`), freigeschaltet über Sterne (`stars`: 0/50/100/200, Testprofil alles offen). `applyTheme` setzt CSS-Variablen auf `:root`, `data-theme`, Muster als `body`-Hintergrund, `bigtxt`, `calm`, Schrift (`--hfont`, Pixel lädt «Press Start 2P»), Symbol in der Kopfzeile. Fachfarben (`--c` via `setColor`) bleiben; ohne Fach gilt `themeAccent()`. `celebrate()` bei Note ≥ 5,5 (Emojis des Themes, nicht im Ruhig-Modus). CSS nie mit festem `#fff`-Hintergrund, immer `var(--card)`.
 
 ## Profile
 - Mehrere Profile pro Familie (Geschwister, Testprofil `test:true` für Eltern). Jede Familie hat immer genau ein Testprofil (`ensureTestProfile` in `parentTabs`, ein Profil mit «test» im Namen wird umgewandelt), löschbar (wird sofort leer neu angelegt), steht zuletzt und getrennt («Für Eltern zum Ausprobieren»), zählt nicht als Kind (`liveKids`, `famMeta`). «Testen wie» (`P.as`): `profCfg` übernimmt `MIRROR` (Klasse, Tagesmaximum, Tastatur, Lernlisten-Recht, Wochenziel) vom Kind; «Lernstand kopieren» kopiert die PF-Felder des Kindes ins Testprofil. Pro Profil: `known`, `tests`, `stars`, `play`, `best`, `games`, `reset` (Liste `PF`, dazu `log`, `err`, `pt`, `red`). Gemeinsam: `settings`, `custom`, `profiles`.
