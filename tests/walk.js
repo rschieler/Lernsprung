@@ -227,6 +227,12 @@ setTimeout(() => { try {
     d.querySelector('#resume').click(); if (w.eval('SES.i') !== 1 || !w.eval('SES.histKey')) throw new Error('Übungstest geht nicht weiter');
   }
   console.log('OK: Test unterbrechen und weitermachen');
+  // Quizlet-Formate
+  const qz = w.eval(`JSON.stringify([
+    parseList('vok', 'nose\\tdie Nase\\nfruity\\tfruchtig, süss\\nhello*\\tHallo').items,
+    parseList('vok', 'Begriffe in diesem Set (4)\\nnose\\ndie Nase\\nto taste\\nschmecken\\nfoot\\nder Fuß\\ncan’t\\nkann nicht').items ])`);
+  if (qz !== JSON.stringify([[['nose','die Nase'],['fruity','fruchtig, süss'],['hello','Hallo']], [['nose','die Nase'],['to taste','schmecken'],['foot','der Fuss'],["can't",'kann nicht']]])) throw new Error('Quizlet-Import falsch: ' + qz);
+  console.log('OK: Quizlet-Import');
   // Eigene Tastatur
   w.eval("touchProfile(ACTIVE, { kbd:'on' }); NAV.s = CATALOG[0]; NAV.g = NAV.s.grades[0]; NAV.b = NAV.g.books[0]; NAV.u = NAV.b.units[1]; NAV.n = NAV.g.grade; run([B.write(NAV.u.words[0])], { restart:null })");
   if (!d.querySelector('#kbd') || !d.querySelector('#inp').readOnly) throw new Error('Eigene Tastatur fehlt');

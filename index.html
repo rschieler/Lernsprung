@@ -2341,13 +2341,22 @@ const LIST_KINDS = {
   qa:     { name:'Fragen und Antworten', hint:'Pro Zeile: Frage = Antwort', ex:'Hauptort des Kantons St.Gallen = St.Gallen\n7 · 8 = 56\nLängster Fluss der Schweiz = Aare' }
 };
 const listKindsFor = sid => sid === 'en' || sid === 'fr' ? ['vok', 'qa'] : sid === 'de' ? ['diktat', 'qa'] : ['qa'];
+const SEPS = ['\t', ' = ', '=', ';', ' – ', ' — ', ' - '];
+const cleanEntry = x => String(x).replace(/ß/g, 'ss').replace(/[’‘`´]/g, "'").replace(/\s*\*+\s*$/, '').replace(/\s+/g, ' ').trim();
 function parseList(kind, text){
-  const lines = String(text).split(/\r?\n/).map(l => l.replace(/^\s*[-•*\d]+[.)]\s+/, '').trim()).filter(Boolean), items = [], bad = [];
-  for (const l of lines) {
+  let lines = String(text).split(/\r?\n/).map(l => l.replace(/^\s*[-•*\d]+[.)]\s+/, '').replace(/ß/g, 'ss').replace(/[’‘`´]/g, "'").trimEnd().replace(/^\s+/, ''))
+    .filter(l => l.trim() && !/^(terms in this set|begriffe in diesem set|karteikarten|flashcards)\b/i.test(l.trim()));
+  const items = [], bad = [];
+  // Quizlet-Set-Seite kopiert: Begriff und Bedeutung abwechselnd auf eigenen Zeilen, ohne Trennzeichen
+  if (kind !== 'diktat' && lines.length >= 4 && lines.length % 2 === 0 && !lines.some(l => SEPS.some(x => l.includes(x)))) {
+    for (let i = 0; i < lines.length; i += 2) items.push([cleanEntry(lines[i]), cleanEntry(lines[i + 1])]);
+    return { items, bad, alt:true };
+  }
+  for (const l0 of lines) { const l = l0.trim();
     if (kind === 'diktat') { l.split(/\s*[,;]\s*/).filter(Boolean).forEach(w => items.push([w, ''])); continue; }
-    const sep = ['\t', ' = ', '=', ';', ' – ', ' — ', ' - '].find(x => l.includes(x));
+    const sep = SEPS.find(x => l0.includes(x)), src = sep === '\t' ? l0 : l;
     if (!sep) { bad.push(l); continue; }
-    const i = l.lastIndexOf(sep), a = l.slice(0, i).trim(), b = l.slice(i + sep.length).trim();
+    const i = sep === '\t' ? src.indexOf(sep) : src.lastIndexOf(sep), a = cleanEntry(src.slice(0, i)), b = cleanEntry(src.slice(i + sep.length));
     if (a && b) items.push([a, b]); else bad.push(l);
   }
   return { items, bad };
@@ -2427,7 +2436,9 @@ function showListEditor(id, draft){
     <label for="ltitle" style="display:block;margin-top:12px"><b>Titel</b></label><input id="ltitle" class="inp fld" maxlength="60" placeholder="z.B. Lernziele Unit 3 oder Test 20. November" value="${esc(cur.title)}">
     <label for="ltext" style="display:block;margin-top:12px"><b>Inhalt</b> <span class="small" id="lhint"></span></label>
     <textarea id="ltext" class="inp fld" rows="10" style="width:100%;font:inherit;resize:vertical" autocapitalize="off" spellcheck="false"></textarea>
+    <div class="row" style="justify-content:flex-start;margin-top:6px"><button type="button" class="btn sm" id="lswap">⇄ Seiten tauschen</button></div>
     <p class="small" id="lstat"></p>
+    <details class="tip"><summary><b>Von Quizlet übernehmen</b></summary><p class="small" style="margin:6px 0 0">Eigenes Set: Am Computer auf quizlet.com Set öffnen → «⋯» → «Exportieren» → «Text kopieren» und hier einfügen.<br>Set von anderen (z.B. Lehrperson): Auf der Set-Seite die Liste unter «Begriffe in diesem Set» markieren, kopieren und hier einfügen. Die App erkennt beide Formate. Bitte die Einträge kurz prüfen, fremde Sets enthalten manchmal Fehler.<br>Nur für eure Familie verwenden, nicht weitergeben.</p></details>
     <label for="lgoals" style="display:block;margin-top:6px"><b>Lernziele</b> <span class="small">· optional, pro Zeile ein Ziel, erscheint auf der Lernseite</span></label>
     <textarea id="lgoals" class="inp fld" rows="3" style="width:100%;font:inherit;resize:vertical">${esc((cur.goals || []).join('\n'))}</textarea>
     <div class="tip">📷 Tipp: Foto vom Lernziel-Blatt machen und den Text mit dem Handy erkennen lassen (Android: Google Lens «Text» → kopieren, iPhone: im Foto lange auf den Text tippen → kopieren). Dann hier einfügen und kurz prüfen.</div>
@@ -2440,6 +2451,8 @@ function showListEditor(id, draft){
     const r = parseList(k, txt.value); $('#lstat').innerHTML = `${r.items.length} Einträge erkannt${r.bad.length ? ` · <b>${r.bad.length} Zeilen ohne «=»</b>: ${esc(r.bad.slice(0, 3).join(' | '))}` : ''}${k !== 'diktat' && r.items.length && r.items.length < 4 ? ' · Für das Quiz braucht es mindestens 4 Einträge.' : ''}`; };
   if (cur.items && cur.items.length) txt.value = toText(cur.kind, cur.items);
   $('#lsg').onchange = fillKinds; kindSel.onchange = upd; txt.oninput = upd; fillKinds();
+  $('#lswap').onclick = () => { const r = parseList(kindSel.value, txt.value); if (!r.items.length) return toast('Noch keine Einträge erkannt.');
+    txt.value = toText(kindSel.value, r.items.map(x => [x[1], x[0], ...x.slice(2)])); upd(); toast('Seiten getauscht'); };
   $('#lback').onclick = draft && draft.ai ? showAiImport : listBack;
   $('#lsave').onclick = () => {
     const [s, g] = $('#lsg').value.split('|'), kind = kindSel.value, r = parseList(kind, txt.value), title = $('#ltitle').value.trim();
@@ -3851,7 +3864,7 @@ window.addEventListener('popstate', () => {
 if (DEV.parent) showParents(); else showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-14';
+const APP_VERSION = '2026-11-06-15';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
