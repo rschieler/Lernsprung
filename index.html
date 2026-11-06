@@ -11,6 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="Lernsprung">
 <meta name="theme-color" content="#3b6ef5">
+<link rel="manifest" href="manifest.json">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -292,6 +293,7 @@ body.menuopen{overflow:hidden}
 .kk.kw{flex:1.5 1 0;max-width:78px;font-size:1rem}.kk.on{background:var(--c);color:#fff;border-color:var(--c)}
 .kk.ksp{flex:5 1 0;max-width:none;font-size:.85rem;color:var(--muted)}.kk.kok{flex:2 1 0;max-width:110px;background:var(--c);color:#fff;border-color:var(--c);font-size:1rem}
 .inp.kbdin{caret-color:transparent;cursor:default}
+.prose h3{margin:16px 0 4px;font-size:1rem}.prose p{margin:4px 0 8px}.rlist.adm>div{grid-template-columns:1.6em minmax(0,1fr) auto auto}.rlist small{display:block;color:var(--muted);font-size:.8rem}
 .pausebox{margin-bottom:14px;border-color:var(--c)}
 .hx{margin-bottom:14px}.hx .card{margin-bottom:10px}.goal{display:flex;flex-direction:column;gap:4px;padding:14px 18px}.goal .dbar{height:10px;margin-top:4px}
 .exam.soon{border-color:var(--c);box-shadow:0 0 0 2px var(--c) inset,var(--shadow)}.eunits{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.eunits .btn{font-size:.85rem;min-height:34px}
@@ -1896,7 +1898,7 @@ function scheduleCloud(){ if (!CLOUD) return; cloudDirty = true; clearTimeout(cl
 async function pushCloud(){
   if (!CLOUD || cloudBusy || !cloudDirty) return;
   cloudBusy = true; cloudDirty = false; setSync('saving');
-  try { await CLOUD.set(cloudPayload()); setSync('ok'); }
+  try { await CLOUD.set(cloudPayload()); setSync('ok'); if (CLOUD.oldData && CLOUD.dropOld) { CLOUD.oldData = null; CLOUD.dropOld(); } }
   catch (e) { setSync('off'); if (e && e.code === 'unavailable') cloudDirty = true; else if (e && ['revoked','not_granted','capability_disabled','capability_removed'].includes(e.code)) CLOUD = null; }
   finally { cloudBusy = false; if (cloudDirty && CLOUD) { clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 4000 + Math.random() * 2000); } }
 }
@@ -1921,15 +1923,61 @@ function familyCode(){
 const familyLink = code => location.origin + location.pathname + '?f=' + code;
 function newFamilyCode(){ const a = 'abcdefghjkmnpqrstuvwxyz23456789', b = new Uint32Array(20); crypto.getRandomValues(b); return [...b].map(x => a[x % a.length]).join(''); }
 function loadScript(src){ return new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = rej; document.head.appendChild(el); }); }
-async function firebaseRef(code){
+/* Verschlüsselte Familien-Daten (v2): Dokument fam2/{Hash des Codes} enthält nur verschlüsselten Inhalt.
+   Schlüssel = SHA-256 des Familien-Codes. Weder Betreiber noch Firebase können Namen, Noten oder Listen lesen.
+   Unverschlüsselt sind nur: v, inv (Einladung), created, updated, ver (App-Version), kids, parents (Anzahl). */
+const ADMIN_EMAIL = 'ronny.schieler@gmail.com';
+const INV_KEY = 'lernsprung-einladung';
+const te = { encode:x => new TextEncoder().encode(x) }, td = { decode:x => new TextDecoder().decode(x) };
+const b64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const sha = async t => new Uint8Array(await crypto.subtle.digest('SHA-256', te.encode(t)));
+const hex = u8 => [...u8].map(x => x.toString(16).padStart(2, '0')).join('');
+const famId = async code => hex(await sha('lernsprung-id:' + code)).slice(0, 40);
+const famKey = async code => crypto.subtle.importKey('raw', await sha('lernsprung-key:' + code), 'AES-GCM', false, ['encrypt', 'decrypt']);
+async function zip(u8, on){ if (!on || typeof CompressionStream === 'undefined') return [u8, 0];
+  return [new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()), 1]; }
+async function unzip(u8, on){ if (!on) return u8; return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()); }
+async function sealData(key, obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12)), [raw, z] = await zip(te.encode(JSON.stringify(obj)), true);
+  return { iv:b64(iv), c:b64(new Uint8Array(await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, raw))), z };
+}
+async function openData(key, d){
+  const raw = new Uint8Array(await crypto.subtle.decrypt({ name:'AES-GCM', iv:unb64(d.iv) }, key, unb64(d.c)));
+  return JSON.parse(td.decode(await unzip(raw, d.z)));
+}
+async function loadFirebase(){
   if (!window.firebase) { for (const m of ['app','auth','firestore']) await loadScript(FB_CDN + 'firebase-' + m + '-compat.js'); }
   if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
-  await firebase.auth().signInAnonymously();
-  const doc = firebase.firestore().collection('families').doc(code);
-  return {
-    set: d => doc.set(JSON.parse(JSON.stringify(d))),
-    onSnapshot: (next, fail) => doc.onSnapshot(sn => next({ exists:sn.exists, data:() => sn.data(), metadata:{ hasPendingWrites:sn.metadata.hasPendingWrites } }), fail)
-  };
+  const auth = firebase.auth();
+  await new Promise(res => { const off = auth.onAuthStateChanged(() => { off(); res(); }); });
+  if (!auth.currentUser) await auth.signInAnonymously();
+  return firebase.firestore();
+}
+const famMeta = () => ({ v:2, updated:Date.now(), ver:APP_VERSION, kids:liveProfiles().filter(P => !P.test).length, parents:liveParents().length });
+async function firebaseRef(code){
+  const fs = await loadFirebase(), id = await famId(code), key = await famKey(code);
+  const doc = fs.collection('fam2').doc(id), old = fs.collection('families').doc(code);
+  let exists = null, legacy = false;
+  // Umstellung: alter, unverschlüsselter Stand wird übernommen und danach gelöscht
+  let oldData = null;
+  try { const o = await old.get(); if (o.exists) oldData = o.data(); } catch (e) {}
+  try { const n = await doc.get(); exists = n.exists; }
+  catch (e) { if (e && e.code === 'permission-denied') legacy = true; else throw e; }
+  if (legacy) { // Firestore-Regeln noch nicht umgestellt: wie bisher unverschlüsselt weiter
+    return { legacy:true, oldData:null,
+      set: d => old.set(JSON.parse(JSON.stringify(d))),
+      onSnapshot: (next, fail) => old.onSnapshot(sn => next({ exists:sn.exists, data:() => sn.data(), metadata:{ hasPendingWrites:sn.metadata.hasPendingWrites } }), fail) };
+  }
+  let chain = Promise.resolve();
+  return { legacy:false, oldData, dropOld: () => old.delete().catch(() => {}),
+    set: async d => { const body = Object.assign(famMeta(), await sealData(key, d));
+      if (!exists) { let inv = null; try { inv = localStorage.getItem(INV_KEY); } catch (e) {} body.inv = inv || 'alt'; body.created = Date.now(); }
+      await doc.set(body, { merge:true }); exists = true; },
+    remove: () => doc.delete(),
+    onSnapshot: (next, fail) => doc.onSnapshot(sn => { chain = chain.then(async () => {
+      let data = null; if (sn.exists) { exists = true; const r = sn.data(); if (r && r.c) { try { data = await openData(key, r); } catch (e) { return fail({ code:'Entschlüsseln fehlgeschlagen' }); } } }
+      next({ exists:!!data, data:() => data, metadata:{ hasPendingWrites:sn.metadata.hasPendingWrites } }); }); }, fail) };
 }
 (async () => {
   let ref = null;
@@ -1938,7 +1986,12 @@ async function firebaseRef(code){
     if (db) ref = db.doc('lernstand/familie');
   } else if (isHosted()) {
     const code = familyCode();
-    if (code) { setSync('saving'); try { ref = await firebaseRef(code); } catch (e) { setSync('off', (e && (e.code || e.message)) || 'Firebase konnte nicht geladen werden'); return; } }
+    if (code) {
+      setSync('saving');
+      try { const u = new URL(location.href); if (u.searchParams.get('f') !== code) { u.searchParams.set('f', code); history.replaceState(history.state, '', u.toString()); } } catch (e) {}
+      try { ref = await firebaseRef(code); } catch (e) { setSync('off', (e && (e.code || e.message)) || 'Firebase konnte nicht geladen werden'); return; }
+      if (ref.oldData) { DB = fromCanon(mergeDB(toCanon(DB), remoteOf(ref.oldData), true)); applyCustom(); save(); }
+    }
   }
   if (!ref) return;
   let first = true; setSync('saving');
@@ -1955,7 +2008,7 @@ async function firebaseRef(code){
     if (first) {
       first = false; CLOUD = ref; setSync('ok');
       const r = snap.exists ? snap.data() || {} : null;
-      if (!r || snapshotOf(toCanon(DB)) !== snapshotOf(remoteOf(r))) scheduleCloud();
+      if (!r || ref.oldData || snapshotOf(toCanon(DB)) !== snapshotOf(remoteOf(r))) scheduleCloud();
     }
     if (VIEW && !snap.metadata.hasPendingWrites && snapshotOf(toCanon(DB)) !== before) VIEW();
   }, e => { CLOUD = null; setSync('off', (e && (e.code || e.message)) || 'Verbindung fehlgeschlagen'); });
@@ -3505,11 +3558,14 @@ function familyPage(){
   app.innerHTML = parentTabs() + `${isHosted() ? familyBox() : ''}
   ${listsPanelHTML()}
   <h2 class="h2">Mein PIN</h2><div class="card"><p class="small" style="margin-top:0">Dein persönlicher Eltern-PIN für das Elternprofil${curParent() ? ' (' + curParent().icon + ' ' + esc(curParent().name) + ')' : ''}. Er öffnet auch Profile mit Profil-PIN.</p><button class="btn" id="ppin">Meinen PIN ändern</button></div>
-  <div class="row"><button class="btn" id="pdone">Zur Lern-App</button></div>`;
+  ${isAdmin() ? `<h2 class="h2">Familie löschen</h2><div class="card" id="fdelbox"><p class="small" style="margin-top:0">Löscht alle Profile, Lernstände, Listen und Einstellungen eurer Familie endgültig, online und auf diesem Gerät. Andere Geräte verlieren die Verbindung.</p><button class="btn" id="fdel">Familie und alle Daten löschen</button></div>` : ''}
+  <div class="row"><button class="btn" id="pprivacy">🔒 Datenschutz</button><button class="btn" id="pdone">Zur Lern-App</button></div>`;
   bindTabs(); bindListsPanel(); LISTCTX = { kid:false };
+  $('#pprivacy').onclick = showPrivacy;
+  if ($('#fdel')) $('#fdel').onclick = () => { $('#fdelbox').innerHTML = `<p style="margin-top:0"><b>Wirklich alles löschen?</b> Das kann nicht rückgängig gemacht werden. Tippe zur Bestätigung LÖSCHEN.</p><input id="fdelc" class="inp fld" autocapitalize="characters"><div class="row" style="justify-content:flex-start"><button class="btn" id="fdel2" style="background:var(--bad);border-color:var(--bad);color:#fff">Endgültig löschen</button><button class="btn" id="fdel0">Abbrechen</button></div>`;
+    $('#fdel0').onclick = parentPanel; $('#fdel2').onclick = () => { if ($('#fdelc').value.trim().toUpperCase() !== 'LÖSCHEN') return toast('Bitte LÖSCHEN eintippen.'); deleteFamily(); }; };
   $('#ppin').onclick = () => { const P = curParent(); if (!P) return; pinForm('Meinen PIN ändern', 'Neuen 4-stelligen PIN eingeben.', true, (a, b) => { PTAB = 'family'; setOwnPin(P.id, a, b); PTAB = 'family'; }); };
   $('#pdone').onclick = showHome;
-  if ($('#fNew')) $('#fNew').onclick = () => { const c = newFamilyCode(); try { localStorage.setItem(FAM_KEY, c); } catch (e) {} location.href = familyLink(c); };
   if ($('#fJoin')) $('#fJoin').onclick = () => { const c = ($('#fCode').value || '').trim().toLowerCase().replace(/^.*[?&]f=/, '').replace(/[^a-z0-9]/g, '');
     if (c.length < 16) return toast('Der Familien-Code ist zu kurz.'); try { localStorage.setItem(FAM_KEY, c); } catch (e) {} location.href = familyLink(c); };
   if ($('#fCopy')) $('#fCopy').onclick = async () => { const l = familyLink(familyCode());
@@ -3768,6 +3824,115 @@ function homeExtras(){
   return `${goalHTML(P.id, true)}${ex.map(e => examCard(e, true)).join('')}`;
 }
 
+/* =====================================================================
+   Einladungen, Betreiber-Bereich, Datenschutz, Familie löschen
+   ===================================================================== */
+const FEEDBACK_MAIL = ADMIN_EMAIL;
+const inviteLink = id => location.origin + location.pathname + '?i=' + id;
+async function deleteFamily(){
+  try { if (CLOUD && CLOUD.remove) await CLOUD.remove(); else if (CLOUD && CLOUD.legacy) await firebase.firestore().collection('families').doc(familyCode()).delete(); }
+  catch (e) { return toast('Löschen ging nicht: ' + ((e && (e.code || e.message)) || e)); }
+  CLOUD = null; try { [STORE, FAM_KEY, INV_KEY, DEV_STORE, ACTIVE_STORE, PAUSE_STORE].forEach(k => localStorage.removeItem(k)); } catch (e) {}
+  app.innerHTML = '<div class="card center"><h1 class="h1">Gelöscht</h1><p>Alle Daten eurer Familie sind gelöscht.</p><button class="btn primary" id="gone">OK</button></div>';
+  $('#gone').onclick = () => { location.href = location.pathname; };
+}
+function showPrivacy(){
+  stop(); crumbs();
+  app.innerHTML = `<h1 class="h1">🔒 Datenschutz</h1><div class="card prose">
+    <p><b>Kurz:</b> Lernsprung ist eine private Lern-App für Familien im Bekanntenkreis. Es gibt keine Werbung, kein Tracking und keine Weitergabe von Daten. Kinder brauchen weder E-Mail-Adresse noch Konto.</p>
+    <h3>Was gespeichert wird</h3><p>Profile (Name oder Spitzname, Bild, Klasse), Lernstand, Noten, Lernzeit, Fehler der letzten Übungen, Spielminuten, Lernpunkte, Belohnungen, Prüfungstermine, eigene Lernlisten und die Eltern-PINs.</p>
+    <h3>Wo</h3><p>Auf dem Gerät (im Browser) und, wenn Geräte verbunden sind, bei Google Firebase (Firestore). Dort liegen die Daten <b>verschlüsselt</b> (AES-256). Der Schlüssel steckt nur im Familien-Link auf euren Geräten. Weder der Betreiber noch Google können Namen, Noten oder Listen lesen.</p>
+    <p>Unverschlüsselt sieht der Betreiber nur: dass es eure Familie gibt, über welche Einladung sie entstanden ist, wann sie angelegt und zuletzt benutzt wurde, die App-Version und die Anzahl Kinder- und Elternprofile.</p>
+    <h3>Fingerabdruck und Gesicht</h3><p>Werden nur vom Gerät geprüft. Biometrische Daten verlassen das Gerät nie.</p>
+    <h3>KI</h3><p>Die App ruft selbst keine KI auf. «Mit KI erstellen» kopiert nur einen Auftrag in eure eigene KI-App. Bitte dort keine Namen oder Noten der Kinder eingeben und keine Lehrmittel-Seiten fotografieren, die das verbieten (z.B. Klett und Balmer).</p>
+    <h3>Löschen</h3><p>Im Elternprofil unter «Familie» → «Familie und alle Daten löschen». Das löscht alles sofort und endgültig. Einzelne Profile lassen sich in den Profil-Einstellungen löschen oder zurücksetzen.</p>
+    <h3>Kontakt</h3><p>Betreiber: Ronny Schieler, Flums. Fragen oder Löschwünsche: <a href="mailto:${FEEDBACK_MAIL}">${FEEDBACK_MAIL}</a></p></div>
+    <div class="row"><button class="btn" id="prback">Zurück</button></div>`;
+  $('#prback').onclick = () => (PARENT_OK ? parentPanel() : showHome());
+}
+function feedbackMail(){
+  const body = `Was ist passiert?\n\n\n---\nApp-Version: ${APP_VERSION}\nGerät: ${navigator.userAgent}`;
+  location.href = `mailto:${FEEDBACK_MAIL}?subject=${encodeURIComponent('Lernsprung: Problem oder Idee')}&body=${encodeURIComponent(body)}`;
+}
+/* Einladung annehmen: ?i=<Einladung> */
+async function showInvite(inv){
+  stop(); crumbs();
+  app.innerHTML = '<div class="card center"><p>⏳ Einladung wird geprüft …</p></div>';
+  if (familyCode()) { app.innerHTML = `<div class="card"><h1 class="h1">Schon verbunden</h1><p>Dieses Gerät gehört bereits zu einer Familie. Eine Einladung braucht ihr nur einmal für die erste Einrichtung.</p><div class="row"><button class="btn primary" id="ivh">Zur App</button></div></div>`; $('#ivh').onclick = () => { location.href = familyLink(familyCode()); }; return; }
+  let I = null;
+  try { const fs = await loadFirebase(), d = await fs.collection('invites').doc(inv).get(); I = d.exists ? d.data() : null; }
+  catch (e) { app.innerHTML = `<div class="card"><h1 class="h1">Keine Verbindung</h1><p>Die Einladung konnte nicht geprüft werden. Bitte später nochmals öffnen.</p><p class="small">${esc((e && (e.code || e.message)) || '')}</p></div>`; return; }
+  if (!I || I.blocked) { app.innerHTML = '<div class="card"><h1 class="h1">Einladung ungültig</h1><p>Diese Einladung gibt es nicht (mehr). Bitte frag nach einem neuen Link.</p></div>'; return; }
+  if (I.used) { app.innerHTML = '<div class="card"><h1 class="h1">Einladung schon benutzt</h1><p>Mit diesem Link wurde bereits eine Familie eingerichtet. Weitere Geräte verbindet ihr im Elternprofil unter «Familie» → «Link teilen».</p></div>'; return; }
+  app.innerHTML = `<h1 class="h1">🦘 Willkommen bei Lernsprung</h1><p class="lead">Einladung für <b>${esc(I.name || 'eure Familie')}</b></p>
+    <div class="card"><p>Lernsprung hilft Kindern der 4. und 5. Klasse (Lehrplan 21, Kanton St. Gallen) beim Üben: Englisch, Mathe, Deutsch, NMG und Französisch, mit Probetests, Lernspielen und Spielminuten als Belohnung.</p>
+      <p>So geht es weiter:</p><ol class="plist"><li>Familie einrichten (dieser Knopf)</li><li>Eltern-PIN festlegen und Profile für die Kinder anlegen</li><li>Im Elternprofil unter «Familie» den Link auf die Geräte der Kinder schicken</li></ol>
+      <label class="small" style="display:flex;gap:8px;align-items:flex-start;margin-top:12px"><input type="checkbox" id="ivok"> <span>Ich bin Mutter, Vater oder erziehungsberechtigt und habe die <a href="#" id="ivpriv">Datenschutz-Hinweise</a> gelesen.</span></label>
+      <div class="row"><button class="btn primary" id="ivgo">Familie einrichten</button></div></div>`;
+  $('#ivpriv').onclick = e => { e.preventDefault(); showPrivacy(); $('#prback').onclick = () => showInvite(inv); };
+  $('#ivgo').onclick = async () => {
+    if (!$('#ivok').checked) return toast('Bitte zuerst bestätigen.');
+    $('#ivgo').disabled = true; $('#ivgo').textContent = '⏳ Wird eingerichtet …';
+    const code = newFamilyCode();
+    try {
+      try { localStorage.setItem(INV_KEY, inv); } catch (e) {}
+      const ref = await firebaseRef(code); if (ref.legacy) throw new Error('Die Firestore-Regeln sind noch nicht eingerichtet.');
+      await ref.set(cloudPayload());
+      await firebase.firestore().collection('invites').doc(inv).update({ used:await famId(code), usedAt:Date.now() });
+      try { localStorage.setItem(FAM_KEY, code); } catch (e) {}
+      location.href = familyLink(code) + '&neu=1';
+    } catch (e) { $('#ivgo').disabled = false; $('#ivgo').textContent = 'Familie einrichten'; toast('Einrichten ging nicht: ' + ((e && (e.code || e.message)) || e)); }
+  };
+}
+/* Betreiber-Bereich: ?admin – Google-Anmeldung, nur ADMIN_EMAIL. Sieht nur Metadaten, nie Inhalte. */
+async function showAdmin(){
+  stop(); crumbs();
+  app.innerHTML = '<div class="card center"><p>⏳ Betreiber-Bereich wird geladen …</p></div>';
+  let fs; try { fs = await loadFirebase(); } catch (e) { app.innerHTML = '<div class="card"><p>Firebase konnte nicht geladen werden.</p></div>'; return; }
+  const u = firebase.auth().currentUser;
+  if (!u || u.isAnonymous || u.email !== ADMIN_EMAIL) {
+    app.innerHTML = `<h1 class="h1">🛠️ Betreiber-Bereich</h1><div class="card"><p>Nur für den Betreiber. Anmelden mit dem Google-Konto ${esc(ADMIN_EMAIL)}.</p>${u && !u.isAnonymous ? `<p class="small">Angemeldet als ${esc(u.email || '')} – kein Zugriff.</p>` : ''}
+      <div class="row"><button class="btn primary" id="agl">Mit Google anmelden</button><button class="btn" id="aback">Zur App</button></div></div>`;
+    $('#aback').onclick = showHome;
+    $('#agl').onclick = async () => { const pr = new firebase.auth.GoogleAuthProvider(); pr.setCustomParameters({ login_hint:ADMIN_EMAIL });
+      try { await firebase.auth().signInWithPopup(pr); showAdmin(); } catch (e) { if (e && /popup/.test(e.code || '')) firebase.auth().signInWithRedirect(pr); else toast('Anmelden ging nicht: ' + ((e && (e.code || e.message)) || e)); } };
+    return;
+  }
+  let invs = [], fams = [];
+  try { invs = (await fs.collection('invites').get()).docs.map(d => Object.assign({ id:d.id }, d.data())); fams = (await fs.collection('fam2').get()).docs.map(d => { const x = d.data(); return { id:d.id, inv:x.inv, created:x.created, updated:x.updated, ver:x.ver, kids:x.kids, parents:x.parents, kb:Math.round(((x.c || '').length * .75) / 1024) }; }); }
+  catch (e) { app.innerHTML = `<h1 class="h1">🛠️ Betreiber-Bereich</h1><div class="card"><p><b>Kein Zugriff:</b> ${esc((e && (e.code || e.message)) || '')}</p><p class="small">Sind die Firestore-Regeln aus <code>firestore.rules</code> in der Firebase-Konsole veröffentlicht?</p></div>`; return; }
+  const byInv = Object.fromEntries(invs.map(i => [i.id, i])), dt = t => t ? new Date(t).toLocaleDateString('de-CH') : '–';
+  const ago = t => { if (!t) return '–'; const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? 'heute' : d === 1 ? 'gestern' : 'vor ' + d + ' Tagen'; };
+  invs.sort((a, b) => (b.created || 0) - (a.created || 0)); fams.sort((a, b) => (b.updated || 0) - (a.updated || 0));
+  const active = fams.filter(f => f.updated > Date.now() - 7 * 864e5).length;
+  app.innerHTML = `<h1 class="h1">🛠️ Betreiber-Bereich</h1><p class="lead">Angemeldet als ${esc(u.email)} · <a href="#" id="aout">abmelden</a></p>
+    <div class="kpi"><div><b>${fams.length}</b>Familien</div><div><b>${active}</b>aktiv (7 Tage)</div><div><b>${fams.reduce((a, f) => a + (f.kids || 0), 0)}</b>Kinder</div></div>
+    <h2 class="h2">Neue Einladung</h2><div class="card"><label for="ainm"><b>Für wen?</b></label><div class="inrow"><input id="ainm" class="inp fld" maxlength="40" placeholder="z.B. Familie Meier" style="flex:1"><button class="btn primary" id="ainv">Erstellen</button></div>
+      <p class="small">Jeder Link richtet genau eine Familie ein. Den Namen sieht die Familie bei der Einladung, sonst nur du.</p></div>
+    <h2 class="h2">Familien</h2>${fams.length ? `<div class="rlist adm">${fams.map(f => { const I = byInv[f.inv];
+      return `<div><span>${f.inv === 'alt' ? '🏠' : I && I.blocked ? '⛔' : '👪'}</span><span><b>${esc(f.inv === 'alt' ? 'Bestehende Familie (vor Einladungen)' : I ? I.name : 'Einladung gelöscht')}</b><small>seit ${dt(f.created)} · zuletzt ${ago(f.updated)} · ${f.kids || 0} Kind${f.kids === 1 ? '' : 'er'}, ${f.parents || 0} Eltern · Version ${esc(f.ver || '–')} · ${f.kb} KB</small></span><span></span>
+        <button class="btn sm" data-fdel="${f.id}">Löschen</button></div>`; }).join('')}</div>` : '<p class="small">Noch keine Familien.</p>'}
+    <h2 class="h2">Einladungen</h2>${invs.length ? `<div class="rlist adm">${invs.map(i => `<div><span>${i.blocked ? '⛔' : i.used ? '✅' : '✉️'}</span><span><b>${esc(i.name)}</b><small>erstellt ${dt(i.created)} · ${i.blocked ? 'gesperrt' : i.used ? 'eingerichtet ' + dt(i.usedAt) : 'noch offen'}</small></span>
+      ${i.used || i.blocked ? '<span></span>' : `<button class="btn sm" data-ishare="${i.id}">Link</button>`}<button class="btn sm" data-iblock="${i.id}">${i.blocked ? 'Entsperren' : 'Sperren'}</button></div>`).join('')}</div>` : '<p class="small">Noch keine Einladungen.</p>'}
+    <p class="small">Inhalte der Familien (Namen, Noten, Listen) sind verschlüsselt und hier nicht sichtbar. «Sperren» stoppt die Synchronisation dieser Familie, «Löschen» entfernt ihre Online-Daten.</p>
+    <div class="row"><button class="btn" id="aback">Zur App</button></div>`;
+  $('#aback').onclick = showHome;
+  $('#aout').onclick = async e => { e.preventDefault(); await firebase.auth().signOut(); showAdmin(); };
+  const share = async id => { const l = inviteLink(id), n = (byInv[id] || {}).name || '';
+    const t = `Hallo! Hier ist eure Einladung für Lernsprung, die Lern-App für die 4. und 5. Klasse: ${l}`;
+    try { if (navigator.share) await navigator.share({ title:'Lernsprung für ' + n, text:t }); else { await navigator.clipboard.writeText(t); toast('Einladung kopiert'); } }
+    catch (e) { try { await navigator.clipboard.writeText(t); toast('Einladung kopiert'); } catch (e2) { prompt('Link kopieren:', l); } } };
+  $('#ainv').onclick = async () => { const name = $('#ainm').value.trim(); if (!name) return toast('Bitte einen Namen eingeben.');
+    const id = newFamilyCode(); try { await fs.collection('invites').doc(id).set({ name, created:Date.now(), used:null, usedAt:null, blocked:false }); } catch (e) { return toast('Ging nicht: ' + (e.code || e.message)); }
+    await showAdmin(); share(id); };
+  app.querySelectorAll('[data-ishare]').forEach(b => b.onclick = () => share(b.dataset.ishare));
+  app.querySelectorAll('[data-iblock]').forEach(b => b.onclick = async () => { const I = byInv[b.dataset.iblock]; await fs.collection('invites').doc(I.id).update({ blocked:!I.blocked }); toast(I.blocked ? 'Entsperrt' : 'Gesperrt'); showAdmin(); });
+  app.querySelectorAll('[data-fdel]').forEach(b => b.onclick = async () => { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Sicher?'; b.style.background = 'var(--bad)'; b.style.color = '#fff'; return; }
+    await fs.collection('fam2').doc(b.dataset.fdel).delete(); toast('Online-Daten der Familie gelöscht'); showAdmin(); });
+}
+/* Installierbare Web-App (offline) */
+if (isHosted() && 'serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); }); }
+
 function syncInfo(){
   if (SYNC.state === 'ok') return '<b style="color:var(--ok)">✅ Verbunden: Lernstand und Einstellungen werden synchronisiert.</b>';
   if (SYNC.state === 'saving') return '<b>⏳ Verbinde mit der Familie …</b>';
@@ -3781,11 +3946,11 @@ function familyBox(){
     <p>Dieses Gerät gehört zu eurer Familie. Öffne den Link auf einem anderen Handy, dann teilen beide Geräte Lernstand, Noten und Spielminuten.</p>
     <p class="small" style="word-break:break-all">${esc(familyLink(c))}</p>
     <div class="row"><button class="btn primary" id="fCopy">Link teilen</button></div>
-    <p class="small">Wichtig: Füge die App erst nach dem Öffnen dieses Links zum Startbildschirm hinzu, dann bleibt die Verbindung erhalten.</p></div>`;
+    <p class="small">Wichtig: Füge die App erst nach dem Öffnen dieses Links zum Startbildschirm hinzu, dann bleibt die Verbindung erhalten.</p>
+    <p class="small">🔐 Eure Daten sind verschlüsselt. Der Schlüssel steckt nur in diesem Link. <b>Bewahre ihn sicher auf</b> (z.B. im Passwort-Manager oder als Notiz). Ohne ihn kann niemand die Daten wiederherstellen, auch der Betreiber nicht.</p></div>`;
   return `<h2 class="h2">Geräte verbinden</h2><div class="card">
-    <p>Verbinde die Handys, damit du von deinem Gerät aus steuern kannst.</p>
-    <div class="row"><button class="btn primary" id="fNew">Familie einrichten</button></div>
-    <p class="small">Oder Code bzw. Link von einem anderen Gerät einfügen:</p>
+    <p>Verbinde die Handys, damit du von deinem Gerät aus steuern kannst. Eine neue Familie richtest du über den Einladungslink ein, den du bekommen hast.</p>
+    <p class="small">Schon eine Familie auf einem anderen Gerät? Link oder Code von dort einfügen:</p>
     <div class="inrow"><input id="fCode" class="inp" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Familien-Code oder Link" aria-label="Familien-Code"><button class="btn" id="fJoin">Verbinden</button></div></div>`;
 }
 
@@ -3804,12 +3969,13 @@ function openMenu(){
     ${it('exam', '📅', 'Prüfung eintragen', (() => { const e = liveExams(ACTIVE).find(x => daysTo(x.d) >= 0); return e ? 'Nächste: ' + whenTxt(daysTo(e.d)) : 'Damit die App beim Lernen hilft'; })())}
     ${kidListsOn() ? it('list', '✨', 'Lernliste erstellen', 'Eigene Wörter oder Fragen') : ''}
     <hr>${it('parents', '👪', 'Elternprofil', DEV.parent ? 'Dieses Gerät ist ein Eltern-Gerät' : 'Mit Eltern-PIN')}
+    ${it('privacy', '🔒', 'Datenschutz', '')}${it('mail', '✉️', 'Problem melden', 'E-Mail an den Betreiber')}
     <p class="small dver">Lernsprung · Version ${APP_VERSION}</p>`;
   d.hidden = false; document.getElementById('drawerbg').hidden = false; document.body.classList.add('menuopen');
   document.getElementById('menuBtn').setAttribute('aria-expanded', 'true');
   d.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { const m = b.dataset.m; closeMenu();
     if (m === 'home') showHome(); else if (m === 'units') showUnits(); else if (m === 'prof') showProfiles(); else if (m === 'game') showGame();
-    else if (m === 'list') startKidList(); else if (m === 'rew') showRewards(); else if (m === 'exam') showExamForm(ACTIVE, showHome); else if (m === 'parents') showParents(); });
+    else if (m === 'list') startKidList(); else if (m === 'privacy') showPrivacy(); else if (m === 'mail') feedbackMail(); else if (m === 'rew') showRewards(); else if (m === 'exam') showExamForm(ACTIVE, showHome); else if (m === 'parents') showParents(); });
   const f = d.querySelector('.ditem'); if (f) f.focus();
 }
 function closeMenu(){ const d = document.getElementById('drawer'); d.hidden = true; document.getElementById('drawerbg').hidden = true; document.body.classList.remove('menuopen'); document.getElementById('menuBtn').setAttribute('aria-expanded', 'false'); }
@@ -3824,7 +3990,7 @@ updateStars(); updatePlay();
 /* Zurück-Taste (Android, Browser): eine Ebene zurück statt App schliessen */
 const SCREENS = { showHome:'home', showSubjects:'subjects', showUnits:'units', showUnit:'unit', showLearn:'learn', showLearnGen:'learnGen',
   flash:'sub', wordList:'sub', abcBoard:'sub', showGrammar:'sub', showPractice:'practice', showCustomTest:'testIntro', showTestIntro:'testIntro',
-  run:'run', showProfiles:'sub0', showBlitz:'lgame', showMemory:'lgame', showSort:'lgame', showClock:'lgame', showMap:'lgame', showGame:'game', showParents:'parents', showRewards:'sub0', showExamForm:'sub0' };
+  run:'run', showProfiles:'sub0', showBlitz:'lgame', showMemory:'lgame', showSort:'lgame', showClock:'lgame', showMap:'lgame', showGame:'game', showParents:'parents', showRewards:'sub0', showExamForm:'sub0', showPrivacy:'sub0', showAdmin:'sub0', showInvite:'sub0' };
 let CUR = 'home', RET = null, ARMED = false, SKIP = false, BACKWARN = 0;
 const hist = (fn, ...a) => { try { history[fn](...a); } catch (e) {} };
 Object.entries(SCREENS).forEach(([n, id]) => {
@@ -3861,10 +4027,14 @@ window.addEventListener('popstate', () => {
   if (CUR !== 'home' && !ARMED) { ARMED = true; hist('pushState', { ls:1 }, ''); }
 });
 
-if (DEV.parent) showParents(); else showHome();
+{ const q = new URLSearchParams(location.search);
+  if (isHosted() && q.get('i') && /^[a-z0-9]{16,40}$/.test(q.get('i'))) showInvite(q.get('i'));
+  else if (isHosted() && q.has('admin')) showAdmin();
+  else if (q.has('neu')) { PTAB = 'home'; showParents(); try { const u = new URL(location.href); u.searchParams.delete('neu'); history.replaceState(history.state, '', u.toString()); } catch (e) {} }
+  else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-15';
+const APP_VERSION = '2026-11-06-16';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {

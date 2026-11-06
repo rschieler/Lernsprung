@@ -2,7 +2,7 @@
 const { JSDOM } = require('jsdom'); const fs = require('fs'); const path = require('path');
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const w = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, beforeParse(w) {
-  w.scrollTo = () => {};
+  w.scrollTo = () => {}; w.TextEncoder = TextEncoder; w.TextDecoder = TextDecoder; try { Object.defineProperty(w.crypto, 'subtle', { value:require('crypto').webcrypto.subtle }); } catch (e) {}
   w.HTMLCanvasElement.prototype.getContext = () => new Proxy({}, { get: (t, k) => k === 'createLinearGradient' ? () => ({ addColorStop() {} }) : () => {}, set: () => true });
 } }).window;
 const d = w.document, errs = []; w.addEventListener('error', e => errs.push(e.message));

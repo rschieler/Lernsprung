@@ -1,6 +1,6 @@
 # Lernsprung – Hinweise für Claude
 
-Lern-App für die Tochter von Ronny (Schuljahr 2026/27 in der 4. Klasse, ab August 2027 5. Klasse, Primarschule, Kanton St. Gallen). Inhalte für die 4. und 5. Klasse.
+Lern-App für die Tochter von Ronny und für Familien im Bekanntenkreis (über Einladungen, siehe Synchronisation) (Schuljahr 2026/27 in der 4. Klasse, ab August 2027 5. Klasse, Primarschule, Kanton St. Gallen). Inhalte für die 4. und 5. Klasse.
 Live: https://rschieler.github.io/Lernsprung/ (GitHub Pages, Branch `main`, Root).
 
 ## Grundsätze
@@ -50,14 +50,21 @@ Alles steckt in **einer Datei: `index.html`** (HTML, CSS, JS, keine Build-Schrit
 - Prüfungsplaner `DB.exams[id] = {p, d, s, g, units:[unitKey], title, note, by}` (familienweit). Eintragen über Menü «Prüfung eintragen» (Kind) oder Dashboard (Eltern), `showExamForm`. Startseite zeigt Prüfungen der nächsten 21 Tage mit Bereitschaft pro Thema (`readiness`: Bestnote Probetest, sonst Trefferquote) und Tagestipp (`examPlan`), «Jetzt üben» öffnet das schwächste Thema (`openUnit`). Eltern tragen nach der Prüfung die echte Note ein. Notenfarben (`noteColor`): 5,5–6 dunkelgrün, 5–5,4 hellgrün, 4–4,9 gelb, unter 4 rot, ohne Probetest grau.
 
 ## Synchronisation
-- Auf GitHub Pages: **Firebase Firestore**, Dokument `families/{Familien-Code}` (Projekt `lernsprung-ea1d2`, Anonym-Login). Der Code steckt im Link `?f=…` und im localStorage.
+- Auf GitHub Pages: **Firebase Firestore** (Projekt `lernsprung-ea1d2`, Anonym-Login). Der Familien-Code steckt im Link `?f=…` und im localStorage (wird beim Start in die Adresse geschrieben, damit «Zum Startbildschirm» ihn mitnimmt).
+- **Verschlüsselt (v2):** Dokument `fam2/{famId}`, `famId` = SHA-256(`lernsprung-id:`+Code), Inhalt AES-GCM mit Schlüssel SHA-256(`lernsprung-key:`+Code), gzip (`sealData`/`openData`). Klartext nur `v, inv, created, updated, ver, kids, parents` (`famMeta`). Weder Betreiber noch Firebase können Inhalte lesen. Code verloren = Daten verloren.
+- Umstellung: altes `families/{Code}` (Klartext) wird beim Start gelesen, zusammengeführt und nach dem ersten Hochladen gelöscht. Erlauben die Regeln `fam2` noch nicht (`permission-denied`), läuft die App wie bisher über `families/{Code}` weiter (`ref.legacy`).
+- Einladungen: `invites/{geheime ID}` `{name, created, used, usedAt, blocked}`, Link `?i=…` → `showInvite` legt Familie an (`inv` im Dokument), danach `?f=…&neu=1` (PIN festlegen). Ohne Einladung keine neue Familie, nur Beitreten mit Code. Bestehende Familien vor den Einladungen: `inv:'alt'` (laut Regeln nur bis 31.12.2026 neu anlegbar).
+- Betreiber-Bereich `?admin` (`showAdmin`): Google-Anmeldung, nur `ADMIN_EMAIL`. Zeigt Familien (Metadaten), Einladungen erstellen/teilen/sperren, Online-Daten einer Familie löschen. Gesperrte Einladung = Familie kann nicht mehr synchronisieren.
+- Regeln in `firestore.rules` (in der Firebase-Konsole veröffentlichen). Familie löschen im Elternprofil (Admin-Elternteil): `deleteFamily`. Datenschutz `showPrivacy`, Feedback `feedbackMail`.
+- Installierbar: `manifest.json` (ohne `start_url`, damit `?f=` bleibt), `sw.js` (Seite zuerst aus dem Netz, offline aus dem Speicher), `icon-192.png`, `icon-512.png`.
 - Als claude.ai-Artefakt: Artifact-Capability `db`, Dokument `lernstand/familie`.
 - Gespeicherte Felder: `profiles`, `pd`, `parents`, `rewards`, `log`, `err`, `pt`, `red`, `known`, `tests`, `stars`, `play`, `settings`, `best`, `games`, `custom` (eigene Lernlisten, pro Liste gewinnt die neuere `t`, gelöscht = `del:true`; in Firestore als Objekte `{a,b,w}` über `customToCloud`/`customFromCloud`, weil Firestore keine Listen in Listen erlaubt), `reset` (Zeitstempel des letzten Zurücksetzens; Geräte mit älterem Stand verwerfen ihren Lernstand beim Zusammenführen). Neue Felder in `mergeDB`, `snapshotOf`, `remoteOf` und `pushCloud` ergänzen.
 
 ## Vor jedem Push testen
 ```
-cd tests && npm install --silent && node generators.js && node walk.js
+cd tests && npm install --silent && node generators.js && node walk.js && node sync.js
 ```
+- `sync.js`: Verschlüsselung, Umstellung, zwei Geräte, Einladung, Betreiber-Bereich, Familie löschen, Rückfall ohne neue Regeln (Firestore im Speicher nachgebaut).
 - Zusätzlich bei Änderungen am Entsperren: `node bio.js` (Playwright, virtueller Fingerabdruck-Sensor über CDP).
 - `generators.js` ruft jeden Generator 3000-mal auf und prüft Antworten und Auswahlmöglichkeiten.
 - `walk.js` klickt in jedem Fach jede Unit, jede Übung und jeden Probetest durch, dazu Spiel und Eltern-Bereich.
