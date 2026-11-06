@@ -230,6 +230,17 @@ setTimeout(() => { try {
   if (!w.eval("anyParentPin('7777') && anyParentPin('1234') && !anyParentPin('5555')")) throw new Error('Eltern-PINs falsch');
   if (w.eval('DB.settings.pin') !== '1234') throw new Error('Admin-PIN für alte Versionen fehlt');
   console.log('OK: Elternprofile');
+  // Papiertest: Blatt, Lösungen, Ergebnis mit Eltern-PIN, Übungsprüfung aus mehreren Themen
+  for (const sid of ['en', 'ma', 'de', 'nmg', 'fr']) w.eval(`(() => { const s = CATALOG.find(x => x.id === '${sid}'); for (const g of s.grades) for (const b of g.books) for (const u of b.units) { NAV.s = s; NAV.g = g; NAV.b = b; NAV.u = u; NAV.n = g.grade; showPaper(paperUnit());
+    const n = document.querySelectorAll('.paper .ptask').length, ls = document.querySelectorAll('.psol ol li').length; if (!n || n !== ls) throw new Error('Papiertest ' + u.id + ': ' + n + '/' + ls); } })()`);
+  w.eval("PARENT_OK = false; NAV.s = CATALOG.find(x => x.id === 'ma'); NAV.g = NAV.s.grades[0]; NAV.b = NAV.g.books[0]; NAV.u = NAV.b.units[0]; NAV.n = NAV.g.grade; DB.tests[ukey()] = []; showPaper(paperUnit()); document.getElementById('pres').click()");
+  d.querySelector('#pp0').value = '9'; d.querySelector('#ppin').value = '0000'; d.querySelector('#psave').click();
+  if (w.eval('DB.tests[ukey()].length')) throw new Error('Papiertest ohne Eltern-PIN gespeichert');
+  d.querySelector('#pp0').value = '9'; d.querySelector('#ppin').value = '1234'; d.querySelector('#psave').click();
+  { const r = w.eval('JSON.stringify(DB.tests[ukey()])'); if (!/"paper":1/.test(r) || !d.querySelector('#paper')) throw new Error('Papiertest-Ergebnis falsch: ' + r); }
+  w.eval("(() => { const s = CATALOG.find(x => x.id === 'ma'), g = s.grades[0], b = g.books[0]; paperExam({ id:'x', p:ACTIVE, d:'2030-01-01', s:'ma', g:g.grade, units:b.units.slice(0, 4).map(u => ['ma', g.grade, b.id, u.id].join('-')) }, showHome); })()");
+  if (d.querySelectorAll('.paper .punit').length !== 4) throw new Error('Übungsprüfung ohne 4 Themen');
+  console.log('OK: Papiertest');
   // Probetest und Übungstest unterbrechen und weitermachen
   w.eval("NAV.s = CATALOG[0]; NAV.g = NAV.s.grades[0]; NAV.b = NAV.g.books[0]; NAV.u = NAV.b.units.find(u => u.tests && u.tests.length) || NAV.b.units[1]; NAV.n = NAV.g.grade; pauseClear(ukey()); showTestIntro()");
   d.querySelector('#go').click(); for (let g = 0; g < 3; g++) { step(); w.eval('nextTask()'); }

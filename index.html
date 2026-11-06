@@ -322,6 +322,34 @@ html.pixfont .h1,html.pixfont .brand .bt{font-family:var(--hfont);letter-spacing
 .wrep{white-space:pre-wrap;font:inherit;font-size:.92rem;margin:0}.mitem.rew.off{opacity:.65}
 .ptabs{margin-bottom:10px;flex-wrap:nowrap;gap:6px;overflow-x:auto}.ptabs .btn{padding:7px 11px;font-size:.92rem;white-space:nowrap;flex:0 0 auto}
 .pcards{display:grid;gap:12px}.pcard .kpi{margin-top:8px}.pchead{display:flex;gap:10px;align-items:center}.pchead div{display:flex;flex-direction:column}
+/* Papiertest */
+.paper{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:22px 20px;margin:16px 0;box-shadow:var(--shadow);font-size:15px;line-height:1.45}
+.phead{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:2px solid currentColor;padding-bottom:10px;margin-bottom:8px}
+.phead h1{font-size:1.35rem;margin:4px 0 2px;line-height:1.2}.psub{font-size:.9rem;color:var(--muted)}
+.pmeta{display:grid;grid-template-columns:auto;gap:6px;font-size:.92rem;min-width:200px}.pfill{display:inline-block;width:130px;border-bottom:1px solid currentColor;height:1em}.pfill.s{width:44px}
+.plp{font-size:.78rem;color:var(--muted);margin:0 0 6px}
+.punit{font-size:1.1rem;margin:18px 0 4px;padding-top:6px;border-top:1px dashed var(--line)}
+.ppart{font-size:1rem;margin:14px 0 6px}.ppart small{font-weight:600;color:var(--muted)}
+.ptask{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line);break-inside:avoid;page-break-inside:avoid}
+.pno{font-weight:900;min-width:1.6em}.pbody{flex:1;min-width:0}.ppt{font-size:.8rem;color:var(--muted);white-space:nowrap}
+.pprm{font-size:.82rem;color:var(--muted)}.pgrid{display:grid;grid-template-columns:1fr 1fr;column-gap:22px}.pgrid .pline span{max-width:none}.ptxt{font-weight:700;margin:2px 0 4px;overflow-wrap:anywhere}.ptxt svg{max-width:170px;height:auto}
+.popts{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:4px}.popt{display:inline-flex;gap:6px;align-items:center}.popt.big{font-size:1.7rem}
+.pbox{display:inline-block;width:14px;height:14px;border:1.5px solid currentColor;border-radius:2px;flex:none}
+.pline{display:flex;align-items:flex-end;gap:8px;margin-top:10px}.pline span{flex:1;max-width:340px;border-bottom:1px solid currentColor;height:1.2em}
+.pfoot{text-align:center;font-size:.8rem;color:var(--muted);margin-top:18px}
+.psol{margin-top:26px;padding-top:14px;border-top:2px dashed var(--line);break-before:page;page-break-before:always}.psol.off{display:none}.psol h2{font-size:1.2rem;margin:0}
+.plist2{columns:2;column-gap:28px;padding-left:0;list-style:none;font-size:.9rem;margin:0}.plist2 li{break-inside:avoid;margin-bottom:3px}
+.pscale{border-collapse:collapse;font-size:.85rem;margin-top:4px}.pscale th,.pscale td{border:1px solid var(--line);padding:3px 7px;text-align:center}
+@media print{
+  @page{size:A4;margin:14mm 14mm 12mm}
+  body{background:none!important;color:#000}
+  body > :not(#app), #app > :not(.paper), .noprint, #kbd{display:none!important}
+  #app{max-width:none!important;padding:0!important;margin:0!important}
+  .paper{border:0;box-shadow:none;padding:0;margin:0;background:none;color:#000;font-size:12.5pt}
+  .pprm,.psub,.plp,.ppt,.pfoot,.ppart small{color:#444}
+  .ptask,.pscale th,.pscale td{border-color:#bbb}
+  .psol{border-top:0;margin-top:0}
+}
 </style>
 </head>
 <body>
@@ -3385,10 +3413,108 @@ function showTestIntro(){
     <ul class="plist">${plan.map(p => `<li>${esc(p.label)} (${p.n} Aufgaben)</li>`).join('')}</ul>
     <p>Du siehst erst am Schluss, was richtig war. Dann bekommst du eine Note.</p>
     <button class="btn ${pauseGet(ukey()) ? '' : 'primary'} wide" id="go">${pauseGet(ukey()) ? 'Neu anfangen' : 'Test starten'}</button></div>
-  ${hist.length ? `<h2 class="h2">Deine letzten Tests</h2><div class="hist">${hist.map(h => `<div><span>${new Date(h.d).toLocaleDateString('de-CH')}</span><span>${h.pts} von ${h.n}</span><b>Note ${fmtNote(h.note)}</b></div>`).join('')}</div>` : ''}`;
+  <div class="card"><b>🖨️ Papiertest</b><p class="small" style="margin:4px 0 10px">Den Probetest als Blatt ausdrucken oder als PDF speichern, mit Lösungsblatt und Notenskala.</p>
+    <div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="btn" id="paper">🖨️ Papiertest erstellen</button><button class="btn" id="paperres">✅ Ergebnis eintragen</button></div></div>
+  ${hist.length ? `<h2 class="h2">Deine letzten Tests</h2><div class="hist">${hist.map(h => `<div><span>${new Date(h.d).toLocaleDateString('de-CH')}</span><span>${h.pts} von ${h.n}${h.paper ? ' 📝' : ''}</span><b>Note ${fmtNote(h.note)}</b></div>`).join('')}</div>${hist.some(h => h.paper) ? '<p class="small">📝 = Papiertest</p>' : ''}` : ''}`;
   if ($('#resume')) $('#resume').onclick = () => resume(ukey(), showTestIntro);
+  $('#paper').onclick = () => showPaper(paperUnit());
+  $('#paperres').onclick = () => showPaperResult(paperUnit());
   $('#go').onclick = () => pauseClear(ukey()) || run(plan.flatMap(p => p.make().map(t => Object.assign(t, { part:p.label }))), { test:true, restart:showTestIntro });
 }
+
+/* =====================================================================
+   7b) PAPIERTEST: Probetest als A4-Blatt drucken oder als PDF speichern
+   (Druckdialog des Browsers; die App erzeugt das Blatt selbst, keine KI, kein Server)
+   ===================================================================== */
+const PAPER_STORE = 'lernsprung-druck';
+const PAPERMEM = (() => { try { return JSON.parse(localStorage.getItem(PAPER_STORE) || '{}'); } catch (e) { return {}; } })();
+function paperRemember(k, n){ PAPERMEM[ACTIVE + '|' + k] = { n, d:Date.now() }; const lim = Date.now() - 90 * 864e5; Object.keys(PAPERMEM).forEach(x => { if (PAPERMEM[x].d < lim) delete PAPERMEM[x]; });
+  try { localStorage.setItem(PAPER_STORE, JSON.stringify(PAPERMEM)); } catch (e) {} }
+const paperLast = k => PAPERMEM[ACTIVE + '|' + k];
+/* Aufgaben einer Unit fürs Papier. cap = höchstens so viele Aufgaben (bei Prüfungen mit mehreren Themen). */
+function paperTasks(f, cap){
+  const keep = { s:NAV.s, g:NAV.g, b:NAV.b, u:NAV.u, n:NAV.n };
+  NAV.s = f.s; NAV.g = f.g; NAV.b = f.b; NAV.u = f.u; NAV.n = f.g.grade;
+  try {
+    const plan = testPlan(f.u), total = plan.reduce((a, p) => a + p.n, 0), r = cap && total > cap ? cap / total : 1;
+    const seen = new Set();
+    return plan.map(p => { const want = Math.max(1, Math.round(p.n * r)), out = [];
+      for (let i = 0; i < 8 && out.length < want; i++) p.make().forEach(t => { const id = t.kind + '|' + (t.text || '') + '|' + (t.say || ''); if (out.length < want && (t.kind === 'choice' || t.kind === 'input') && !seen.has(id)) { seen.add(id); out.push(t); } });
+      return { label:p.name, tasks:out }; }).filter(p => p.tasks.length);
+  } finally { Object.assign(NAV, keep); }
+}
+function paperScale(n){
+  const rows = []; for (let p = n; p >= 0; p--) { const no = noteOf(p, n), r = rows[rows.length - 1]; if (r && r.no === no) r.lo = p; else rows.push({ no, hi:p, lo:p }); }
+  return `<table class="pscale"><tr><th>Note</th>${rows.map(r => `<td><b>${fmtNote(r.no)}</b></td>`).join('')}</tr><tr><th>Punkte</th>${rows.map(r => `<td>${r.hi === r.lo ? r.hi : r.lo + '–' + r.hi}</td>`).join('')}</tr></table>`;
+}
+/* sel = { title, sub, lp, groups:[{ k, f }], cap, back } */
+function showPaper(sel){
+  stop(); crumbs();
+  const solOn = (() => { try { return localStorage.getItem('lernsprung-druck-lsg') !== '0'; } catch (e) { return true; } })();
+  const G = sel.groups.map(g => ({ k:g.k, f:g.f, parts:paperTasks(g.f, sel.cap) }));
+  let no = 0; const read = [], sol = [];
+  const opt = (t, o) => `<span class="popt ${t.grid === 'pics' ? 'big' : ''}"><i class="pbox"></i>${esc(String(o.label))}</span>`;
+  const prmOf = t => t.say && t.autoSay ? (t.kind === 'input' ? 'Hör zu und schreib das Wort.' : 'Hör zu und kreuze an.') : t.prompt;
+  const small = t => (/monospace|<svg/.test(t.text || '') || String(t.plain || t.text || '').length <= 42) && (t.kind === 'input' || t.options.reduce((a, o) => a + String(o.label).length, 0) <= 34);
+  const part = p => { const same = p.tasks.every(t => prmOf(t) === prmOf(p.tasks[0])), grid = p.tasks.every(small);
+    return `<h3 class="ppart">${esc(p.label)} <small>(${p.tasks.length} P.)</small></h3>${same && prmOf(p.tasks[0]) ? `<p class="pprm">${esc(prmOf(p.tasks[0]))}</p>` : ''}<div class="${grid ? 'pgrid' : ''}">${p.tasks.map(t => task(t, same)).join('')}</div>`; };
+  const task = (t, same) => { no++;
+    const rd = t.say && t.autoSay, prm = same ? '' : prmOf(t);
+    if (rd) read.push(`<li><b>${no}.</b> ${esc(t.say)}</li>`);
+    const ans = t.kind === 'choice' ? (t.options.find(o => o.ok) || {}).label : t.answer != null ? String(t.answer).replace(/\B(?=(\d{3})+(?!\d))/g, /^\d{5,}$/.test(t.answer) ? "'" : '') + (t.unit ? ' ' + t.unit : '') : t.solution;
+    sol.push(`<li><b>${no}.</b> ${esc(String(ans == null ? t.solution : ans))}</li>`);
+    const txt = rd ? (t.kind === 'input' ? '' : '') : (t.text || '');
+    return `<div class="ptask"><span class="pno">${no}</span><div class="pbody">${prm ? `<div class="pprm">${esc(prm)}</div>` : ''}${txt && txt !== '🎧' ? `<div class="ptxt">${txt}</div>` : ''}
+      ${t.kind === 'choice' ? `<div class="popts ${t.grid === 'pics' ? 'pics' : ''}">${t.options.map(o => opt(t, o)).join('')}</div>` : `<div class="pline"><span></span>${t.unit ? `<em>${esc(t.unit)}</em>` : ''}</div>`}</div><span class="ppt">/1</span></div>`; };
+  const body = G.map(g => `${G.length > 1 ? `<h2 class="punit">${esc(g.f.u.icon || '')} ${esc(g.f.u.no)}: ${esc(g.f.u.title)}</h2>` : ''}${g.parts.map(part).join('')}`).join('');
+  const n = no, today = new Date().toLocaleDateString('de-CH'), S = sel.groups[0].f.s;
+  G.forEach(g => paperRemember(g.k, g.parts.reduce((a, p) => a + p.tasks.length, 0)));
+  app.innerHTML = `<div class="noprint"><h1 class="h1">🖨️ Papiertest</h1>
+    <p class="lead">Wie ein Test in der Schule: ausdrucken oder als PDF speichern. Jedes Mal neue Aufgaben.</p>
+    <div class="card"><div class="row" style="justify-content:flex-start;flex-wrap:wrap;gap:8px">
+      <button class="btn primary" id="pprint">🖨️ Drucken / PDF</button><button class="btn" id="pnew">🔄 Neue Aufgaben</button><button class="btn" id="pres">✅ Ergebnis eintragen</button></div>
+      <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="psol" ${solOn ? 'checked' : ''}> Lösungsblatt mitdrucken (eigene Seite)</label>
+      <p class="small" style="margin:8px 0 0">Im Druckfenster «Als PDF speichern» wählen, um eine PDF-Datei zu erhalten.</p></div></div>
+  <div class="paper">
+    <div class="phead"><div><b>${esc(S.icon)} ${esc(S.name)} · ${sel.groups[0].f.g.grade}. Klasse</b><h1>${esc(sel.title)}</h1>${sel.sub ? `<div class="psub">${esc(sel.sub)}</div>` : ''}</div>
+      <div class="pmeta"><div>Name: <span class="pfill"></span></div><div>Datum: <span class="pfill"></span></div><div>Punkte: <span class="pfill s"></span> von ${n}</div><div>Note: <span class="pfill s"></span></div></div></div>
+    ${sel.lp ? `<p class="plp">Lehrplan 21 St. Gallen: ${esc(sel.lp)}</p>` : ''}
+    ${body}
+    <p class="pfoot">Viel Erfolg! 🍀 · Lernsprung · ${today}</p>
+    <div class="psol ${solOn ? '' : 'off'}"><h2>Lösungen (für die Eltern)</h2><p class="psub">${esc(sel.title)} · ${n} Punkte</p>
+      ${read.length ? `<h3 class="ppart">Zum Vorlesen</h3><ul class="plist2">${read.join('')}</ul>` : ''}
+      <h3 class="ppart">Lösungen</h3><ol class="plist2">${sol.join('')}</ol>
+      <h3 class="ppart">Notenskala</h3>${paperScale(n)}</div>
+  </div>`;
+  $('#psol').onchange = e => { $('.psol').classList.toggle('off', !e.target.checked); try { localStorage.setItem('lernsprung-druck-lsg', e.target.checked ? '1' : '0'); } catch (x) {} };
+  $('#pnew').onclick = () => showPaper(sel);
+  $('#pres').onclick = () => showPaperResult(sel);
+  $('#pprint').onclick = () => { const t0 = document.title; document.title = `${S.name} ${sel.title} ${today}`.replace(/[\\/:*?"<>|]/g, ' ');
+    const back = () => { document.title = t0; removeEventListener('afterprint', back); }; addEventListener('afterprint', back); try { print(); } catch (e) { toast('Drucken geht auf diesem Gerät nicht.'); } };
+}
+/* Ergebnis eines Papiertests: Eltern tragen die Punkte ein, es zählt wie ein Probetest (Bestnote, Bereitschaft), aber ohne Spielminuten. */
+function showPaperResult(sel){
+  stop(); crumbs();
+  app.innerHTML = `<h1 class="h1">✅ Ergebnis Papiertest</h1><p class="lead">Die Note zählt für den Lernstand und die Prüfungs-Bereitschaft. Spielminuten gibt es dafür keine.</p>
+    <div class="card">${sel.groups.map((g, i) => { const l = paperLast(g.k); return `<div style="margin-bottom:12px"><b>${esc(g.f.u.icon || '')} ${esc(g.f.u.title)}</b>
+      <div class="row" style="justify-content:flex-start;gap:8px;margin-top:6px"><input class="inp" style="width:5.5em" type="text" inputmode="numeric" maxlength="3" placeholder="Punkte" id="pp${i}">
+      <span>von</span><input class="inp" style="width:5.5em" type="text" inputmode="numeric" maxlength="3" id="pn${i}" value="${l ? l.n : ''}"></div></div>`; }).join('')}
+      ${PARENT_OK ? '' : `<label for="ppin" style="display:block;margin-top:6px"><b>Eltern-PIN</b></label><input class="inp" id="ppin" type="password" inputmode="numeric" maxlength="8" autocomplete="off">`}
+      <button class="btn primary wide" id="psave" style="margin-top:12px">Speichern</button><button class="btn wide" id="pback" style="margin-top:8px">Zurück</button></div>`;
+  $('#pback').onclick = () => sel.back();
+  $('#psave').onclick = () => {
+    if (!PARENT_OK && !anyParentPin($('#ppin').value)) return toast('Falscher Eltern-PIN');
+    const rec = []; for (let i = 0; i < sel.groups.length; i++) { const ps = $('#pp' + i).value.trim(); if (ps === '') continue; const pts = +ps, n = +$('#pn' + i).value;
+      if (!(n >= 1 && pts >= 0 && pts <= n && Number.isInteger(pts) && Number.isInteger(n))) return toast('Punkte zwischen 0 und der Anzahl Aufgaben eingeben.'); rec.push([sel.groups[i].k, pts, n]); }
+    if (!rec.length) return toast('Bitte Punkte eintragen.');
+    let last = 0; rec.forEach(([k, pts, n]) => { last = noteOf(pts, n); DB.tests[k] = (DB.tests[k] || []).concat({ d:Date.now(), note:last, pts, n, paper:1 }).slice(-10); });
+    save(); toast(rec.length === 1 ? 'Gespeichert: Note ' + fmtNote(last) : 'Ergebnisse gespeichert'); sel.back();
+  };
+}
+function paperUnit(){ const u = NAV.u, k = ukey(), f = { s:NAV.s, g:NAV.g, b:NAV.b, u };
+  return { title:'Probetest ' + u.no + ': ' + u.title, sub:u.de, lp:u.lp, groups:[{ k, f }], back:showTestIntro }; }
+function paperExam(e, back){ const R = e.units.map(k => ({ k, f:findUnit(k) })).filter(x => x.f); if (!R.length) return toast('Diese Prüfung hat keine Themen.');
+  const S = R[0].f.s; showPaper({ title:e.title || S.name + '-Prüfung', sub:'Übungsprüfung für ' + new Date(e.d + 'T12:00').toLocaleDateString('de-CH'), groups:R, cap:R.length > 1 ? Math.max(8, Math.round(30 / R.length)) : 0, back }); }
 
 /* =====================================================================
    8) ABLAUF EINER RUNDE (Üben und Test)
@@ -4259,10 +4385,12 @@ function examCard(e, kid){
       <p class="small nleg">${ndot(6)}5,5–6 ${ndot(5)}5–5,4 ${ndot(4.5)}4–4,9 ${ndot(3)}unter 4 ${ndot(0)}noch kein Probetest</p>` : ''}
     ${pl.L >= 0 ? `<p class="small" style="margin:8px 0 0">💡 ${esc(pl.tip)}</p>` : ''}
     ${pl.weak && pl.L >= 1 && kid ? `<div class="row" style="justify-content:flex-start"><button class="btn primary" data-ou="${esc(pl.weak.k)}">Jetzt üben</button></div>` : ''}
+    ${pl.L >= 0 && pl.R.length ? `<div class="row" style="justify-content:flex-start"><button class="btn sm" data-eprint="${e.id}">🖨️ Übungsprüfung drucken</button></div>` : ''}
     ${!kid ? `<div class="row" style="justify-content:flex-start">${pl.L < 0 && !e.note ? `<input class="inp" style="width:5em" type="text" inputmode="decimal" maxlength="4" placeholder="Note" data-enote="${e.id}"><button class="btn sm" data-enotes="${e.id}">Note speichern</button>` : ''}<button class="btn sm" data-edel="${e.id}">Löschen</button></div>` : ''}</div>`;
 }
 function bindExams(after){
   app.querySelectorAll('[data-ou]').forEach(b => b.onclick = () => openUnit(b.dataset.ou));
+  app.querySelectorAll('[data-eprint]').forEach(b => b.onclick = () => { const e = DB.exams[b.dataset.eprint]; if (e) paperExam(e, after); });
   app.querySelectorAll('[data-edel]').forEach(b => b.onclick = () => { DB.exams[b.dataset.edel] = { id:b.dataset.edel, del:true, t:Date.now() }; save(); toast('Prüfung gelöscht'); after(); });
   app.querySelectorAll('[data-enotes]').forEach(b => b.onclick = () => { const id = b.dataset.enotes, v = +String(app.querySelector(`[data-enote="${id}"]`).value).replace(',', '.');
     if (!(v >= 1 && v <= 6)) return toast('Note zwischen 1 und 6 eingeben.'); DB.exams[id] = Object.assign({}, DB.exams[id], { note:Math.round(v * 4) / 4, t:Date.now() }); save(); toast('Note gespeichert'); after(); });
@@ -4524,7 +4652,7 @@ try { applyTheme(); } catch (e) {}
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-29';
+const APP_VERSION = '2026-11-06-30';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
