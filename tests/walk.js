@@ -87,7 +87,7 @@ setTimeout(() => { try {
   w.eval("showProfiles()"); if (d.querySelectorAll('.mitem:not([data-k="__par"])').length !== 3 || !d.querySelector('[data-k="__par"]')) throw new Error('Profilwahl zeigt nicht alle Profile');
   const tid = w.eval("liveProfiles().find(p => p.test).id"), nid = w.eval("liveProfiles().find(p => p.name === 'Noah').id");
   if (w.eval('liveProfiles().slice(-1)[0].test') !== true || w.eval('famMeta().kids') !== 2) throw new Error('Testprofil nicht zuletzt oder als Kind gezählt');
-  w.eval(`touchProfile('${nid}', { grade:5, max:45, kbd:'on' }); PTAB = 'prof:${tid}'; parentPanel()`); if (d.querySelector('#pfdel')) throw new Error('Testprofil lässt sich löschen');
+  w.eval(`touchProfile('${nid}', { grade:5, max:45, kbd:'on' }); PTAB = 'prof:${tid}'; parentPanel()`); if (!d.querySelector('#pfdel') || !d.querySelector('#pfdel').textContent.includes('Testprofil')) throw new Error('Testprofil-Löschknopf fehlt');
   d.querySelector('#pfas').value = nid; d.querySelector('#pfas').dispatchEvent(new w.Event('change'));
   if (w.eval(`profMax('${tid}')`) !== 45 || w.eval(`profCfg('${tid}').grade`) !== 5 || w.eval(`profCfg('${tid}').kbd`) !== 'on' || w.eval(`DB.profiles['${tid}'].name`) !== 'Testprofil') throw new Error('Testen wie Kind geht nicht');
   w.eval(`profPD('${nid}').stars = 17; PTAB = 'prof:${tid}'; parentPanel()`); d.querySelector('#pfcopy').click();
@@ -97,6 +97,14 @@ setTimeout(() => { try {
   w.eval(`DB.profiles['${tid}'] = { id:'${tid}', del:true, t:Date.now() }; const q = 'pq'; DB.profiles[q] = { id:q, name:'Test Papa', icon:'🦊', t:1, c:1 }; DB.pd[q] = emptyPF(); PTAB = 'home'; parentPanel()`);
   if (!w.eval("DB.profiles.pq.test") || w.eval('liveProfiles().filter(p => p.test).length') !== 1) throw new Error('Profil «Test …» wird nicht zum Testprofil');
   w.eval("PTAB = 'home'; parentPanel()"); d.querySelector('#pfadd').click(); d.querySelector('#pfname').value = 'Noah'; d.querySelector('#pfsave').click();
+  // Erstes Profil (p1) löschen: anderes Kind wird aktiv, p1-Daten weg, auch nach Zusammenführen mit altem Stand
+  { const c0 = w.eval('JSON.stringify(toCanon(DB))'); w.eval("switchProfile('p1', true); DB.stars = 33; save(); PTAB = 'prof:p1'; parentPanel()");
+    d.querySelector('#pfdel').click(); d.querySelector('#pfdel2').click();
+    if (w.eval('ACTIVE') === 'p1' || w.eval('liveProfiles().some(p => p.id === "p1")') || w.eval('toCanon(DB).stars') !== 0) throw new Error('Erstes Profil nicht gelöscht');
+    const m = w.eval(`(() => { const old = JSON.parse(${JSON.stringify(c0)}); old.stars = 33; const r = mergeDB(toCanon(DB), old, true); return JSON.stringify([r.stars, r.profiles.p1.del]); })()`);
+    if (m !== '[0,true]') throw new Error('Gelöschtes erstes Profil kommt zurück: ' + m);
+    w.eval("PTAB = 'prof:' + liveKids()[0].id; parentPanel()"); if (w.eval('liveKids().length') === 1 && d.querySelector('#pfdel')) throw new Error('Letztes Kind lässt sich löschen');
+    w.eval("DB.profiles.p1 = { id:'p1', name:'Lina', icon:'🦘', t:Date.now() }; DB.pd.p1 = Object.assign(emptyPF(), { reset:Date.now() }); save(); switchProfile('p1', true)"); }
   console.log('OK: Profile (Testprofil, Geschwister, alte App-Version)');
   // Pro Profil: Tagesmaximum, Profil-PIN; Eltern-Gerät
   const noah = w.eval("liveProfiles().find(p => p.name === 'Noah').id");

@@ -1807,7 +1807,8 @@ function toCanon(d){ const c = Object.assign({}, d, { pd:Object.assign({}, d.pd 
   delete c.pd.p1; return c; }
 function fromCanon(c){ const d = Object.assign({}, c, { pd:Object.assign({}, c.pd || {}) });
   if (!d.profiles || !d.profiles.p1) d.profiles = Object.assign(DEF_PROFILES(), d.profiles || {});
-  if (ACTIVE !== 'p1' && (!d.profiles[ACTIVE] || d.profiles[ACTIVE].del)) { ACTIVE = 'p1'; try { localStorage.setItem(ACTIVE_STORE, 'p1'); } catch (e) {} }
+  if (!d.profiles[ACTIVE] || d.profiles[ACTIVE].del) { const L = Object.values(d.profiles).filter(x => x && !x.del), n = (L.find(x => x.id === 'p1') || L.find(x => !x.test) || L[0] || { id:'p1' }).id;
+    if (n !== ACTIVE) { ACTIVE = n; try { localStorage.setItem(ACTIVE_STORE, n); } catch (e) {} } }
   if (ACTIVE !== 'p1') { d.pd.p1 = pickPF(c); Object.assign(d, Object.assign(emptyPF(), d.pd[ACTIVE] || {})); delete d.pd[ACTIVE]; }
   return d; }
 const liveProfiles = () => Object.values(DB.profiles || {}).filter(x => !x.del).sort((a, b) => (!!a.test - !!b.test) || (a.id === 'p1' ? -1 : b.id === 'p1' ? 1 : (a.c || 0) - (b.c || 0)));
@@ -3542,7 +3543,7 @@ function profileSettings(id){
   <h2 class="h2">Lernstand zurücksetzen</h2>
   <div class="card" id="preset"><p class="small" style="margin-top:0">Löscht nur für «${esc(P.name)}» auf allen verbundenen Geräten: gelernte Wörter, Probetest-Noten, Sterne, Spiel-Rekorde und die heute verdienten Spielminuten. Andere Profile und die Einstellungen bleiben.</p>
     <button class="btn" id="pr1">Lernstand von ${esc(P.name)} zurücksetzen</button></div>
-  <div class="row">${id !== 'p1' && !P.test ? '<button class="btn" id="pfdel">Profil löschen</button>' : ''}<button class="btn" id="pback">Zurück zur Übersicht</button></div>`;
+  <div class="row">${P.test || liveKids().length > 1 ? `<button class="btn" id="pfdel">${P.test ? 'Testprofil löschen' : 'Profil löschen'}</button>` : ''}<button class="btn" id="pback">Zurück zur Übersicht</button></div>`;
   bindTabs();
   let icon = P.icon;
   app.querySelectorAll('.picon').forEach(b => b.onclick = () => { icon = b.dataset.i; app.querySelectorAll('.picon').forEach(x => x.classList.toggle('primary', x.dataset.i === icon)); });
@@ -3573,7 +3574,11 @@ function profileSettings(id){
     $('#preset').innerHTML = `<p style="margin-top:0"><b>Profil «${esc(P.name)}» mit seinem ganzen Lernstand löschen?</b></p><div class="row" style="justify-content:flex-start"><button class="btn" id="pfdel2" style="background:var(--bad);border-color:var(--bad);color:#fff">Ja, Profil löschen</button><button class="btn" id="pfdel0">Abbrechen</button></div>`;
     try { $('#preset').scrollIntoView({ block:'center' }); } catch (e) {}
     $('#pfdel0').onclick = parentPanel;
-    $('#pfdel2').onclick = () => { if (id === ACTIVE) switchProfile('p1', true); DB.profiles[id] = { id, del:true, t:Date.now() }; delete DB.pd[id]; save(); toast('Profil gelöscht'); PTAB = 'home'; parentPanel(); };
+    $('#pfdel2').onclick = () => {
+      if (id === ACTIVE) { const o = liveKids().find(x => x.id !== id) || liveProfiles().find(x => x.id !== id); if (o) switchProfile(o.id, true); }
+      DB.profiles[id] = { id, del:true, t:Date.now() };
+      if (id === 'p1') DB.pd.p1 = Object.assign(emptyPF(), { reset:Date.now() }); else delete DB.pd[id];
+      save(); toast(P.test ? 'Testprofil gelöscht, ein neues leeres ist angelegt' : 'Profil gelöscht'); PTAB = 'home'; parentPanel(); };
   };
 }
 function familyPage(){
@@ -4072,7 +4077,7 @@ window.addEventListener('popstate', () => {
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-24';
+const APP_VERSION = '2026-11-06-25';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
