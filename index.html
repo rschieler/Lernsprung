@@ -247,6 +247,9 @@ mark{background:#ffe27a;color:#1b2238;border-radius:6px;padding:0 4px}
 
 .hit-ok,.kp.hit-ok .kpdot{fill:var(--ok)!important}.hit-no,.kp.hit-no .kpdot{fill:var(--bad)!important}
 .hit-show{stroke:var(--bad)!important;stroke-width:3!important}.kp.hit-show .kpdot{stroke:var(--bad);stroke-width:3;fill:#fff}
+
+#led .fld{width:100%;max-width:100%;text-align:left;font-size:1rem;font-weight:500;padding:10px 12px;margin-top:6px;box-sizing:border-box}
+#led textarea.fld{line-height:1.5}
 </style>
 </head>
 <body>
@@ -1735,8 +1738,9 @@ CATALOG.forEach(s => s.grades.forEach(g => g.books.forEach(b => b.units.forEach(
 }))));
 
 const STORE = 'lernheft-v1';
-let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0, reset:0, games:{} };
+let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0, reset:0, games:{}, custom:{} };
 try { const r = localStorage.getItem(STORE); if (r) DB = Object.assign(DB, JSON.parse(r)); } catch (e) {}
+applyCustom();
 function save(){ try { localStorage.setItem(STORE, JSON.stringify(DB)); } catch (e) {} scheduleCloud(); }
 
 /* ---- Online-Sync: nur aktiv im claude.ai-Link, die HTML-Datei speichert lokal ---- */
@@ -1751,10 +1755,10 @@ function setSync(state, err){
 }
 function mergeDB(local, remote, remoteWins){
   // Zurücksetzen: Wer einen älteren Stand als das letzte Zurücksetzen hat, verliert seinen Lernstand (Einstellungen bleiben)
-  const R = Math.max(local.reset || 0, remote.reset || 0), blank = d => ({ known:{}, tests:{}, stars:0, best:0, play:null, games:{}, settings:d.settings, reset:R });
+  const R = Math.max(local.reset || 0, remote.reset || 0), blank = d => ({ known:{}, tests:{}, stars:0, best:0, play:null, games:{}, settings:d.settings, custom:d.custom, reset:R });
   if ((local.reset || 0) < R) local = blank(local);
   if ((remote.reset || 0) < R) remote = blank(remote);
-  const out = { reset:R, games:{}, known:{}, tests:{}, stars: Math.max(local.stars || 0, remote.stars || 0), best: Math.max(local.best || 0, remote.best || 0) };
+  const out = { reset:R, games:{}, custom:{}, known:{}, tests:{}, stars: Math.max(local.stars || 0, remote.stars || 0), best: Math.max(local.best || 0, remote.best || 0) };
   const ls = local.settings || {}, rs = remote.settings || {};
   out.settings = Object.assign({ max:30, pin:'' }, (rs.t || 0) >= (ls.t || 0) && remote.settings ? rs : ls);
   const lp = local.play, rp = remote.play;
@@ -1764,6 +1768,8 @@ function mergeDB(local, remote, remoteWins){
     out.play = { day:lp.day, earned:Math.max(lp.earned || 0, rp.earned || 0), used:Math.max(lp.used || 0, rp.used || 0), bonus:Math.max(lp.bonus || 0, rp.bonus || 0), cnt }; }
   const order = remoteWins ? [local.known || {}, remote.known || {}] : [remote.known || {}, local.known || {}];
   order.forEach(src => { for (const u in src) out.known[u] = Object.assign({}, out.known[u] || {}, src[u]); });
+  const lc = local.custom || {}, rc = remote.custom || {};
+  new Set([...Object.keys(lc), ...Object.keys(rc)]).forEach(k => { const a = lc[k], b = rc[k]; out.custom[k] = !a ? b : !b ? a : ((b.t || 0) > (a.t || 0) ? b : a); });
   const lg = local.games || {}, rg = remote.games || {};
   new Set([...Object.keys(lg), ...Object.keys(rg)]).forEach(k => { const a = lg[k], b = rg[k];
     out.games[k] = a == null ? b : b == null ? a : (k.endsWith(':mem') ? Math.min(a, b) : Math.max(a, b)); });
@@ -1774,13 +1780,13 @@ function mergeDB(local, remote, remoteWins){
   });
   return out;
 }
-const snapshotOf = d => JSON.stringify({ known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0, reset:d.reset || 0, games:d.games || {} });
-const remoteOf = r => ({ known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0, games:r.games || {} });
+const snapshotOf = d => JSON.stringify({ known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0, reset:d.reset || 0, games:d.games || {}, custom:d.custom || {} });
+const remoteOf = r => ({ known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0, games:r.games || {}, custom:r.custom || {} });
 function scheduleCloud(){ if (!CLOUD) return; cloudDirty = true; clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 1500); }
 async function pushCloud(){
   if (!CLOUD || cloudBusy || !cloudDirty) return;
   cloudBusy = true; cloudDirty = false; setSync('saving');
-  try { await CLOUD.set({ known:DB.known, tests:DB.tests, stars:DB.stars, play:DB.play || null, settings:DB.settings || null, best:DB.best || 0, reset:DB.reset || 0, games:DB.games || {}, updated:Date.now() }); setSync('ok'); }
+  try { await CLOUD.set({ known:DB.known, tests:DB.tests, stars:DB.stars, play:DB.play || null, settings:DB.settings || null, best:DB.best || 0, reset:DB.reset || 0, games:DB.games || {}, custom:DB.custom || {}, updated:Date.now() }); setSync('ok'); }
   catch (e) { setSync('off'); if (e && e.code === 'unavailable') cloudDirty = true; else if (e && ['revoked','not_granted','capability_disabled','capability_removed'].includes(e.code)) CLOUD = null; }
   finally { cloudBusy = false; if (cloudDirty && CLOUD) { clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 4000 + Math.random() * 2000); } }
 }
@@ -1830,7 +1836,7 @@ async function firebaseRef(code){
     const before = snapshotOf(DB);
     if (snap.exists) {
       const r = snap.data() || {};
-      DB = mergeDB(DB, remoteOf(r), true);
+      DB = mergeDB(DB, remoteOf(r), true); applyCustom();
       try { localStorage.setItem(STORE, JSON.stringify(DB)); } catch (e) {}
       updateStars(); updatePlay();
     }
@@ -2103,6 +2109,8 @@ function fromGen(g, asChoice){
 function qItem(it){ const [q, a, ...w] = it;
   return { kind:'choice', prompt:'Wähle die richtige Antwort.', text:esc(q), plain:q, options:shuffle([a, ...w]).map(o => ({ label:o, ok: o === a })), solution:a }; }
 function wItem(it){ const alts = String(it[1]).split('|');
+  if (it[2]) { const sp = canSpeak(); // Diktat: Wort wird vorgelesen
+    return { kind:'input', numeric:false, uml:true, prompt: sp ? 'Hör gut zu und schreib das Wort.' : 'Schreib das Wort ab und merk es dir.', text: sp ? '🎧' : esc(it[2]), plain:'Diktat', say: sp ? it[2] : null, autoSay:true, answer:alts[0], alts, solution:alts[0] }; }
   return { kind:'input', numeric:false, uml:true, prompt:'Schreib die Antwort.', text:esc(it[0]), plain:it[0], answer:alts[0], alts, solution:alts[0] }; }
 const B = {
   vocab: (w,u) => {
@@ -2155,8 +2163,9 @@ function practiceTypes(u){
   if (u.sentences.length) t.push({ k:'gaps', icon:'✏️', name:'Lückensätze', desc:'Welches Wort passt in den Satz?' });
   if (u.grammar) t.push({ k:'gram', icon:'🧠', name:'Grammatik', desc:u.grammar.title });
   if (u.abc && canSpeak()) t.push({ k:'letters', icon:'🅰️', name:'Buchstaben hören', desc:'Welchen Buchstaben hörst du?' });
-  if (u.quiz) t.push({ k:'quiz', icon:'💬', name:'Quiz', desc: u.quiz.length + ' Fragen zum Thema' });
-  if (u.write) t.push({ k:'qwrite', icon:'✏️', name:'Schreiben', desc:'Schreib die Antwort selbst' });
+  const LB = u.labels || {};
+  if (u.quiz && u.quiz.length) t.push({ k:'quiz', icon:(LB.quiz || [])[0] || '💬', name:(LB.quiz || [])[1] || 'Quiz', desc:(LB.quiz || [])[2] || (u.quiz.length + ' Fragen zum Thema') });
+  if (u.write && u.write.length) t.push({ k:'qwrite', icon:(LB.qwrite || [])[0] || '✏️', name:(LB.qwrite || [])[1] || 'Schreiben', desc:(LB.qwrite || [])[2] || 'Schreib die Antwort selbst' });
   if (u.gen && u.choiceOnly) { const c = (u.labels && u.labels.calc) || ['💬','Quiz','Wähle die richtige Antwort']; t.push({ k:'calc', icon:c[0], name:c[1], desc:c[2] }); }
   else if (u.gen) {
     const L = u.labels || {}, c = L.calc || ['✏️','Rechnen','Tippe das Ergebnis ein'], b = L.blitz || ['⚡','Blitzrechnen','Wähle die richtige Zahl'];
@@ -2201,6 +2210,110 @@ function startPractice(k){
 }
 
 /* =====================================================================
+   EIGENE LERNLISTEN (von Eltern im Eltern-Bereich erfasst, pro Familie synchronisiert)
+   DB.custom = { id: { id, t, s, g, title, kind:'vok'|'qa'|'diktat', items:[[a, b]], del } }
+   ===================================================================== */
+const LIST_KINDS = {
+  vok:    { name:'Vokabeln', hint:'Pro Zeile: Fremdwort = Deutsch', ex:'the bakery = die Bäckerei\nthe library = die Bibliothek\nturn left = links abbiegen' },
+  diktat: { name:'Lernwörter (Rechtschreibung)', hint:'Pro Zeile ein Wort', ex:'Strasse\nfahren\nder Fuss\nvielleicht' },
+  qa:     { name:'Fragen und Antworten', hint:'Pro Zeile: Frage = Antwort', ex:'Hauptort des Kantons St.Gallen = St.Gallen\n7 · 8 = 56\nLängster Fluss der Schweiz = Aare' }
+};
+const listKindsFor = sid => sid === 'en' || sid === 'fr' ? ['vok', 'qa'] : sid === 'de' ? ['diktat', 'qa'] : ['qa'];
+function parseList(kind, text){
+  const lines = String(text).split(/\r?\n/).map(l => l.replace(/^\s*[-•*\d]+[.)]\s+/, '').trim()).filter(Boolean), items = [], bad = [];
+  for (const l of lines) {
+    if (kind === 'diktat') { l.split(/\s*[,;]\s*/).filter(Boolean).forEach(w => items.push([w, ''])); continue; }
+    const sep = ['\t', ' = ', '=', ';', ' – ', ' — ', ' - '].find(x => l.includes(x));
+    if (!sep) { bad.push(l); continue; }
+    const i = l.indexOf(sep), a = l.slice(0, i).trim(), b = l.slice(i + sep.length).trim();
+    if (a && b) items.push([a, b]); else bad.push(l);
+  }
+  return { items, bad };
+}
+function misspell(w){ // plausible Schreibfehler für Lernwörter
+  const v = new Set(), add = x => { if (x && x !== w) v.add(x); };
+  add(w.replace(/ie/, 'i')); add(w.replace(/([^i])i([^e])/, '$1ie$2')); add(w.replace(/ss/, 's')); add(w.replace(/([aeiouäöü])s([aeiou])/, '$1ss$2'));
+  add(w.replace(/(.)\1/, '$1')); add(w.replace(/([aeiou])([lmnprt])([aeiou])/, '$1$2$2$3')); add(w.replace(/ä/, 'e')); add(w.replace(/e/, 'ä')); add(w.replace(/ck/, 'k')); add(w.replace(/tz/, 'z'));
+  add(w.replace(/h([lmnr])/, '$1')); add(w.replace(/v/, 'f')); add(w.replace(/f/, 'v'));
+  const art = w.match(/^(der|die|das) (.)/i); add(art ? w.replace(/^(der|die|das) (.)/i, (m, a, c) => a + ' ' + c.toLowerCase()) : /^[A-ZÄÖÜ]/.test(w) ? w[0].toLowerCase() + w.slice(1) : w[0].toUpperCase() + w.slice(1));
+  return shuffle([...v]).slice(0, 3);
+}
+function customUnit(L){
+  const n = L.items.length, base = { id:'c_' + L.id, no:'Eigene Liste', title:L.title || 'Meine Lernliste', icon:'📝', custom:L.id, sentences:[], words:[] };
+  if (L.kind === 'vok') return Object.assign(base, { de:`${n} Wörter, von den Eltern erfasst`, words:L.items.map(([a, b]) => ({ en:a, de:b, pic:'📝', nl:true, cat:'' })) });
+  if (L.kind === 'diktat') {
+    const ws = L.items.map(x => x[0]);
+    return Object.assign(base, { de:`${n} Lernwörter, von den Eltern erfasst`, learn:{ tips:['Lies jedes Wort genau, schliess die Augen und buchstabiere es im Kopf.','Schreib das Wort auswendig und vergleiche es danach.'], examples:ws },
+      quiz: ws.map(w => ['Welches Wort ist richtig geschrieben?', w, ...misspell(w)]).filter(q => q.length >= 3),
+      write: ws.map(w => ['🔊 Hör gut zu und schreib das Wort.', w, w]),
+      labels:{ quiz:['💬','Richtig geschrieben?','Finde die richtige Schreibweise'], qwrite:['🎧','Diktat','Hör zu und schreib das Wort'] } });
+  }
+  const answers = L.items.map(x => x[1]);
+  return Object.assign(base, { de:`${n} Fragen, von den Eltern erfasst`, learn:{ tips:L.items.slice(0, 40).map(([q, a]) => `${q} → ${a}`), examples:[] },
+    quiz: L.items.map(([q, a]) => [q, a, ...shuffle([...new Set(answers.filter(x => x !== a))]).slice(0, 3)]).filter(q => q.length >= 3),
+    write: L.items.map(([q, a]) => [q, a]) });
+}
+function applyCustom(){
+  CATALOG.forEach(s => s.grades.forEach(g => { g.books = g.books.filter(b => b.id !== 'eigene'); }));
+  CATALOG.forEach(s => s.grades = s.grades.filter(g => g.books.length || !g.customOnly));
+  Object.values(DB.custom || {}).filter(L => !L.del && L.items && L.items.length).sort((a, b) => (a.c || a.t) - (b.c || b.t)).forEach(L => {
+    const s = CATALOG.find(x => x.id === L.s); if (!s) return;
+    let g = s.grades.find(x => x.grade === L.g); if (!g) { g = { grade:L.g, books:[], customOnly:true }; s.grades.push(g); s.grades.sort((a, b) => a.grade - b.grade); }
+    let b = g.books.find(x => x.id === 'eigene'); if (!b) { b = { id:'eigene', name:'Eigene Lernlisten', units:[] }; g.books.push(b); }
+    b.units.push(customUnit(L));
+  });
+}
+function listsPanelHTML(){
+  const L = Object.values(DB.custom || {}).filter(x => !x.del).sort((a, b) => b.t - a.t), sn = id => (CATALOG.find(s => s.id === id) || {}).name || id;
+  return `<h2 class="h2">Eigene Lernlisten</h2><div class="card"><p class="small" style="margin-top:0">Wörter oder Fragen vom Lernziel-Blatt erfassen. Die App macht daraus Übungen, Lernspiele und einen Probetest. Die Listen erscheinen im Fach unter «Eigene Lernlisten».</p>
+    ${L.length ? `<div class="menu">${L.map(x => `<button class="mitem" data-list="${x.id}"><span class="mi">📝</span><span><b>${esc(x.title)}</b><span>${esc(sn(x.s))}, ${x.g}. Klasse · ${x.items.length} Einträge</span></span></button>`).join('')}</div>` : ''}
+    <div class="row" style="justify-content:flex-start"><button class="btn primary" id="plnew">+ Neue Lernliste</button></div></div>`;
+}
+function bindListsPanel(){
+  $('#plnew').onclick = () => showListEditor(null);
+  app.querySelectorAll('[data-list]').forEach(b => b.onclick = () => showListEditor(b.dataset.list));
+}
+function showListEditor(id){
+  stop();
+  const L = id ? DB.custom[id] : null, grades = allGrades(), cur = L || { s:(NAV.s && NAV.s.id) || 'en', g:NAV.n || grades[0], kind:'', title:'', items:[] };
+  const opts = CATALOG.flatMap(s => grades.map(g => `<option value="${s.id}|${g}" ${s.id === cur.s && g === cur.g ? 'selected' : ''}>${esc(s.name)}, ${g}. Klasse</option>`)).join('');
+  const toText = (k, items) => items.map(([a, b]) => k === 'diktat' ? a : `${a} = ${b}`).join('\n');
+  app.innerHTML = `<h1 class="h1">${L ? 'Lernliste bearbeiten' : 'Neue Lernliste'}</h1>
+  <div class="card" id="led">
+    <label for="lsg"><b>Fach und Klasse</b></label><select id="lsg" class="inp fld">${opts}</select>
+    <label for="lkind" style="display:block;margin-top:12px"><b>Art</b></label><select id="lkind" class="inp fld"></select>
+    <label for="ltitle" style="display:block;margin-top:12px"><b>Titel</b></label><input id="ltitle" class="inp fld" maxlength="60" placeholder="z.B. Lernziele Unit 3 oder Test 20. November" value="${esc(cur.title)}">
+    <label for="ltext" style="display:block;margin-top:12px"><b>Inhalt</b> <span class="small" id="lhint"></span></label>
+    <textarea id="ltext" class="inp fld" rows="10" style="width:100%;font:inherit;resize:vertical" autocapitalize="off" spellcheck="false"></textarea>
+    <p class="small" id="lstat"></p>
+    <div class="tip">📷 Tipp: Foto vom Lernziel-Blatt machen und den Text mit dem Handy erkennen lassen (Android: Google Lens «Text» → kopieren, iPhone: im Foto lange auf den Text tippen → kopieren). Dann hier einfügen und kurz prüfen.</div>
+    <div class="row"><button class="btn primary" id="lsave">Speichern</button>${L ? '<button class="btn" id="ldel">Löschen</button>' : ''}<button class="btn" id="lback">Zurück</button></div>
+  </div>`;
+  const kindSel = $('#lkind'), txt = $('#ltext');
+  const fillKinds = () => { const sid = $('#lsg').value.split('|')[0], ks = listKindsFor(sid), keep = ks.includes(kindSel.value) ? kindSel.value : (ks.includes(cur.kind) ? cur.kind : ks[0]);
+    kindSel.innerHTML = ks.map(k => `<option value="${k}" ${k === keep ? 'selected' : ''}>${LIST_KINDS[k].name}</option>`).join(''); upd(); };
+  const upd = () => { const k = kindSel.value, K = LIST_KINDS[k]; $('#lhint').textContent = '· ' + K.hint; txt.placeholder = 'Beispiel:\n' + K.ex;
+    const r = parseList(k, txt.value); $('#lstat').innerHTML = `${r.items.length} Einträge erkannt${r.bad.length ? ` · <b>${r.bad.length} Zeilen ohne «=»</b>: ${esc(r.bad.slice(0, 3).join(' | '))}` : ''}${k !== 'diktat' && r.items.length && r.items.length < 4 ? ' · Für das Quiz braucht es mindestens 4 Einträge.' : ''}`; };
+  if (L) txt.value = toText(L.kind, L.items);
+  $('#lsg').onchange = fillKinds; kindSel.onchange = upd; txt.oninput = upd; fillKinds();
+  $('#lback').onclick = parentPanel;
+  $('#lsave').onclick = () => {
+    const [s, g] = $('#lsg').value.split('|'), kind = kindSel.value, r = parseList(kind, txt.value), title = $('#ltitle').value.trim();
+    if (!title) { toast('Bitte einen Titel eingeben.'); $('#ltitle').focus(); return; }
+    if (r.items.length < 2) { toast('Bitte mindestens 2 Einträge erfassen.'); txt.focus(); return; }
+    const nid = id || ('l' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5));
+    DB.custom = DB.custom || {};
+    DB.custom[nid] = { id:nid, t:Date.now(), c:(L && L.c) || Date.now(), s, g:+g, title, kind, items:r.items.slice(0, 200) };
+    save(); applyCustom(); toast('Lernliste gespeichert'); parentPanel();
+  };
+  if (L) $('#ldel').onclick = () => {
+    $('#led').querySelector('.row').innerHTML = `<p style="margin:0"><b>Liste «${esc(L.title)}» wirklich löschen?</b></p><button class="btn" id="ldel2" style="background:var(--bad);border-color:var(--bad);color:#fff">Ja, löschen</button><button class="btn" id="ldel0">Abbrechen</button>`;
+    $('#ldel0').onclick = () => showListEditor(id);
+    $('#ldel2').onclick = () => { DB.custom[id] = { id, t:Date.now(), del:true }; save(); applyCustom(); toast('Lernliste gelöscht'); parentPanel(); };
+  };
+}
+
+/* =====================================================================
    6b) LERNSPIELE: Blitz-Sprung, Memory, Sortieren
    ===================================================================== */
 let LG = null;
@@ -2218,6 +2331,7 @@ function memoryPairs(u){
   const add = (a, b) => { a = String(a).trim(); b = String(b).trim();
     if (!a || !b || a.toLowerCase() === b.replace(/^(der|die|das)\s+/i, '').toLowerCase() || a.length > 22 || b.length > 22 || seen.has(a) || seen.has(b)) return; seen.add(a); seen.add(b); P.push([a, b]); };
   if (u.words.length) shuffle(u.words.filter(w => !w.en.includes('…') && !w.de.includes('…'))).forEach(w => add(w.en, w.de.split(/\s*,\s*/)[0]));
+  else if (u.custom && u.write) shuffle(u.write.filter(x => !x[2])).forEach(([q, a]) => add(q, a));
   else if (u.gen) for (let i = 0; i < 300 && P.length < 6; i++) {
     const g = GEN[u.gen](); if (g.html || g.options || !g.q || g.q.length > 18) continue;
     add(g.q.replace(/\?\s*$/, '…'), typeof g.answer === 'number' ? fmt(g.answer) + (g.unit ? ' ' + g.unit : '') : g.answer);
@@ -2869,10 +2983,12 @@ function parentPanel(){
   ${isHosted() ? familyBox() : ''}
   <h2 class="h2">Letzte Probetests</h2>
   ${res.length ? `<div class="hist">${res.map(r => `<div><span>${new Date(r.d).toLocaleDateString('de-CH')}</span><span class="hn">${esc(names[r.k] || r.k)}</span><b>Note ${fmtNote(r.note)}</b></div>`).join('')}</div>` : '<p class="small">Noch keine Probetests gemacht.</p>'}
+  ${listsPanelHTML()}
   <h2 class="h2">Lernstand zurücksetzen</h2>
-  <div class="card" id="preset"><p class="small" style="margin-top:0">Löscht auf allen verbundenen Geräten: gelernte Wörter, Probetest-Noten, Sterne, Spiel-Rekorde und die heute verdienten Spielminuten. PIN und Tagesmaximum bleiben.</p>
+  <div class="card" id="preset"><p class="small" style="margin-top:0">Löscht auf allen verbundenen Geräten: gelernte Wörter, Probetest-Noten, Sterne, Spiel-Rekorde und die heute verdienten Spielminuten. PIN, Tagesmaximum und eigene Lernlisten bleiben.</p>
     <button class="btn" id="pr1">Lernstand zurücksetzen</button></div>
   <div class="row"><button class="btn" id="ppin">PIN ändern</button><button class="btn primary" id="pdone">Fertig</button></div>`;
+  bindListsPanel();
   $('#pr1').onclick = () => {
     $('#preset').innerHTML = `<p style="margin-top:0"><b>Wirklich alles löschen?</b> Das kann nicht rückgängig gemacht werden.</p>
       <div class="row" style="justify-content:flex-start"><button class="btn" id="pr2" style="background:var(--bad);border-color:var(--bad);color:#fff;box-shadow:0 4px 0 #a51e1e">Ja, alles löschen</button><button class="btn" id="pr0">Abbrechen</button></div>`;
@@ -2962,7 +3078,7 @@ window.addEventListener('popstate', () => {
 showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-05-9';
+const APP_VERSION = '2026-11-06-1';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {

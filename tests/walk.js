@@ -10,6 +10,18 @@ const submit = () => { const f = d.querySelector('#inf'); d.querySelector('#inp'
 const step = () => { const o = d.querySelector('.opt:not([disabled])'), f = d.querySelector('#inf');
   if (o) o.click(); else if (f && !d.querySelector('#inp').disabled) submit(); else if (d.querySelector('.ltile:not(.used)')) d.querySelectorAll('.ltile').forEach(b => b.click()); };
 setTimeout(() => { try {
+  // Eigene Lernlisten über den Editor im Eltern-Bereich anlegen
+  w.eval("DB.settings.pin = ''; parentPanel()");
+  const mk = (sg, kind, title, text) => { d.querySelector('#plnew').click(); d.querySelector('#lsg').value = sg; d.querySelector('#lsg').onchange();
+    d.querySelector('#lkind').value = kind; d.querySelector('#lkind').onchange(); d.querySelector('#ltitle').value = title; d.querySelector('#ltext').value = text; d.querySelector('#ltext').oninput(); d.querySelector('#lsave').click(); };
+  mk('en|4', 'vok', 'Test Vokabeln', 'the bakery = die Bäckerei\nthe library = die Bibliothek\nturn left = links abbiegen\nthe bridge = die Brücke\nthe station = der Bahnhof\nthe castle = das Schloss');
+  mk('de|4', 'diktat', 'Test Lernwörter', 'Strasse\nfahren\nder Fuss\nvielleicht\nTier, Kiste\nWasser');
+  mk('nmg|5', 'qa', 'Test Fragen', 'Hauptort SG = St.Gallen\nLängster Fluss = Aare\nHöchster Berg = Dufourspitze\nBundesstadt = Bern\nAnzahl Kantone = 26');
+  const nl = w.eval("Object.values(DB.custom).filter(x => !x.del).length"), cu = w.eval("CATALOG.flatMap(s => s.grades.flatMap(g => g.books.filter(b => b.id === 'eigene').flatMap(b => b.units))).length");
+  if (nl !== 3 || cu !== 3) throw new Error(`Eigene Lernlisten: ${nl} gespeichert, ${cu} Units`);
+  const pv = w.eval("JSON.stringify(parseList('vok', '1. the dog = der Hund\\nkaputt\\ncat; Katze'))");
+  if (pv !== JSON.stringify({ items:[['the dog','der Hund'],['cat','Katze']], bad:['kaputt'] })) throw new Error('parseList falsch: ' + pv);
+  console.log('OK: Eigene Lernlisten angelegt');
   const cat = w.eval('CATALOG'), games = {};
   for (let si = 0; si < cat.length; si++) for (let gi = 0; gi < cat[si].grades.length; gi++) {
     w.eval(`NAV.s=CATALOG[${si}];NAV.g=NAV.s.grades[${gi}];NAV.n=NAV.g.grade;setColor();showUnits()`);

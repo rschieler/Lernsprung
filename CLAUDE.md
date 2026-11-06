@@ -26,13 +26,14 @@ Alles steckt in **einer Datei: `index.html`** (HTML, CSS, JS, keine Build-Schrit
   - `learn: { tips, examples, table?, conj? }` für die Lernseite, `lp` für den Lehrplan-Code, `labels` für eigene Übungsnamen.
 - Lernspiele unter «Üben»: Blitz-Sprung (`showBlitz`), Memory (`showMemory`), Sortieren (`showSort`), Uhr stellen (`showClock`, Unit-Flag `clockGame:true`), Kantonskarte (`showMap`, Unit-Flag `mapGame:'sg1'|'sg2'|'ch'`, Kartendaten `SGMAP.sg1` (weiter Ausschnitt mit Nachbarkantonen) und `SGMAP.sg2` (Wahlkreise) aus swiss-maps 2024 / BFS). Rekorde in `DB.games`. Memory und Kantonskarte geben keine Spielminuten.
 - Schreiben: Deutsch prüft Gross-/Kleinschreibung (`inputCheck`, `t.cs`). Dezimalzahlen: `dec:true` (Punkt oder Komma). Französisch: Artikel optional, fehlende Akzente gelten mit Hinweis als richtig. Englisch-Wörter auch Englisch → Deutsch (`B.writeDe`). Nach einem Schreibfehler muss beim Üben richtig abgeschrieben werden.
+- Eigene Lernlisten (Eltern-Bereich): `DB.custom` pro Familie, Arten `vok` (Fremdwort = Deutsch), `diktat` (Lernwörter, Vorlesen + Richtig geschrieben?) und `qa` (Frage = Antwort). `applyCustom()` hängt sie als Buch `eigene` (Unit-ID `c_<id>`) ins `CATALOG`. Editor `showListEditor`, Parser `parseList`.
 - Spielminuten nur nach Note (`noteOf`, Tabellen `MIN_PRACTICE` und `MIN_TEST`, `earnNote`). Lernkarten geben keine Minuten, «Fehler üben» 1 Min wenn alles korrigiert, unter 2 s Denkzeit pro Aufgabe (`tooFast`) 0 Min, Verbesserung im Probetest +2 Min. Jede Übung zählt höchstens zweimal pro Tag.
 - Spielminuten-Technik: `earn()`, `playState()`, Spiel `showGame()`, Eltern-Bereich `showParents()` (PIN, Tagesmaximum Standard 30 Min, änderbar).
 
 ## Synchronisation
 - Auf GitHub Pages: **Firebase Firestore**, Dokument `families/{Familien-Code}` (Projekt `lernsprung-ea1d2`, Anonym-Login). Der Code steckt im Link `?f=…` und im localStorage.
 - Als claude.ai-Artefakt: Artifact-Capability `db`, Dokument `lernstand/familie`.
-- Gespeicherte Felder: `known`, `tests`, `stars`, `play`, `settings`, `best`, `games`, `reset` (Zeitstempel des letzten Zurücksetzens; Geräte mit älterem Stand verwerfen ihren Lernstand beim Zusammenführen). Neue Felder in `mergeDB`, `snapshotOf`, `remoteOf` und `pushCloud` ergänzen.
+- Gespeicherte Felder: `known`, `tests`, `stars`, `play`, `settings`, `best`, `games`, `custom` (eigene Lernlisten, pro Liste gewinnt die neuere `t`, gelöscht = `del:true`), `reset` (Zeitstempel des letzten Zurücksetzens; Geräte mit älterem Stand verwerfen ihren Lernstand beim Zusammenführen). Neue Felder in `mergeDB`, `snapshotOf`, `remoteOf` und `pushCloud` ergänzen.
 
 ## Vor jedem Push testen
 ```
