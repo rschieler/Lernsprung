@@ -43,7 +43,8 @@ Alles steckt in **einer Datei: `index.html`** (HTML, CSS, JS, keine Build-Schrit
 - Tabs im Elternprofil: `home` (Kinder), `dash:<id>` (`dashboard`), `rew` (`rewardsPage`), `family`, `parents`, `device`, `prof:<id>`.
 - Erfassung pro Profil (`track`, in `answer()` und Blitz-Sprung): `log[Tag] = {s Sekunden, n, ok, dp, u:{unitKey:[n,ok]}}` (120 Tage), `err` = letzte 60 Fehler `{d,k,q,a,c}`. Dashboard: Woche vs. Vorwoche, 14 Tage, Fächer, Notenverlauf, Stärken/Schwächen (ab 10 Aufgaben), häufige Fehler → Lernliste (`qa`), Wochenbericht teilen. Kein Geschwister-Ranking.
 - Lernpunkte 🏅 `pt[Tag]`: Übung Note ≥ 5,5 = 1, Probetest 5,5 = 2, 6 = 3 (in `earnNote`, gleiche Wiederholungs-Sperre), 10 Min Lernen am Tag = 1. Belohnungen `DB.rewards` (familienweit, von Eltern, Vorschläge `REWARD_IDEAS`), Wünsche pro Profil `red = [{id,rid,name,icon,cost,d,st:'offen'|'ok'|'nein',t}]`. Kontostand `pointsOf(d)` = Punkte − Kosten nicht abgelehnter Wünsche. Kinder-Seite `showRewards` (Menü «Belohnungen»).
-- Später (Schritt 2): Prüfungsplaner, Wochenziel.
+- Wochenziel pro Profil `DB.profiles[id].goal = {min, days}` (in `profileSettings`), Anzeige `goalHTML` auf Startseite und Dashboard, Bonus einmal pro Woche +5 Punkte als `pt['W'+Montag]` (`checkGoal` in `track`).
+- Prüfungsplaner `DB.exams[id] = {p, d, s, g, units:[unitKey], title, note, by}` (familienweit). Eintragen über Menü «Prüfung eintragen» (Kind) oder Dashboard (Eltern), `showExamForm`. Startseite zeigt Prüfungen der nächsten 21 Tage mit Bereitschaft pro Thema (`readiness`: Bestnote Probetest, sonst Trefferquote) und Tagestipp (`examPlan`), «Jetzt üben» öffnet das schwächste Thema (`openUnit`). Eltern tragen nach der Prüfung die echte Note ein.
 
 ## Synchronisation
 - Auf GitHub Pages: **Firebase Firestore**, Dokument `families/{Familien-Code}` (Projekt `lernsprung-ea1d2`, Anonym-Login). Der Code steckt im Link `?f=…` und im localStorage.

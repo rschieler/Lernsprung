@@ -284,6 +284,9 @@ body.menuopen{overflow:hidden}
 .derr>div{padding:8px 0;border-bottom:1px solid var(--line)}.derr>div:last-child{border:0}.derr .small{display:block;margin-top:2px}
 .rlist>div{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}.rlist>div:last-child{border:0}.rlist b{white-space:nowrap}
 .btn.sm{min-height:38px;padding:6px 12px}.mitem.rew>span:last-child{flex:1;min-width:0}.mitem.rew .dbar{width:100%}
+.hx{margin-bottom:14px}.hx .card{margin-bottom:10px}.goal{display:flex;flex-direction:column;gap:4px;padding:14px 18px}.goal .dbar{height:10px;margin-top:4px}
+.exam.soon{border-color:var(--c);box-shadow:0 0 0 2px var(--c) inset,var(--shadow)}.eunits{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.eunits .btn{font-size:.85rem;min-height:34px}
+.exl{display:flex;gap:8px;align-items:flex-start;padding:6px 0;font-size:.95rem}.exl input{margin-top:4px}
 .wrep{white-space:pre-wrap;font:inherit;font-size:.92rem;margin:0}.mitem.rew.off{opacity:.65}
 .ptabs{margin-bottom:10px;flex-wrap:nowrap;gap:6px;overflow-x:auto}.ptabs .btn{padding:7px 11px;font-size:.92rem;white-space:nowrap;flex:0 0 auto}
 .pcards{display:grid;gap:12px}.pcard .kpi{margin-top:8px}.pchead{display:flex;gap:10px;align-items:center}.pchead div{display:flex;flex-direction:column}
@@ -1797,7 +1800,7 @@ function fromCanon(c){ const d = Object.assign({}, c, { pd:Object.assign({}, c.p
   return d; }
 const liveProfiles = () => Object.values(DB.profiles || {}).filter(x => !x.del).sort((a, b) => (a.id === 'p1' ? -1 : b.id === 'p1' ? 1 : (a.c || 0) - (b.c || 0)));
 const activeProfile = () => (DB.profiles || {})[ACTIVE] || DEF_PROFILES().p1;
-let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0, reset:0, games:{}, custom:{}, profiles:DEF_PROFILES(), pd:{}, log:{}, err:[], pt:{}, red:[], parents:{}, rewards:{} };
+let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0, reset:0, games:{}, custom:{}, profiles:DEF_PROFILES(), pd:{}, log:{}, err:[], pt:{}, red:[], parents:{}, rewards:{}, exams:{} };
 try { const r = localStorage.getItem(STORE); if (r) DB = Object.assign(DB, JSON.parse(r)); } catch (e) {}
 DB = fromCanon(DB);
 applyCustom();
@@ -1828,6 +1831,7 @@ function track(ok, ms, err){
   if (!ok && err && err.c != null) DB.err = (DB.err || []).concat({ d:Date.now(), k, q:String(err.q || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120), a:String(err.a == null ? '' : err.a).slice(0, 60), c:String(err.c).slice(0, 60) }).slice(-ERR_MAX);
   if (e.s >= 600 && !e.dp) { e.dp = 1; addPoints(1); toast('🏅 +1 Lernpunkt für 10 Minuten Lernen heute'); }
   const keys = Object.keys(L).sort(); while (keys.length > LOG_DAYS) delete L[keys.shift()];
+  try { checkGoal(); } catch (x) {}
 }
 function addPoints(n){ const d = today(); DB.pt = DB.pt || {}; DB.pt[d] = (DB.pt[d] || 0) + n; }
 const pointsOf = d => Object.values(d.pt || {}).reduce((a, b) => a + b, 0) - (d.red || []).filter(r => r.st !== 'nein').reduce((a, r) => a + (r.cost || 0), 0);
@@ -1835,7 +1839,7 @@ function mergeDB(local, remote, remoteWins){
   const out = mergeCore(local, remote, remoteWins);
   const lpf = local.profiles || {}, rpf = remote.profiles || {}; out.profiles = DEF_PROFILES();
   new Set([...Object.keys(lpf), ...Object.keys(rpf)]).forEach(k => { const a = lpf[k], b = rpf[k]; out.profiles[k] = !a ? b : !b ? a : ((b.t || 0) > (a.t || 0) ? b : a); });
-  ['parents', 'rewards'].forEach(f => { const a0 = local[f] || {}, b0 = remote[f] || {}; out[f] = {};
+  ['parents', 'rewards', 'exams'].forEach(f => { const a0 = local[f] || {}, b0 = remote[f] || {}; out[f] = {};
     new Set([...Object.keys(a0), ...Object.keys(b0)]).forEach(k => { const a = a0[k], b = b0[k]; out[f][k] = !a ? b : !b ? a : ((b.t || 0) > (a.t || 0) ? b : a); }); });
   const lpd = local.pd || {}, rpd = remote.pd || {}; out.pd = {};
   new Set([...Object.keys(lpd), ...Object.keys(rpd)]).forEach(k => { if (k === 'p1' || (out.profiles[k] && out.profiles[k].del)) return;
@@ -1876,9 +1880,9 @@ function mergeCore(local, remote, remoteWins){
 // Firestore erlaubt keine Listen in Listen: Einträge der eigenen Lernlisten als Objekte speichern
 const customToCloud = c => Object.fromEntries(Object.entries(c || {}).map(([k, L]) => [k, L && L.items ? Object.assign({}, L, { items:L.items.map(x => Array.isArray(x) ? { a:x[0], b:x[1], w:x.slice(2) } : x) }) : L]));
 const customFromCloud = c => Object.fromEntries(Object.entries(c || {}).map(([k, L]) => [k, L && L.items ? Object.assign({}, L, { items:L.items.map(x => Array.isArray(x) ? x : [x.a, x.b, ...(x.w || [])]) }) : L]));
-const cloudPayload = () => { const c = toCanon(DB); return { known:c.known, tests:c.tests, stars:c.stars || 0, play:c.play || null, settings:c.settings || null, best:c.best || 0, reset:c.reset || 0, games:c.games || {}, custom:customToCloud(c.custom), profiles:c.profiles || DEF_PROFILES(), pd:c.pd || {}, log:c.log || {}, err:c.err || [], pt:c.pt || {}, red:c.red || [], parents:c.parents || {}, rewards:c.rewards || {}, updated:Date.now() }; };
-const snapshotOf = d => JSON.stringify({ parents:d.parents || {}, rewards:d.rewards || {}, log:d.log || {}, err:d.err || [], pt:d.pt || {}, red:d.red || [], profiles:d.profiles || {}, pd:d.pd || {}, known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0, reset:d.reset || 0, games:d.games || {}, custom:d.custom || {} });
-const remoteOf = r => ({ parents:r.parents || {}, rewards:r.rewards || {}, log:r.log || {}, err:r.err || [], pt:r.pt || {}, red:r.red || [], profiles:r.profiles || {}, pd:r.pd || {}, known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0, games:r.games || {}, custom:customFromCloud(r.custom) });
+const cloudPayload = () => { const c = toCanon(DB); return { known:c.known, tests:c.tests, stars:c.stars || 0, play:c.play || null, settings:c.settings || null, best:c.best || 0, reset:c.reset || 0, games:c.games || {}, custom:customToCloud(c.custom), profiles:c.profiles || DEF_PROFILES(), pd:c.pd || {}, log:c.log || {}, err:c.err || [], pt:c.pt || {}, red:c.red || [], parents:c.parents || {}, rewards:c.rewards || {}, exams:c.exams || {}, updated:Date.now() }; };
+const snapshotOf = d => JSON.stringify({ exams:d.exams || {}, parents:d.parents || {}, rewards:d.rewards || {}, log:d.log || {}, err:d.err || [], pt:d.pt || {}, red:d.red || [], profiles:d.profiles || {}, pd:d.pd || {}, known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0, reset:d.reset || 0, games:d.games || {}, custom:d.custom || {} });
+const remoteOf = r => ({ exams:r.exams || {}, parents:r.parents || {}, rewards:r.rewards || {}, log:r.log || {}, err:r.err || [], pt:r.pt || {}, red:r.red || [], profiles:r.profiles || {}, pd:r.pd || {}, known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0, games:r.games || {}, custom:customFromCloud(r.custom) });
 function scheduleCloud(){ if (!CLOUD) return; cloudDirty = true; clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 1500); }
 async function pushCloud(){
   if (!CLOUD || cloudBusy || !cloudDirty) return;
@@ -2013,6 +2017,7 @@ function showHome(){
   app.innerHTML = `<h1 class="h1">${many ? 'Hallo ' + esc(P.name) + '! ' : ''}In welche Klasse gehst du?</h1><p class="lead">Wähle deine Klasse.${many ? ` <button class="btn" id="hprof" style="padding:4px 12px;margin-left:6px">${P.icon} Profil wechseln</button>` : ''}</p>
   <div class="menu">${allGrades().map(n => mbtn(n, n + '.', n + '. Klasse', CATALOG.filter(s => gradeOf(s,n)).map(s => s.name).join(', '))).join('')}</div>`;
   app.querySelectorAll('.mitem').forEach(b => b.onclick = () => { NAV.n = +b.dataset.k; showSubjects(); });
+  const hx = homeExtras(); if (hx) { app.querySelector('.lead').insertAdjacentHTML('afterend', `<div class="hx">${hx}</div>`); bindExams(showHome); }
   if ($('#hprof')) $('#hprof').onclick = showProfiles;
   if (P.grade) { const m = app.querySelector(`.mitem[data-k="${P.grade}"]`); if (m) m.classList.add('mine'); }
 }
@@ -3354,6 +3359,11 @@ function profileSettings(id){
     <div class="inrow"><input id="pmax" class="inp fld" type="number" inputmode="numeric" min="0" max="120" step="5" value="${mx}"><button class="btn primary" id="psave">Speichern</button></div>
     <p class="small">Heute: ${fmtMin(restOf(id))} Minuten übrig. Pro Juventute empfiehlt für Kinder bis 9 Jahre 30 bis 60 Minuten Bildschirmzeit pro Tag, Lernen mitgezählt.</p>
     <div class="row" style="justify-content:flex-start"><button class="btn" id="pb5">+5 Minuten heute</button><button class="btn" id="pb10">+10 Minuten heute</button></div></div>
+  <h2 class="h2">Wochenziel</h2><div class="card">
+    <div class="inrow" style="flex-wrap:wrap"><label class="small"><b>Lernminuten pro Woche</b><br><select id="pgmin" class="inp">${[0, 30, 45, 60, 90, 120, 150, 180].map(v => `<option value="${v}" ${((P.goal || {}).min || 0) === v ? 'selected' : ''}>${v ? v + ' Min' : '–'}</option>`).join('')}</select></label>
+      <label class="small"><b>Lerntage pro Woche</b><br><select id="pgday" class="inp">${[0, 2, 3, 4, 5, 6, 7].map(v => `<option value="${v}" ${((P.goal || {}).days || 0) === v ? 'selected' : ''}>${v ? v + ' Tage' : '–'}</option>`).join('')}</select></label>
+      <button class="btn primary" id="pgsave" style="align-self:flex-end">Speichern</button></div>
+    <p class="small">Geschafft gibt es einmal pro Woche +${GOAL_BONUS} Lernpunkte. Öfter kurz ist besser als selten lang: z.B. 4 Tage à 15 Minuten.</p></div>
   <h2 class="h2">Schutz und Rechte</h2><div class="card">
     <p style="margin-top:0"><b>Profil-PIN</b> ${P.pin ? '· 🔒 eingeschaltet' : '· aus'}</p>
     <p class="small">Mit einem Profil-PIN kann niemand ohne PIN auf dieses Profil wechseln, z.B. Geschwister auf einem gemeinsamen Gerät. Der Eltern-PIN funktioniert immer.</p>
@@ -3374,6 +3384,7 @@ function profileSettings(id){
   if ($('#pfuse')) $('#pfuse').onclick = () => { meta(); switchProfile(id, true); parentPanel(); };
   $('#psave').onclick = () => { const v = Math.max(0, Math.min(120, Math.round(+$('#pmax').value || 0))); touchProfile(id, { max:v }); updatePlay(); toast(`Gespeichert: höchstens ${v} Minuten pro Tag für ${P.name}`); parentPanel(); };
   const bonus = n => { const p = playOf(profPD(id)); p.bonus = (p.bonus || 0) + n; save(); updatePlay(); toast(`+${n} Minuten für ${P.name}`); parentPanel(); };
+  $('#pgsave').onclick = () => { const min = +$('#pgmin').value, days = +$('#pgday').value; touchProfile(id, { goal: min || days ? { min, days } : null }); toast(min || days ? 'Wochenziel gespeichert' : 'Wochenziel ausgeschaltet'); parentPanel(); };
   $('#pb5').onclick = () => bonus(5); $('#pb10').onclick = () => bonus(10);
   $('#ppinset').onclick = () => { const v = $('#ppin1').value; if (!/^\d{4}$/.test(v)) return toast('Der PIN muss 4 Ziffern haben.'); touchProfile(id, { pin:v }); toast('Profil-PIN gespeichert'); parentPanel(); };
   if ($('#ppinoff')) $('#ppinoff').onclick = () => { touchProfile(id, { pin:'' }); toast('Profil-PIN ausgeschaltet'); parentPanel(); };
@@ -3474,6 +3485,8 @@ function weekReport(P, st){
   if (tests.length) lines.push('Probetests: ' + tests.map(t => `${t.name} (Note ${fmtNote(t.note)})`).join(', '));
   if (st.top.length) lines.push('Stark: ' + st.top.map(t => t.name).join(', '));
   if (st.low.length) lines.push('Noch üben: ' + st.low.map(t => t.name).join(', '));
+  const gs = goalState(P.id); if (gs) lines.push(`Wochenziel: ${gs.done ? 'geschafft ✅' : 'noch offen'} (${[gs.g.min ? gs.min + '/' + gs.g.min + ' Min' : '', gs.g.days ? gs.days + '/' + gs.g.days + ' Tage' : ''].filter(Boolean).join(', ')})`);
+  liveExams(P.id).filter(e => daysTo(e.d) >= 0 && daysTo(e.d) <= 14).forEach(e => { const S = CATALOG.find(x => x.id === e.s); lines.push(`Prüfung ${whenTxt(daysTo(e.d))}: ${e.title || (S ? S.name : '')} (${e.units.map(k => { const f = findUnit(k); return f ? f.u.title : ''; }).filter(Boolean).join(', ')})`); });
   lines.push(`Lernpunkte: ${pointsOf(st.D)} 🏅`);
   return lines.join('\n');
 }
@@ -3483,6 +3496,9 @@ function dashboard(id){
   const errSubj = {}; st.errs.forEach(e => { const S = subjOf(e.k); if (S) (errSubj[S.id] = errSubj[S.id] || { S, list:[] }).list.push(e); });
   app.innerHTML = parentTabs() + `<div class="pchead" style="margin:4px 0 12px"><span class="uicon">${P.icon}</span><div><b>${esc(P.name)}</b><span class="small">${P.grade ? P.grade + '. Klasse · ' : ''}🏅 ${pointsOf(st.D)} Lernpunkte</span></div></div>
     ${open.length ? `<div class="card" style="border-color:var(--c)"><b>🏆 ${open.length} Belohnung${open.length > 1 ? 'en' : ''} gewünscht</b> <button class="btn primary" id="dred" style="margin-left:8px">Ansehen</button></div>` : ''}
+    ${goalHTML(id)}
+    <h2 class="h2">Prüfungen</h2>${liveExams(id).filter(e => daysTo(e.d) >= -14).map(e => examCard(e, false)).join('') || '<p class="small">Keine Prüfungen eingetragen.</p>'}
+    <div class="row" style="justify-content:flex-start;margin-top:0"><button class="btn" id="dexam">📅 Prüfung eintragen</button></div>
     <h2 class="h2">Diese Woche</h2><div class="card"><div class="kpi kpi4">
       <div><b>${fmtDur(c.s)}</b>Lernzeit${trend(Math.round(c.s / 60), Math.round(p.s / 60), ' Min')}</div><div><b>${c.days}</b>aktive Tage${trend(c.days, p.days)}</div>
       <div><b>${c.n}</b>Aufgaben${trend(c.n, p.n)}</div><div><b>${c.n ? pct(c.ok, c.n) + ' %' : '–'}</b>richtig${p.n && c.n ? trend(pct(c.ok, c.n), pct(p.ok, p.n), ' %') : ''}</div></div>
@@ -3498,6 +3514,7 @@ function dashboard(id){
     <div class="row"><button class="btn" data-prof="${id}">⚙️ Einstellungen</button><button class="btn" id="pback">Zurück zur Übersicht</button></div>`;
   bindTabs();
   $('#pback').onclick = () => { PTAB = 'home'; parentPanel(); };
+  bindExams(parentPanel); $('#dexam').onclick = () => showExamForm(id, parentPanel);
   app.querySelector('[data-prof]').onclick = () => { PTAB = 'prof:' + id; parentPanel(); };
   if ($('#dred')) $('#dred').onclick = () => { PTAB = 'rew'; parentPanel(); };
   $('#dshare').onclick = async () => { const t = weekReport(P, st);
@@ -3523,7 +3540,7 @@ function rewardsPage(){
   app.innerHTML = parentTabs() + `<p class="lead">Lernpunkte 🏅 gibt es für gute Leistung: Übung mit Note 5,5 oder 6 = 1 Punkt, Probetest 5,5 = 2, Probetest 6 = 3, und 1 Punkt für 10 Minuten Lernen am Tag. Dafür kann sich das Kind Belohnungen wünschen, ihr entscheidet.</p>
     ${open.length ? `<h2 class="h2">Wünsche</h2>${open.map(r => `<div class="card pcard"><div class="pchead"><span class="uicon">${r.icon || '🏆'}</span><div><b>${esc(r.name)}</b><span class="small">${r.K.icon} ${esc(r.K.name)} · ${r.cost} 🏅 · ${new Date(r.d).toLocaleDateString('de-CH')}</span></div></div>
       <div class="row" style="justify-content:flex-start"><button class="btn good" data-rok="${r.K.id}|${r.id}">Ja, einlösen</button><button class="btn" data-rno="${r.K.id}|${r.id}">Nein (Punkte zurück)</button></div></div>`).join('')}` : ''}
-    <h2 class="h2">Punkte</h2><div class="card"><div class="dtab">${kids.map(K => `<div><span>${K.icon} ${esc(K.name)}</span><b>${pointsOf(profPD(K.id))} 🏅</b><span></span><span></span><span class="small">diese Woche +${Object.entries(profPD(K.id).pt || {}).filter(([d]) => d >= dayStr(weekStart(new Date()))).reduce((a, [, v]) => a + v, 0)}</span></div>`).join('')}</div></div>
+    <h2 class="h2">Punkte</h2><div class="card"><div class="dtab">${kids.map(K => `<div><span>${K.icon} ${esc(K.name)}</span><b>${pointsOf(profPD(K.id))} 🏅</b><span></span><span></span><span class="small">diese Woche +${Object.entries(profPD(K.id).pt || {}).filter(([d]) => d.replace('W', '') >= dayStr(weekStart(new Date()))).reduce((a, [, v]) => a + v, 0)}</span></div>`).join('')}</div></div>
     <h2 class="h2">Eure Belohnungen</h2>${R.length ? `<div class="card"><div class="rlist">${R.map(r => `<div><span>${r.icon}</span><span>${esc(r.name)}</span><b>${r.cost} 🏅</b><button class="btn sm" data-rdel="${r.id}" aria-label="Entfernen">✕</button></div>`).join('')}</div></div>` : '<p class="small">Noch keine Belohnungen. Wähle unten Vorschläge aus oder lege eigene an.</p>'}
     <div class="card" id="radd"><b>Eigene Belohnung</b>
       <input id="rname" class="inp fld" maxlength="50" placeholder="z.B. Ausflug in den Seilpark" aria-label="Belohnung">
@@ -3555,6 +3572,98 @@ function showRewards(){
     const card = b; card.outerHTML = `<div class="card" id="rconf"><b>${r.icon} ${esc(r.name)} für ${r.cost} 🏅 wünschen?</b><p class="small">Deine Eltern bekommen den Wunsch und entscheiden.</p><div class="row" style="justify-content:flex-start"><button class="btn good" id="ryes">Ja, wünschen</button><button class="btn" id="rno">Abbrechen</button></div></div>`;
     $('#rno').onclick = showRewards;
     $('#ryes').onclick = () => { DB.red = (DB.red || []).concat({ id:'w' + Date.now().toString(36), rid:r.id, name:r.name, icon:r.icon, cost:r.cost, d:Date.now(), st:'offen', t:Date.now() }); save(); toast('Wunsch geschickt! 🎉'); showRewards(); }; });
+}
+
+/* =====================================================================
+   Wochenziel und Prüfungsplaner
+   ===================================================================== */
+const GOAL_BONUS = 5;
+const goalOf = id => ((DB.profiles || {})[id] || {}).goal || null;
+function goalState(id){
+  const g = goalOf(id); if (!g || (!g.min && !g.days)) return null;
+  const w = weekSum(profPD(id).log || {}, weekStart(new Date())), min = Math.floor(w.s / 60);
+  const okMin = !g.min || min >= g.min, okDays = !g.days || w.days >= g.days;
+  return { g, min, days:w.days, done:okMin && okDays, p:Math.min(100, Math.round(100 * ((g.min ? Math.min(1, min / g.min) : 1) + (g.days ? Math.min(1, w.days / g.days) : 1)) / 2)) };
+}
+function checkGoal(){
+  const st = goalState(ACTIVE); if (!st || !st.done) return;
+  const k = 'W' + dayStr(weekStart(new Date())); DB.pt = DB.pt || {}; if (DB.pt[k]) return;
+  DB.pt[k] = GOAL_BONUS; toast(`🎯 Wochenziel geschafft! +${GOAL_BONUS} Lernpunkte`);
+}
+function goalHTML(id, kid){
+  const st = goalState(id); if (!st) return '';
+  const parts = []; if (st.g.min) parts.push(`${st.min} von ${st.g.min} Min`); if (st.g.days) parts.push(`${st.days} von ${st.g.days} Tagen`);
+  return `<div class="card goal"><b>🎯 Wochenziel${st.done ? ' geschafft! 🎉' : ''}</b><span class="small">${parts.join(' · ')}${kid && !st.done ? ` · dann +${GOAL_BONUS} 🏅` : ''}</span><span class="dbar"><i style="width:${st.p}%"></i></span></div>`;
+}
+/* Prüfungen: DB.exams[id] = { id, p:Profil, d:'YYYY-MM-DD', s:Fach, g:Klasse, units:[unitKey], title, note?, by, t, del } */
+const liveExams = pid => Object.values(DB.exams || {}).filter(e => e && !e.del && (!pid || e.p === pid)).sort((a, b) => a.d < b.d ? -1 : 1);
+const daysTo = d => Math.round((new Date(d + 'T12:00') - new Date(dayStr(new Date()) + 'T12:00')) / 864e5);
+function findUnit(k){
+  for (const s of CATALOG) for (const g of s.grades) for (const b of g.books) for (const u of b.units) if ([s.id, g.grade, b.id, u.id].join('-') === k) return { s, g, b, u };
+  return null;
+}
+function openUnit(k){ const f = findUnit(k); if (!f) return toast('Dieses Thema gibt es nicht mehr.'); NAV.n = f.g.grade; NAV.s = f.s; NAV.g = f.g; NAV.b = f.b; NAV.u = f.u; setColor(); showUnit(); }
+function readiness(pid, k){
+  const D = profPD(pid), best = (D.tests[k] || []).reduce((m, t) => Math.max(m, t.note || 0), 0);
+  let n = 0, ok = 0; Object.values(D.log || {}).forEach(e => { const v = (e.u || {})[k]; if (v) { n += v[0]; ok += v[1]; } });
+  const score = best ? best : n ? 1 + 4 * ok / n : 0;
+  return { best, n, p:pct(ok, n), score, sym: best >= 5 ? '✅' : best || n >= 10 ? '🟡' : '⚪' };
+}
+function examPlan(e){
+  const L = daysTo(e.d), R = e.units.map(k => ({ k, f:findUnit(k), r:readiness(e.p, k) })).filter(x => x.f);
+  const weak = R.slice().sort((a, b) => a.r.score - b.r.score)[0];
+  let tip;
+  if (L < 0) tip = 'Vorbei';
+  else if (L === 0) tip = 'Heute ist die Prüfung. Viel Glück! 🍀';
+  else if (L === 1) tip = 'Morgen ist die Prüfung: Mach heute nochmals den Probetest' + (R.length > 1 ? 's' : '') + ' und schlaf gut.';
+  else if (!weak) tip = 'Wähle ein Thema und übe.';
+  else if (weak.r.best >= 5 && R.every(x => x.r.best >= 5)) tip = 'Alles im grünen Bereich! Wiederhole kurz und mach einen Probetest.';
+  else tip = `Heute üben: ${weak.f.u.title}` + (weak.r.n >= 20 && !weak.r.best ? ' (jetzt den Probetest probieren)' : '');
+  return { L, R, weak, tip };
+}
+const whenTxt = L => L === 0 ? 'heute' : L === 1 ? 'morgen' : L < 0 ? 'vorbei' : 'in ' + L + ' Tagen';
+function examCard(e, kid){
+  const P = DB.profiles[e.p] || {}, S = CATALOG.find(x => x.id === e.s) || { icon:'📅', name:e.s }, pl = examPlan(e);
+  return `<div class="card exam ${pl.L <= 2 && pl.L >= 0 ? 'soon' : ''}"><div class="pchead"><span class="uicon">${S.icon}</span><div><b>${esc(e.title || S.name + '-Prüfung')}</b>
+    <span class="small">${kid ? '' : esc(P.icon + ' ' + (P.name || '')) + ' · '}${new Date(e.d + 'T12:00').toLocaleDateString('de-CH', { weekday:'short', day:'numeric', month:'numeric' })} · <b>${whenTxt(pl.L)}</b>${e.note ? ' · Note ' + fmtNote(e.note) : ''}</span></div></div>
+    ${pl.R.length ? `<div class="eunits">${pl.R.map(x => `<button class="btn sm" data-ou="${esc(x.k)}">${x.r.sym} ${esc(x.f.u.title)}${x.r.best ? ' · ' + fmtNote(x.r.best) : ''}</button>`).join('')}</div>` : ''}
+    ${pl.L >= 0 ? `<p class="small" style="margin:8px 0 0">💡 ${esc(pl.tip)}</p>` : ''}
+    ${pl.weak && pl.L >= 1 && kid ? `<div class="row" style="justify-content:flex-start"><button class="btn primary" data-ou="${esc(pl.weak.k)}">Jetzt üben</button></div>` : ''}
+    ${!kid ? `<div class="row" style="justify-content:flex-start">${pl.L < 0 && !e.note ? `<input class="inp" style="width:5em" type="text" inputmode="decimal" maxlength="4" placeholder="Note" data-enote="${e.id}"><button class="btn sm" data-enotes="${e.id}">Note speichern</button>` : ''}<button class="btn sm" data-edel="${e.id}">Löschen</button></div>` : ''}</div>`;
+}
+function bindExams(after){
+  app.querySelectorAll('[data-ou]').forEach(b => b.onclick = () => openUnit(b.dataset.ou));
+  app.querySelectorAll('[data-edel]').forEach(b => b.onclick = () => { DB.exams[b.dataset.edel] = { id:b.dataset.edel, del:true, t:Date.now() }; save(); toast('Prüfung gelöscht'); after(); });
+  app.querySelectorAll('[data-enotes]').forEach(b => b.onclick = () => { const id = b.dataset.enotes, v = +String(app.querySelector(`[data-enote="${id}"]`).value).replace(',', '.');
+    if (!(v >= 1 && v <= 6)) return toast('Note zwischen 1 und 6 eingeben.'); DB.exams[id] = Object.assign({}, DB.exams[id], { note:Math.round(v * 4) / 4, t:Date.now() }); save(); toast('Note gespeichert'); after(); });
+}
+/* Formular: Prüfung eintragen (Eltern für ein Kind, Kind für sich selbst) */
+function showExamForm(pid, back){
+  stop(); crumbs();
+  const P = DB.profiles[pid] || activeProfile(), grades = allGrades(), gr0 = P.grade || NAV.n || grades[0];
+  const subs = g => CATALOG.filter(s => gradeOf(s, g));
+  app.innerHTML = `<h1 class="h1">📅 Prüfung eintragen</h1><p class="lead">${esc(P.icon + ' ' + P.name)}: Wann ist die Prüfung und welche Themen kommen?</p>
+    <div class="card"><label for="exd"><b>Datum</b></label><input id="exd" class="inp fld" type="date" min="${dayStr(new Date())}" value="${dayStr(addDays(new Date(), 7))}">
+      <label for="exs" style="display:block;margin-top:12px"><b>Fach</b></label><select id="exs" class="inp fld"></select>
+      <label for="exg" style="display:block;margin-top:12px"><b>Klasse</b></label><select id="exg" class="inp fld">${grades.map(g => `<option value="${g}" ${g === gr0 ? 'selected' : ''}>${g}. Klasse</option>`).join('')}</select>
+      <label for="ext" style="display:block;margin-top:12px"><b>Titel</b> <span class="small">(freiwillig, z.B. «Wörtli-Test Unit 2»)</span></label><input id="ext" class="inp fld" maxlength="40">
+      <p style="margin-bottom:6px"><b>Themen</b> <span class="small">(eins oder mehrere)</span></p><div id="exu" class="exu"></div>
+      <div class="row" style="justify-content:flex-start"><button class="btn primary" id="exok">Speichern</button><button class="btn" id="ex0">Abbrechen</button></div></div>`;
+  const fillS = () => { const g = +$('#exg').value, cur = $('#exs').value; $('#exs').innerHTML = subs(g).map(s => `<option value="${s.id}" ${s.id === cur ? 'selected' : ''}>${s.icon} ${esc(s.name)}</option>`).join(''); fillU(); };
+  const fillU = () => { const g = +$('#exg').value, S = CATALOG.find(x => x.id === $('#exs').value), G = S && gradeOf(S, g);
+    $('#exu').innerHTML = G ? G.books.map(b => `<p class="small" style="margin:8px 0 4px"><b>${esc(b.name)}</b></p>` + b.units.map(u => { const k = [S.id, G.grade, b.id, u.id].join('-');
+      return `<label class="exl"><input type="checkbox" value="${esc(k)}"> <span>${u.icon} ${esc(u.no)}: ${esc(u.title)}</span></label>`; }).join('')).join('') : ''; };
+  $('#exg').onchange = fillS; $('#exs').onchange = fillU; fillS();
+  $('#ex0').onclick = back;
+  $('#exok').onclick = () => { const d = $('#exd').value, units = [...app.querySelectorAll('#exu input:checked')].map(x => x.value);
+    if (!/^\d{4}-\d\d-\d\d$/.test(d)) return toast('Bitte ein Datum wählen.'); if (!units.length) return toast('Bitte mindestens ein Thema wählen.');
+    const id = 'x' + Date.now().toString(36); DB.exams = DB.exams || {};
+    DB.exams[id] = { id, p:P.id, d, s:$('#exs').value, g:+$('#exg').value, units, title:$('#ext').value.trim(), by:PARENT_OK ? 'eltern' : 'kind', c:Date.now(), t:Date.now() };
+    save(); toast('Prüfung eingetragen'); back(); };
+}
+function homeExtras(){
+  const P = activeProfile(), ex = liveExams(P.id).filter(e => daysTo(e.d) >= 0 && daysTo(e.d) <= 21).slice(0, 3);
+  return `${goalHTML(P.id, true)}${ex.map(e => examCard(e, true)).join('')}`;
 }
 
 function syncInfo(){
@@ -3590,6 +3699,7 @@ function openMenu(){
     ${many ? it('prof', '👤', 'Profil wechseln', liveProfiles().map(x => x.icon).join(' ')) : ''}
     ${it('game', '🎮', 'Känguru-Spiel', fmtRest() + ' Minuten übrig')}
     ${it('rew', '🏆', 'Belohnungen', pointsOf(DB) + ' Lernpunkte 🏅')}
+    ${it('exam', '📅', 'Prüfung eintragen', (() => { const e = liveExams(ACTIVE).find(x => daysTo(x.d) >= 0); return e ? 'Nächste: ' + whenTxt(daysTo(e.d)) : 'Damit die App beim Lernen hilft'; })())}
     ${kidListsOn() ? it('list', '✨', 'Lernliste erstellen', 'Eigene Wörter oder Fragen') : ''}
     <hr>${it('parents', '👪', 'Elternprofil', DEV.parent ? 'Dieses Gerät ist ein Eltern-Gerät' : 'Mit Eltern-PIN')}
     <p class="small dver">Lernsprung · Version ${APP_VERSION}</p>`;
@@ -3597,7 +3707,7 @@ function openMenu(){
   document.getElementById('menuBtn').setAttribute('aria-expanded', 'true');
   d.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { const m = b.dataset.m; closeMenu();
     if (m === 'home') showHome(); else if (m === 'units') showUnits(); else if (m === 'prof') showProfiles(); else if (m === 'game') showGame();
-    else if (m === 'list') startKidList(); else if (m === 'rew') showRewards(); else if (m === 'parents') showParents(); });
+    else if (m === 'list') startKidList(); else if (m === 'rew') showRewards(); else if (m === 'exam') showExamForm(ACTIVE, showHome); else if (m === 'parents') showParents(); });
   const f = d.querySelector('.ditem'); if (f) f.focus();
 }
 function closeMenu(){ const d = document.getElementById('drawer'); d.hidden = true; document.getElementById('drawerbg').hidden = true; document.body.classList.remove('menuopen'); document.getElementById('menuBtn').setAttribute('aria-expanded', 'false'); }
@@ -3612,7 +3722,7 @@ updateStars(); updatePlay();
 /* Zurück-Taste (Android, Browser): eine Ebene zurück statt App schliessen */
 const SCREENS = { showHome:'home', showSubjects:'subjects', showUnits:'units', showUnit:'unit', showLearn:'learn', showLearnGen:'learnGen',
   flash:'sub', wordList:'sub', abcBoard:'sub', showGrammar:'sub', showPractice:'practice', showCustomTest:'testIntro', showTestIntro:'testIntro',
-  run:'run', showProfiles:'sub0', showBlitz:'lgame', showMemory:'lgame', showSort:'lgame', showClock:'lgame', showMap:'lgame', showGame:'game', showParents:'parents', showRewards:'sub0' };
+  run:'run', showProfiles:'sub0', showBlitz:'lgame', showMemory:'lgame', showSort:'lgame', showClock:'lgame', showMap:'lgame', showGame:'game', showParents:'parents', showRewards:'sub0', showExamForm:'sub0' };
 let CUR = 'home', RET = null, ARMED = false, SKIP = false, BACKWARN = 0;
 const hist = (fn, ...a) => { try { history[fn](...a); } catch (e) {} };
 Object.entries(SCREENS).forEach(([n, id]) => {
@@ -3652,7 +3762,7 @@ window.addEventListener('popstate', () => {
 if (DEV.parent) showParents(); else showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-10';
+const APP_VERSION = '2026-11-06-11';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {

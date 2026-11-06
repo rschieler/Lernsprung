@@ -211,6 +211,19 @@ setTimeout(() => { try {
   if (!w.eval("anyParentPin('7777') && anyParentPin('1234') && !anyParentPin('5555')")) throw new Error('Eltern-PINs falsch');
   if (w.eval('DB.settings.pin') !== '1234') throw new Error('Admin-PIN für alte Versionen fehlt');
   console.log('OK: Elternprofile');
+  // Wochenziel und Prüfungsplaner
+  w.eval("touchProfile(ACTIVE, { goal:{ min:1, days:1 } }); DB.pt = {}; DB.red = []; NAV.s = CATALOG[0]; NAV.g = NAV.s.grades[0]; NAV.b = NAV.g.books[0]; NAV.u = NAV.b.units[1]; track(true, 30000); track(true, 40000)");
+  if (w.eval("DB.pt['W' + dayStr(weekStart(new Date()))]") !== 5) throw new Error('Wochenziel-Bonus fehlt');
+  w.eval("track(true, 40000)"); if (w.eval('pointsOf(DB)') !== 5) throw new Error('Wochenziel-Bonus doppelt');
+  w.eval("showExamForm(ACTIVE, showHome)"); d.querySelector('#exu input').checked = true; d.querySelector('#exd').value = w.eval('dayStr(addDays(new Date(), 3))'); d.querySelector('#exok').click();
+  if (w.eval('liveExams(ACTIVE).length') !== 1 || !d.querySelector('.hx .exam') || !d.querySelector('.hx .goal')) throw new Error('Prüfung nicht auf der Startseite');
+  d.querySelector('.hx [data-ou]').click(); if (!w.eval('NAV.u')) throw new Error('Prüfungs-Thema öffnet nicht');
+  w.eval("PARENT_OK = true; PTAB = 'dash:' + ACTIVE; parentPanel()"); if (!d.querySelector('.exam') || !d.querySelector('.wrep').textContent.includes('Prüfung in 3 Tagen')) throw new Error('Prüfung fehlt im Dashboard');
+  w.eval("Object.values(DB.exams)[0].d = dayStr(addDays(new Date(), -2)); parentPanel()"); d.querySelector('[data-enote]').value = '5,5'; d.querySelector('[data-enotes]').click();
+  if (w.eval('liveExams(ACTIVE)[0].note') !== 5.5) throw new Error('Prüfungsnote nicht gespeichert');
+  w.eval("PTAB = 'prof:' + ACTIVE; parentPanel()"); d.querySelector('#pgmin').value = '90'; d.querySelector('#pgday').value = '4'; d.querySelector('#pgsave').click();
+  if (w.eval('JSON.stringify(goalOf(ACTIVE))') !== '{"min":90,"days":4}') throw new Error('Wochenziel nicht gespeichert');
+  console.log('OK: Wochenziel und Prüfungsplaner');
   if (errs.length) throw new Error('JS-Fehler: ' + errs.slice(0, 3).join(' | '));
   console.log('OK: alles durchgeklickt'); process.exit(0);
 } catch (e) { console.log('FEHLER:', e.message); process.exit(1); } }, 300);
