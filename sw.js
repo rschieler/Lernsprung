@@ -1,7 +1,7 @@
 // Lernsprung: offline nutzbar. Seiten immer zuerst frisch aus dem Netz (Updates sofort), sonst aus dem Speicher.
-const C = 'lernsprung-v2';
+const C = 'lernsprung-v3';
 const ROOT = new URL('./', self.registration.scope).pathname;           // /Lernsprung/
-const PAGES = [ROOT, ROOT + 'index.html', ROOT + 'betreiber/', ROOT + 'betreiber/index.html'];
+const PAGES = [ROOT, ROOT + 'index.html'];
 const keyOf = p => p.endsWith('index.html') ? p.slice(0, -10) : p;      // eine Kopie pro Seite
 self.addEventListener('install', e => { e.waitUntil(caches.open(C).then(c => c.addAll(['./', 'manifest.json', 'icon-192.png', 'icon-512.png'])).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== C).map(x => caches.delete(x)))).then(() => self.clients.claim())); });
