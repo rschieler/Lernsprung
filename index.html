@@ -285,6 +285,13 @@ body.menuopen{overflow:hidden}
 .rlist>div{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}.rlist>div:last-child{border:0}.rlist b{white-space:nowrap}
 .btn.sm{min-height:38px;padding:6px 12px}.mitem.rew>span:last-child{flex:1;min-width:0}.mitem.rew .dbar{width:100%}
 .ndot{display:inline-block;width:.8em;height:.8em;border-radius:50%;vertical-align:-.05em;margin-right:4px;box-shadow:0 0 0 1px rgba(0,0,0,.12)}.nleg .ndot{margin-left:6px}.nleg{margin:6px 0 0}
+.kbd{margin:14px -8px 0;padding:8px 4px;background:var(--soft);border-radius:18px;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.kr{display:flex;gap:4px;justify-content:center;margin:4px 0}
+.kk{flex:1 1 0;min-width:0;max-width:52px;height:48px;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;font-size:1.2rem;font-weight:700;box-shadow:0 2px 0 var(--line);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.kk:active{transform:translateY(2px);box-shadow:none;background:var(--line)}
+.kk.kw{flex:1.5 1 0;max-width:78px;font-size:1rem}.kk.on{background:var(--c);color:#fff;border-color:var(--c)}
+.kk.ksp{flex:5 1 0;max-width:none;font-size:.85rem;color:var(--muted)}.kk.kok{flex:2 1 0;max-width:110px;background:var(--c);color:#fff;border-color:var(--c);font-size:1rem}
+.inp.kbdin{caret-color:transparent;cursor:default}
 .pausebox{margin-bottom:14px;border-color:var(--c)}
 .hx{margin-bottom:14px}.hx .card{margin-bottom:10px}.goal{display:flex;flex-direction:column;gap:4px;padding:14px 18px}.goal .dbar{height:10px;margin-top:4px}
 .exam.soon{border-color:var(--c);box-shadow:0 0 0 2px var(--c) inset,var(--shadow)}.eunits{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.eunits .btn{font-size:.85rem;min-height:34px}
@@ -1980,7 +1987,7 @@ const letterName = c => (NAV.s && NAV.s.lang && NAV.s.lang.startsWith('en') ? ({
 function spellOut(word, rate){ if (!canSpeak()) return; try { speechSynthesis.cancel(); } catch (e) {} word.split('').forEach(c => { if (c !== ' ') speak(letterName(c), rate, true); }); }
 
 let TOKEN = 0, GAME = null;
-function stop(){ VIEW = null; GAME = null; TOKEN++; if (TTS) { try { speechSynthesis.cancel(); } catch (e) {} } window.scrollTo(0,0); }
+function stop(){ VIEW = null; GAME = null; TOKEN++; try { detachKbd(); } catch (e) {} if (TTS) { try { speechSynthesis.cancel(); } catch (e) {} } window.scrollTo(0,0); }
 function toast(msg){ const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2400); }
 function updateStars(){ $('#stars').textContent = '⭐ ' + DB.stars; }
 function setColor(){ document.documentElement.style.setProperty('--c', NAV.s ? NAV.s.color : '#3B6EF5'); }
@@ -2877,6 +2884,47 @@ function showTestIntro(){
    8) ABLAUF EINER RUNDE (Üben und Test)
    ===================================================================== */
 let SES = null;
+/* Eigene Bildschirm-Tastatur: keine Wortvorschläge, keine Autokorrektur, kein Wörterbuch der Handy-Tastatur.
+   Profil-Einstellung kbd: 'auto' (Standard: nur Handy/Tablet), 'on', 'off'. */
+const kbdMode = () => (activeProfile() || {}).kbd || 'auto';
+function useKbd(){ const m = kbdMode(); if (m === 'on') return true; if (m === 'off') return false;
+  try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } }
+let KBD = null;
+function detachKbd(){ if (KBD) { document.removeEventListener('keydown', KBD.key); const el = document.getElementById('kbd'); if (el) el.remove(); KBD = null; } }
+function attachKbd(inp, form, t){
+  detachKbd(); if (!useKbd() || !inp) return;
+  inp.readOnly = true; inp.setAttribute('inputmode', 'none'); inp.classList.add('kbdin');
+  const fr = NAV.s && NAV.s.id === 'fr', num = !!(t && (t.dec || /\d/.test(String(t.answer || ''))));
+  const st = KBD = { inp, form, shift:false, num, key:null };
+  const L = [['q','w','e','r','t','z','u','i','o','p','ü'], ['a','s','d','f','g','h','j','k','l','ö','ä'], ['⇧','y','x','c','v','b','n','m','⌫']];
+  const N = [['1','2','3','4','5','6','7','8','9','0'], ['+','−','·',':','=','/','(',')','%','°'], ['.',',',"'",'-','?','!','⌫']];
+  const ACC = ['é','è','ê','à','â','ç','î','ô','û','ë','œ'];
+  const el = document.createElement('div'); el.id = 'kbd'; el.className = 'kbd'; el.setAttribute('aria-label', 'Tastatur');
+  form.insertAdjacentElement('afterend', el);
+  const k = (c, cls) => `<button type="button" class="kk ${cls || ''}" data-c="${esc(c)}">${esc(c === ' ' ? 'Leerschlag' : c)}</button>`;
+  const draw = () => {
+    const rows = st.num ? N : L, up = c => st.shift && c.length === 1 ? c.toUpperCase() : c;
+    el.innerHTML = (fr && !st.num ? `<div class="kr">${ACC.map(c => k(up(c))).join('')}</div>` : '')
+      + rows.map(r => `<div class="kr">${r.map(c => k(c === '⇧' || c === '⌫' ? c : up(c), c === '⇧' ? 'kw' + (st.shift ? ' on' : '') : c === '⌫' ? 'kw' : '')).join('')}</div>`).join('')
+      + `<div class="kr">${k(st.num ? 'ABC' : '123', 'kw')}${st.num ? '' : k("'") + k('-')}${k(' ', 'ksp')}${st.num ? '' : k('.')}${k('OK', 'kok')}</div>`;
+  };
+  const type = c => {
+    if (inp.disabled || (SES && SES.locked && inp.id === 'inp')) return;
+    if (c === '⌫') inp.value = inp.value.slice(0, -1);
+    else if (c === '⇧') { st.shift = !st.shift; return draw(); }
+    else if (c === '123' || c === 'ABC') { st.num = !st.num; return draw(); }
+    else if (c === 'OK') { form.dispatchEvent(new Event('submit', { cancelable:true, bubbles:true })); return; }
+    else { inp.value += c === '−' ? '-' : c; if (st.shift) { st.shift = false; draw(); } }
+    inp.dispatchEvent(new Event('input', { bubbles:true }));
+  };
+  el.addEventListener('pointerdown', e => { if (e.target.closest('.kk')) e.preventDefault(); });
+  el.addEventListener('click', e => { const b = e.target.closest('.kk'); if (b) type(b.dataset.c); });
+  st.key = e => { if (KBD !== st || !document.body.contains(inp) || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Backspace') { e.preventDefault(); type('⌫'); } else if (e.key === 'Enter') { e.preventDefault(); type('OK'); }
+    else if (e.key.length === 1) { e.preventDefault(); inp.value += e.key; } };
+  document.addEventListener('keydown', st.key);
+  draw();
+}
 /* Angefangene Tests (Probetest, Übungstest) pro Profil und Test speichern, um später weiterzumachen. Nur auf diesem Gerät. */
 const PAUSE_STORE = 'lernsprung-pause', PAUSE_DAYS = 14;
 let PAUSEMEM = (() => { try { return JSON.parse(localStorage.getItem(PAUSE_STORE) || '{}'); } catch (e) { return {}; } })();
@@ -2943,14 +2991,17 @@ function showTask(){
     }
     answer(ok, t.options[k].label);
   });
+  detachKbd();
   if (t.kind === 'input') {
-    const inp = $('#inp'); inp.focus();
+    const inp = $('#inp');
+    if (!t.numeric) attachKbd(inp, $('#inf'), t);
+    if (!KBD) inp.focus();
     $('#inf').onsubmit = e => {
       e.preventDefault();
       if (SES.locked) return;
       if (!inp.value.trim()) { inp.focus(); return; }
       const c = inputCheck(t, inp.value), ok = c.ok; SES.caseHint = !!c.caseOnly; SES.accentHint = !!c.accent;
-      if (!SES.test) { inp.classList.add(ok ? 'ok' : 'no'); inp.disabled = true; }
+      if (!SES.test) { inp.classList.add(ok ? 'ok' : 'no'); inp.disabled = true; if (ok) detachKbd(); }
       answer(ok, inp.value.trim());
     };
   }
@@ -3015,7 +3066,7 @@ function answer(ok, given){
       + (copy ? `<form class="inrow" id="cpf" autocomplete="off"><input id="cp" class="inp" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Abschreiben" aria-label="Richtig abschreiben"><button class="btn primary">OK</button></form>`
               : '<button class="btn primary" id="nx">Weiter</button>');
     if (copy) {
-      $('#cp').focus();
+      attachKbd($('#cp'), $('#cpf'), t); if (!KBD) $('#cp').focus();
       $('#cpf').onsubmit = e => { e.preventDefault(); const c = inputCheck(t, $('#cp').value);
         if (c.ok) { if (tk === TOKEN) nextTask(); }
         else { $('#cp').classList.add('no'); setTimeout(() => $('#cp') && $('#cp').classList.remove('no'), 600); toast(c.caseOnly ? 'Achte auf Gross- und Kleinschreibung.' : 'Noch nicht ganz. Schau genau hin.'); } };
@@ -3399,6 +3450,9 @@ function profileSettings(id){
     <p class="small">Mit einem Profil-PIN kann niemand ohne PIN auf dieses Profil wechseln, z.B. Geschwister auf einem gemeinsamen Gerät. Der Eltern-PIN funktioniert immer.</p>
     <input id="ppin1" class="inp fld" type="password" inputmode="numeric" maxlength="4" placeholder="Neuer PIN (4 Ziffern)" aria-label="Profil-PIN">
     <div class="row" style="justify-content:flex-start"><button class="btn primary" id="ppinset">${P.pin ? 'PIN ändern' : 'PIN einschalten'}</button>${P.pin ? '<button class="btn" id="ppinoff">Ausschalten</button>' : ''}</div>
+    <label for="pkbd" style="display:block;margin-top:14px"><b>Tastatur beim Schreiben</b></label>
+    <select id="pkbd" class="inp fld">${[['auto', 'Eigene Tastatur auf Handy und Tablet (empfohlen)'], ['on', 'Immer eigene Tastatur'], ['off', 'Tastatur des Geräts (mit Vorschlägen)']].map(([v, l]) => `<option value="${v}" ${(P.kbd || 'auto') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    <p class="small">Die eigene Tastatur hat keine Wortvorschläge und keine Autokorrektur. So muss jedes Wort selbst richtig geschrieben werden.</p>
     <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="pkid" ${P.kidLists !== false ? 'checked' : ''}> Darf eigene Lernlisten erstellen (Spielminuten dafür erst nach deiner Freigabe)</label></div>
   <h2 class="h2">Letzte Probetests</h2>
   ${res.length ? `<div class="hist">${res.map(r => `<div><span>${new Date(r.d).toLocaleDateString('de-CH')}</span><span class="hn">${esc(r.name)}</span><b>Note ${fmtNote(r.note)}</b></div>`).join('')}</div>` : '<p class="small">Noch keine Probetests gemacht.</p>'}
@@ -3418,6 +3472,7 @@ function profileSettings(id){
   $('#pb5').onclick = () => bonus(5); $('#pb10').onclick = () => bonus(10);
   $('#ppinset').onclick = () => { const v = $('#ppin1').value; if (!/^\d{4}$/.test(v)) return toast('Der PIN muss 4 Ziffern haben.'); touchProfile(id, { pin:v }); toast('Profil-PIN gespeichert'); parentPanel(); };
   if ($('#ppinoff')) $('#ppinoff').onclick = () => { touchProfile(id, { pin:'' }); toast('Profil-PIN ausgeschaltet'); parentPanel(); };
+  $('#pkbd').onchange = e => { touchProfile(id, { kbd:e.target.value }); toast('Tastatur gespeichert'); };
   $('#pkid').onchange = e => { touchProfile(id, { kidLists:e.target.checked }); toast(e.target.checked ? P.name + ' darf Lernlisten erstellen' : 'Lernlisten nur durch Eltern'); };
   $('#pback').onclick = () => { PTAB = 'home'; parentPanel(); };
   $('#pr1').onclick = () => {
@@ -3796,7 +3851,7 @@ window.addEventListener('popstate', () => {
 if (DEV.parent) showParents(); else showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-13';
+const APP_VERSION = '2026-11-06-14';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {

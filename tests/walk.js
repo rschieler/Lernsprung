@@ -227,6 +227,18 @@ setTimeout(() => { try {
     d.querySelector('#resume').click(); if (w.eval('SES.i') !== 1 || !w.eval('SES.histKey')) throw new Error('Übungstest geht nicht weiter');
   }
   console.log('OK: Test unterbrechen und weitermachen');
+  // Eigene Tastatur
+  w.eval("touchProfile(ACTIVE, { kbd:'on' }); NAV.s = CATALOG[0]; NAV.g = NAV.s.grades[0]; NAV.b = NAV.g.books[0]; NAV.u = NAV.b.units[1]; NAV.n = NAV.g.grade; run([B.write(NAV.u.words[0])], { restart:null })");
+  if (!d.querySelector('#kbd') || !d.querySelector('#inp').readOnly) throw new Error('Eigene Tastatur fehlt');
+  const ans = w.eval('SES.tasks[0].answer'); const press = c => { const b = [...d.querySelectorAll('#kbd .kk')].find(x => x.dataset.c === c); if (!b) throw new Error('Taste fehlt: ' + c); b.click(); };
+  for (const ch of ans) { if (ch === ' ') { press(' '); continue; } if (ch !== ch.toLowerCase()) press('⇧'); press(/[0-9]/.test(ch) && !d.querySelector('[data-c="1"]') ? (press('123'), ch) : ch); }
+  if (d.querySelector('#inp').value !== ans) throw new Error('Tastatur tippt falsch: ' + d.querySelector('#inp').value + ' statt ' + ans);
+  press('⌫'); press(ans.slice(-1)); press('OK');
+  if (!d.querySelector('#fb.fb') || !w.eval('SES.right')) throw new Error('OK-Taste prüft nicht');
+  w.eval("run([B.write(NAV.u.words[1])], { restart:null })"); press('x'); press('OK'); if (!d.querySelector('#cp') || !d.querySelector('#cpf + #kbd')) throw new Error('Tastatur beim Abschreiben fehlt');
+  w.eval("touchProfile(ACTIVE, { kbd:'off' }); run([B.write(NAV.u.words[0])], { restart:null })"); if (d.querySelector('#kbd') || d.querySelector('#inp').readOnly) throw new Error('Tastatur lässt sich nicht ausschalten');
+  w.eval("PARENT_OK = true; PTAB = 'prof:' + ACTIVE; parentPanel()"); if (!d.querySelector('#pkbd')) throw new Error('Tastatur-Einstellung fehlt');
+  console.log('OK: Eigene Tastatur');
   // Wochenziel und Prüfungsplaner
   w.eval("touchProfile(ACTIVE, { goal:{ min:1, days:1 } }); DB.pt = {}; DB.red = []; NAV.s = CATALOG[0]; NAV.g = NAV.s.grades[0]; NAV.b = NAV.g.books[0]; NAV.u = NAV.b.units[1]; track(true, 30000); track(true, 40000)");
   if (w.eval("DB.pt['W' + dayStr(weekStart(new Date()))]") !== 5) throw new Error('Wochenziel-Bonus fehlt');
