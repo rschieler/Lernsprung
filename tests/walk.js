@@ -71,7 +71,8 @@ setTimeout(() => { try {
   console.log('OK: Kinder-Listen mit Freigabe');
   // Profile: Testprofil verändert den Lernstand von Profil 1 nicht, ältere App-Version (ohne Profile) löscht nichts
   w.eval("DB.settings.pin = ''; PARENT_OK = true; PTAB = 'home'; parentPanel()"); const s1 = w.eval('DB.stars'), k1 = w.eval('JSON.stringify(DB.known)');
-  d.querySelector('#pftest').click();
+  if (w.eval('liveProfiles().filter(p => p.test).length') !== 1 || d.querySelector('#pftest')) throw new Error('Testprofil wird nicht automatisch angelegt');
+  w.eval("switchProfile(liveProfiles().find(p => p.test).id, true)");
   if (w.eval('ACTIVE') === 'p1' || w.eval('DB.stars') !== 0 || w.eval('liveProfiles().length') !== 2) throw new Error('Testprofil nicht aktiv oder nicht leer');
   w.eval("DB.stars = 42; DB.known = { x:{ a:1 } }; save()");
   const canon = w.eval('JSON.stringify([toCanon(DB).stars, Object.values(toCanon(DB).pd)[0].stars])');
@@ -84,8 +85,18 @@ setTimeout(() => { try {
   w.eval("PTAB = 'home'; parentPanel()"); d.querySelector('#pfadd').click(); d.querySelector('#pfname').value = 'Noah'; d.querySelector('#pfsave').click();
   if (w.eval('liveProfiles().length') !== 3 || w.eval('ACTIVE') !== 'p1') throw new Error('Neues Profil falsch angelegt');
   w.eval("showProfiles()"); if (d.querySelectorAll('.mitem:not([data-k="__par"])').length !== 3 || !d.querySelector('[data-k="__par"]')) throw new Error('Profilwahl zeigt nicht alle Profile');
-  const tid = w.eval("liveProfiles().find(p => p.test).id"); w.eval(`PTAB = 'prof:${tid}'; parentPanel()`); d.querySelector('#pfdel').click(); d.querySelector('#pfdel2').click();
-  if (w.eval('liveProfiles().length') !== 2 || w.eval(`!!DB.pd['${tid}']`)) throw new Error('Profil nicht gelöscht');
+  const tid = w.eval("liveProfiles().find(p => p.test).id"), nid = w.eval("liveProfiles().find(p => p.name === 'Noah').id");
+  if (w.eval('liveProfiles().slice(-1)[0].test') !== true || w.eval('famMeta().kids') !== 2) throw new Error('Testprofil nicht zuletzt oder als Kind gezählt');
+  w.eval(`touchProfile('${nid}', { grade:5, max:45, kbd:'on' }); PTAB = 'prof:${tid}'; parentPanel()`); if (d.querySelector('#pfdel')) throw new Error('Testprofil lässt sich löschen');
+  d.querySelector('#pfas').value = nid; d.querySelector('#pfas').dispatchEvent(new w.Event('change'));
+  if (w.eval(`profMax('${tid}')`) !== 45 || w.eval(`profCfg('${tid}').grade`) !== 5 || w.eval(`profCfg('${tid}').kbd`) !== 'on' || w.eval(`DB.profiles['${tid}'].name`) !== 'Testprofil') throw new Error('Testen wie Kind geht nicht');
+  w.eval(`profPD('${nid}').stars = 17; PTAB = 'prof:${tid}'; parentPanel()`); d.querySelector('#pfcopy').click();
+  if (w.eval(`profPD('${tid}').stars`) !== 17 || w.eval(`profPD('${nid}').stars`) !== 17) throw new Error('Lernstand nicht ins Testprofil kopiert');
+  w.eval(`PTAB = 'prof:${nid}'; parentPanel()`); d.querySelector('#pfdel').click(); d.querySelector('#pfdel2').click();
+  if (w.eval('liveProfiles().length') !== 2 || w.eval(`!!DB.pd['${nid}']`)) throw new Error('Profil nicht gelöscht');
+  w.eval(`DB.profiles['${tid}'] = { id:'${tid}', del:true, t:Date.now() }; const q = 'pq'; DB.profiles[q] = { id:q, name:'Test Papa', icon:'🦊', t:1, c:1 }; DB.pd[q] = emptyPF(); PTAB = 'home'; parentPanel()`);
+  if (!w.eval("DB.profiles.pq.test") || w.eval('liveProfiles().filter(p => p.test).length') !== 1) throw new Error('Profil «Test …» wird nicht zum Testprofil');
+  w.eval("PTAB = 'home'; parentPanel()"); d.querySelector('#pfadd').click(); d.querySelector('#pfname').value = 'Noah'; d.querySelector('#pfsave').click();
   console.log('OK: Profile (Testprofil, Geschwister, alte App-Version)');
   // Pro Profil: Tagesmaximum, Profil-PIN; Eltern-Gerät
   const noah = w.eval("liveProfiles().find(p => p.name === 'Noah').id");

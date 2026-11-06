@@ -294,6 +294,7 @@ body.menuopen{overflow:hidden}
 .kk.ksp{flex:5 1 0;max-width:none;font-size:.85rem;color:var(--muted)}.kk.kok{flex:2 1 0;max-width:110px;background:var(--c);color:#fff;border-color:var(--c);font-size:1rem}
 .inp.kbdin{caret-color:transparent;cursor:default}
 .prose h3{margin:16px 0 4px;font-size:1rem}.prose p{margin:4px 0 8px}.rlist.adm>div{grid-template-columns:1.6em minmax(0,1fr) auto auto}.rlist small{display:block;color:var(--muted);font-size:.8rem}
+.pcsep{margin-top:22px}
 .pausebox{margin-bottom:14px;border-color:var(--c)}
 .hx{margin-bottom:14px}.hx .card{margin-bottom:10px}.goal{display:flex;flex-direction:column;gap:4px;padding:14px 18px}.goal .dbar{height:10px;margin-top:4px}
 .exam.soon{border-color:var(--c);box-shadow:0 0 0 2px var(--c) inset,var(--shadow)}.eunits{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.eunits .btn{font-size:.85rem;min-height:34px}
@@ -1809,8 +1810,13 @@ function fromCanon(c){ const d = Object.assign({}, c, { pd:Object.assign({}, c.p
   if (ACTIVE !== 'p1' && (!d.profiles[ACTIVE] || d.profiles[ACTIVE].del)) { ACTIVE = 'p1'; try { localStorage.setItem(ACTIVE_STORE, 'p1'); } catch (e) {} }
   if (ACTIVE !== 'p1') { d.pd.p1 = pickPF(c); Object.assign(d, Object.assign(emptyPF(), d.pd[ACTIVE] || {})); delete d.pd[ACTIVE]; }
   return d; }
-const liveProfiles = () => Object.values(DB.profiles || {}).filter(x => !x.del).sort((a, b) => (a.id === 'p1' ? -1 : b.id === 'p1' ? 1 : (a.c || 0) - (b.c || 0)));
-const activeProfile = () => (DB.profiles || {})[ACTIVE] || DEF_PROFILES().p1;
+const liveProfiles = () => Object.values(DB.profiles || {}).filter(x => !x.del).sort((a, b) => (!!a.test - !!b.test) || (a.id === 'p1' ? -1 : b.id === 'p1' ? 1 : (a.c || 0) - (b.c || 0)));
+const liveKids = () => liveProfiles().filter(P => !P.test);
+/* Testprofil «Testen wie»: übernimmt Klasse, Tagesmaximum, Tastatur, Lernlisten-Recht und Wochenziel eines Kindes */
+const MIRROR = ['grade', 'max', 'kbd', 'kidLists', 'goal'];
+function profCfg(id){ const P = (DB.profiles || {})[id]; if (!P || !P.test || !P.as) return P;
+  const K = DB.profiles[P.as]; if (!K || K.del || K.test) return P; const o = Object.assign({}, P); MIRROR.forEach(k => { o[k] = K[k]; }); return o; }
+const activeProfile = () => profCfg(ACTIVE) || DEF_PROFILES().p1;
 let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0, reset:0, games:{}, custom:{}, profiles:DEF_PROFILES(), pd:{}, log:{}, err:[], pt:{}, red:[], parents:{}, rewards:{}, exams:{} };
 try { const r = localStorage.getItem(STORE); if (r) DB = Object.assign(DB, JSON.parse(r)); } catch (e) {}
 DB = fromCanon(DB);
@@ -3371,7 +3377,7 @@ async function bioVerify(){
 
 const profPD = id => id === ACTIVE ? DB : (DB.pd[id] = DB.pd[id] || emptyPF());
 function playOf(d){ const t = today(); if (!d.play || d.play.day !== t) d.play = { day:t, earned:0, used:0, bonus:0, cnt:{} }; return d.play; }
-const profMax = id => { const P = (DB.profiles || {})[id] || {}; if (typeof P.max === 'number') return P.max; const m = DB.settings && DB.settings.max; return typeof m === 'number' ? m : 30; };
+const profMax = id => { const P = profCfg(id) || {}; if (typeof P.max === 'number') return P.max; const m = DB.settings && DB.settings.max; return typeof m === 'number' ? m : 30; };
 const restOf = id => { const p = playOf(profPD(id)); return Math.max(0, Math.min(p.earned, profMax(id)) + (p.bonus || 0) - p.used); };
 const fmtMin = r => r >= 1 ? String(Math.floor(r)) : r > 0 ? '<1' : '0';
 function testsOf(id, n){ const names = unitNames(); return Object.entries(profPD(id).tests || {}).flatMap(([k, arr]) => arr.map(t => Object.assign({ k, name:names[k] || k }, t))).sort((a, b) => b.d - a.d).slice(0, n); }
@@ -3401,6 +3407,12 @@ const curParent = () => (DB.parents || {})[PARENT_WHO] || liveParents()[0] || nu
 const isAdmin = () => !!(curParent() && curParent().admin);
 function syncAdminPin(){ const A = liveParents().find(P => P.admin); if (A && DB.settings.pin !== A.pin) { DB.settings.pin = A.pin; DB.settings.t = Date.now(); } }
 function touchParent(id, patch){ DB.parents[id] = Object.assign({}, DB.parents[id], patch, { t:Date.now() }); syncAdminPin(); save(); }
+function ensureTestProfile(){
+  if (liveProfiles().some(P => P.test)) return;
+  const old = liveProfiles().find(P => P.id !== 'p1' && /test/i.test(P.name || ''));
+  if (old) { touchProfile(old.id, { test:true }); return; }
+  const id = 'pt' + Date.now().toString(36); DB.profiles[id] = { id, name:'Testprofil', icon:'🧪', test:true, max:120, t:Date.now(), c:Date.now() }; DB.pd[id] = emptyPF(); save();
+}
 function parentLogin(P){
   PARENT_OK = true; PARENT_WHO = P.id; PTAB = 'home';
   if (DEV.parent && DEV.remember) { DEV.pin = P.pin; DEV.who = P.id; saveDev(); }
@@ -3432,6 +3444,7 @@ function showParents(){
   }
 }
 function parentTabs(){
+  try { ensureTestProfile(); } catch (e) {}
   const t = (k, l) => `<button class="btn ${PTAB === k || (k === 'home' && /^(prof|dash):/.test(PTAB)) ? 'primary' : ''}" data-tab="${k}">${l}</button>`, P = curParent();
   const open = liveProfiles().reduce((n, K) => n + (profPD(K.id).red || []).filter(r => r.st === 'offen').length, 0);
   return `<div class="phead"><h1 class="h1">👪 Elternprofil</h1>${P ? `<span class="small">${P.icon} ${esc(P.name)}${P.admin ? ' · Admin' : ''} · <a href="#" id="plogout">abmelden</a></span>` : ''}</div>
@@ -3478,19 +3491,18 @@ function parentPanel(){
   if (PTAB === 'parents') return parentsPage();
   if (PTAB === 'rew') return rewardsPage();
   if (PTAB.startsWith('dash:')) return dashboard(PTAB.slice(5));
-  app.innerHTML = parentTabs() + `<div class="pcards">${liveProfiles().map(P => { const p = playOf(profPD(P.id)), mx = profMax(P.id), last = testsOf(P.id, 1)[0];
-    return `<div class="card pcard"><div class="pchead"><span class="uicon">${P.icon}</span><div><b>${esc(P.name)}</b><span class="small">${P.test ? 'Testprofil' : P.grade ? P.grade + '. Klasse' : 'Profil'}${P.pin ? ' · 🔒 PIN' : ''}${P.id === ACTIVE ? ' · auf diesem Gerät' : ''}</span></div></div>
+  app.innerHTML = parentTabs() + `<div class="pcards">${liveProfiles().map((P, i, L) => (P.test && (i === 0 || !L[i - 1].test) ? '<h2 class="h2 pcsep">🧪 Für Eltern zum Ausprobieren</h2>' : '') + (() => { const p = playOf(profPD(P.id)), mx = profMax(P.id), last = testsOf(P.id, 1)[0];
+    return `<div class="card pcard"><div class="pchead"><span class="uicon">${P.icon}</span><div><b>${esc(P.name)}</b><span class="small">${P.test ? 'Testprofil' + (profCfg(P.id).grade !== P.grade || P.as ? ' · testet wie ' + esc((DB.profiles[P.as] || {}).name || '') : '') : P.grade ? P.grade + '. Klasse' : 'Profil'}${P.pin ? ' · 🔒 PIN' : ''}${P.id === ACTIVE ? ' · auf diesem Gerät' : ''}</span></div></div>
       <div class="kpi"><div><b>${Math.round(Math.min(p.earned, mx) + (p.bonus || 0))}</b>verdient</div><div><b>${Math.round(p.used)}</b>gespielt</div><div><b>${fmtMin(restOf(P.id))}</b>übrig</div></div>
       <p class="small">Höchstens ${mx} Min pro Tag · ⭐ ${profPD(P.id).stars || 0} · 🏅 ${pointsOf(profPD(P.id))}${(profPD(P.id).red || []).some(r => r.st === 'offen') ? ' · <b>🏆 Wunsch offen</b>' : ''} · diese Woche ${fmtDur(weekSum(profPD(P.id).log || {}, weekStart(new Date())).s)}${last ? ` · Letzter Probetest: ${esc(last.name)}, Note ${fmtNote(last.note)}` : ''}</p>
-      <div class="row" style="justify-content:flex-start"><button class="btn primary" data-dash="${P.id}">📊 Auswertung</button><button class="btn" data-bonus="${P.id}">+5 Min</button><button class="btn" data-prof="${P.id}">⚙️</button></div></div>`; }).join('')}</div>
-    <div class="row" style="justify-content:flex-start"><button class="btn primary" id="pfadd">+ Kind hinzufügen</button>${liveProfiles().some(P => P.test) ? '' : '<button class="btn" id="pftest">🧪 Testprofil anlegen</button>'}</div>
+      <div class="row" style="justify-content:flex-start"><button class="btn primary" data-dash="${P.id}">📊 Auswertung</button><button class="btn" data-bonus="${P.id}">+5 Min</button><button class="btn" data-prof="${P.id}">⚙️</button></div></div>`; })()).join('')}</div>
+    <div class="row" style="justify-content:flex-start"><button class="btn primary" id="pfadd">+ Kind hinzufügen</button></div>
     <div class="row"><button class="btn" id="pdone">Zur Lern-App</button></div>`;
   bindTabs();
   app.querySelectorAll('[data-prof]').forEach(b => b.onclick = () => { PTAB = 'prof:' + b.dataset.prof; parentPanel(); });
   app.querySelectorAll('[data-dash]').forEach(b => b.onclick = () => { PTAB = 'dash:' + b.dataset.dash; parentPanel(); });
   app.querySelectorAll('[data-bonus]').forEach(b => b.onclick = () => { const id = b.dataset.bonus, p = playOf(profPD(id)); p.bonus = (p.bonus || 0) + 5; save(); updatePlay(); toast('+5 Minuten für ' + DB.profiles[id].name); parentPanel(); });
-  $('#pfadd').onclick = () => { const id = 'p' + Date.now().toString(36); DB.profiles[id] = { id, name:'Kind ' + (liveProfiles().length + 1), icon:PROFILE_ICONS[liveProfiles().length % 10], t:Date.now(), c:Date.now() }; DB.pd[id] = emptyPF(); save(); PTAB = 'prof:' + id; parentPanel(); };
-  if ($('#pftest')) $('#pftest').onclick = () => { const id = 'p' + Date.now().toString(36); DB.profiles[id] = { id, name:'Testprofil', icon:'🧪', test:true, max:120, t:Date.now(), c:Date.now() }; DB.pd[id] = emptyPF(); switchProfile(id, true); save(); toast('Dieses Gerät nutzt jetzt das Testprofil'); parentPanel(); };
+  $('#pfadd').onclick = () => { const id = 'p' + Date.now().toString(36); DB.profiles[id] = { id, name:'Kind ' + (liveKids().length + 1), icon:PROFILE_ICONS[liveKids().length % 10], t:Date.now(), c:Date.now() }; DB.pd[id] = emptyPF(); save(); PTAB = 'prof:' + id; parentPanel(); };
   $('#pdone').onclick = showHome;
 }
 function profileSettings(id){
@@ -3501,6 +3513,11 @@ function profileSettings(id){
     <p style="margin-bottom:6px"><b>Bild</b></p><div class="row" style="justify-content:flex-start;margin-top:0">${PROFILE_ICONS.map(i => `<button class="btn picon ${i === P.icon ? 'primary' : ''}" data-i="${i}" aria-label="Bild ${i}">${i}</button>`).join('')}</div>
     <label for="pfgrade" style="display:block;margin-top:12px"><b>Klasse</b></label><select id="pfgrade" class="inp fld"><option value="">–</option>${grades.map(g => `<option value="${g}" ${P.grade === g ? 'selected' : ''}>${g}. Klasse</option>`).join('')}</select>
     <div class="row"><button class="btn primary" id="pfsave">Speichern</button>${id !== ACTIVE ? '<button class="btn good" id="pfuse">Auf diesem Gerät verwenden</button>' : ''}</div></div>
+  ${P.test ? `<h2 class="h2">🧪 Testprofil</h2><div class="card"><p class="small" style="margin-top:0">Zum Ausprobieren für Eltern. Zählt nicht als Kind und verändert keinen Lernstand der Kinder.</p>
+    <label for="pfas"><b>Testen wie</b></label><select id="pfas" class="inp fld"><option value="">Eigene Einstellungen</option>${liveKids().map(K => `<option value="${K.id}" ${P.as === K.id ? 'selected' : ''}>${esc(K.icon + ' ' + K.name)}</option>`).join('')}</select>
+    <p class="small">Übernimmt Klasse, Tagesmaximum, Tastatur, Lernlisten-Recht und Wochenziel des Kindes. So siehst du die App genau wie dein Kind.</p>
+    ${liveKids().length ? `<div class="row" style="justify-content:flex-start"><button class="btn" id="pfcopy">Lernstand von ${esc(((DB.profiles[P.as] || liveKids()[0]) || {}).name || '')} kopieren</button></div><p class="small">Kopiert Noten, gelernte Wörter, Auswertung und Punkte ins Testprofil, z.B. um Dashboard oder Belohnungen zu prüfen. Das Kind merkt nichts davon.</p>` : ''}</div>`
+  : `<label class="small" style="display:flex;gap:8px;align-items:center;margin:-4px 0 14px"><input type="checkbox" id="pfistest"> Das ist ein Testprofil (zählt nicht als Kind)</label>`}
   <h2 class="h2">Spielzeit</h2><div class="card">
     <label for="pmax"><b>Maximale Spielminuten pro Tag</b></label>
     <div class="inrow"><input id="pmax" class="inp fld" type="number" inputmode="numeric" min="0" max="120" step="5" value="${mx}"><button class="btn primary" id="psave">Speichern</button></div>
@@ -3525,12 +3542,17 @@ function profileSettings(id){
   <h2 class="h2">Lernstand zurücksetzen</h2>
   <div class="card" id="preset"><p class="small" style="margin-top:0">Löscht nur für «${esc(P.name)}» auf allen verbundenen Geräten: gelernte Wörter, Probetest-Noten, Sterne, Spiel-Rekorde und die heute verdienten Spielminuten. Andere Profile und die Einstellungen bleiben.</p>
     <button class="btn" id="pr1">Lernstand von ${esc(P.name)} zurücksetzen</button></div>
-  <div class="row">${id !== 'p1' ? '<button class="btn" id="pfdel">Profil löschen</button>' : ''}<button class="btn" id="pback">Zurück zur Übersicht</button></div>`;
+  <div class="row">${id !== 'p1' && !P.test ? '<button class="btn" id="pfdel">Profil löschen</button>' : ''}<button class="btn" id="pback">Zurück zur Übersicht</button></div>`;
   bindTabs();
   let icon = P.icon;
   app.querySelectorAll('.picon').forEach(b => b.onclick = () => { icon = b.dataset.i; app.querySelectorAll('.picon').forEach(x => x.classList.toggle('primary', x.dataset.i === icon)); });
   const meta = () => { const name = $('#pfname').value.trim() || P.name, g = $('#pfgrade').value; touchProfile(id, { name, icon, grade: g ? +g : null }); updateProfileChip(); };
   $('#pfsave').onclick = () => { meta(); toast('Profil gespeichert'); parentPanel(); };
+  if ($('#pfas')) $('#pfas').onchange = e => { touchProfile(id, { as:e.target.value || null }); updatePlay(); toast(e.target.value ? 'Testprofil testet jetzt wie ' + DB.profiles[e.target.value].name : 'Testprofil mit eigenen Einstellungen'); parentPanel(); };
+  if ($('#pfcopy')) $('#pfcopy').onclick = () => { const K = DB.profiles[P.as] || liveKids()[0], src = JSON.parse(JSON.stringify(profPD(K.id)));
+    const dst = emptyPF(); PF.forEach(k => { if (src[k] !== undefined) dst[k] = src[k]; }); Object.assign(dst, { play:null, red:[], reset:Date.now() }); Object.assign(profPD(id), dst); save(); updateStars(); updatePlay(); toast('Lernstand von ' + K.name + ' ins Testprofil kopiert'); parentPanel(); };
+  if ($('#pfistest')) $('#pfistest').onchange = e => { if (!e.target.checked) return; if (liveProfiles().some(x => x.test)) { const T = liveProfiles().find(x => x.test); DB.profiles[T.id] = { id:T.id, del:true, t:Date.now() }; delete DB.pd[T.id]; }
+    touchProfile(id, { test:true }); toast(P.name + ' ist jetzt das Testprofil'); parentPanel(); };
   if ($('#pfuse')) $('#pfuse').onclick = () => { meta(); switchProfile(id, true); parentPanel(); };
   $('#psave').onclick = () => { const v = Math.max(0, Math.min(120, Math.round(+$('#pmax').value || 0))); touchProfile(id, { max:v }); updatePlay(); toast(`Gespeichert: höchstens ${v} Minuten pro Tag für ${P.name}`); parentPanel(); };
   const bonus = n => { const p = playOf(profPD(id)); p.bonus = (p.bonus || 0) + n; save(); updatePlay(); toast(`+${n} Minuten für ${P.name}`); parentPanel(); };
@@ -3732,7 +3754,7 @@ function showRewards(){
    Wochenziel und Prüfungsplaner
    ===================================================================== */
 const GOAL_BONUS = 5;
-const goalOf = id => ((DB.profiles || {})[id] || {}).goal || null;
+const goalOf = id => (profCfg(id) || {}).goal || null;
 function goalState(id){
   const g = goalOf(id); if (!g || (!g.min && !g.days)) return null;
   const w = weekSum(profPD(id).log || {}, weekStart(new Date())), min = Math.floor(w.s / 60);
@@ -4034,7 +4056,7 @@ window.addEventListener('popstate', () => {
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-16';
+const APP_VERSION = '2026-11-06-17';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
