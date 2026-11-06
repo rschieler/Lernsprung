@@ -21,7 +21,15 @@ setTimeout(() => { try {
   if (nl !== 3 || cu !== 3) throw new Error(`Eigene Lernlisten: ${nl} gespeichert, ${cu} Units`);
   const pv = w.eval("JSON.stringify(parseList('vok', '1. the dog = der Hund\\nkaputt\\ncat; Katze'))");
   if (pv !== JSON.stringify({ items:[['the dog','der Hund'],['cat','Katze']], bad:['kaputt'] })) throw new Error('parseList falsch: ' + pv);
-  console.log('OK: Eigene Lernlisten angelegt');
+  // Foto-Import: Entwurf von Gemini (simuliert) übernehmen
+  w.eval(`showListEditor(null, { s:'nmg', g:4, kind:'qa', title:'Foto-Test', ai:true, goals:['Ich kenne die Nachbarkantone.'], items:[
+    ['Nachbarkanton im Norden','Thurgau','Zürich','Glarus','Uri'],['Hauptort','St.Gallen','Chur','Wil','Gossau'],['Fluss im Osten','Rhein','Aare','Thur','Linth'],['4.5 km = ? m',"4'500 m",'450 m','45 m',"45'000 m"]] })`);
+  d.querySelector('#lsave').click();
+  const fl = w.eval("JSON.stringify(Object.values(DB.custom).find(x => x.title === 'Foto-Test'))");
+  if (!fl || !fl.includes('"Glarus"') || !fl.includes('Nachbarkantone')) throw new Error('Foto-Entwurf nicht korrekt gespeichert: ' + fl);
+  const qa = w.eval(`JSON.stringify([inputCheck({ alts:qaAlts("4'500 m").split('|') }, '4500').ok, inputCheck({ alts:qaAlts("4'500 m").split('|') }, '4500 m').ok, inputCheck({ alts:qaAlts("4'500 m").split('|') }, '450').ok])`);
+  if (qa !== '[true,true,false]') throw new Error('Einheiten-Alternativen falsch: ' + qa);
+  console.log('OK: Eigene Lernlisten angelegt (inkl. Foto-Entwurf)');
   const cat = w.eval('CATALOG'), games = {};
   for (let si = 0; si < cat.length; si++) for (let gi = 0; gi < cat[si].grades.length; gi++) {
     w.eval(`NAV.s=CATALOG[${si}];NAV.g=NAV.s.grades[${gi}];NAV.n=NAV.g.grade;setColor();showUnits()`);
