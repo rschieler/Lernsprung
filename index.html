@@ -3924,7 +3924,8 @@ async function showAdmin(){
   let invs = [], fams = [];
   try { invs = (await fs.collection('invites').get()).docs.map(d => Object.assign({ id:d.id }, d.data())); fams = (await fs.collection('fam2').get()).docs.map(d => { const x = d.data(); return { id:d.id, inv:x.inv, created:x.created, updated:x.updated, ver:x.ver, kids:x.kids, parents:x.parents, kb:Math.round(((x.c || '').length * .75) / 1024) }; }); }
   catch (e) { app.innerHTML = `<h1 class="h1">🛠️ Betreiber-Bereich</h1><div class="card"><p><b>Kein Zugriff:</b> ${esc((e && (e.code || e.message)) || '')}</p><p class="small">Sind die Firestore-Regeln aus <code>firestore.rules</code> in der Firebase-Konsole veröffentlicht?</p></div>`; return; }
-  const byInv = Object.fromEntries(invs.map(i => [i.id, i])), dt = t => t ? new Date(t).toLocaleDateString('de-CH') : '–';
+  const byInv = Object.fromEntries(invs.map(i => [i.id, i])), byUsed = Object.fromEntries(invs.filter(i => i.used).map(i => [i.used, i])), dt = t => t ? new Date(t).toLocaleDateString('de-CH') : '–';
+  const famInv = f => (f.inv !== 'alt' && byInv[f.inv]) || byUsed[f.id] || null;
   const ago = t => { if (!t) return '–'; const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? 'heute' : d === 1 ? 'gestern' : 'vor ' + d + ' Tagen'; };
   invs.sort((a, b) => (b.created || 0) - (a.created || 0)); fams.sort((a, b) => (b.updated || 0) - (a.updated || 0));
   const active = fams.filter(f => f.updated > Date.now() - 7 * 864e5).length;
@@ -3933,9 +3934,10 @@ async function showAdmin(){
     <h2 class="h2">Neue Einladung</h2><div class="card"><label for="ainm"><b>Für wen?</b></label><div class="inrow"><input id="ainm" class="inp fld" maxlength="40" placeholder="z.B. Familie Meier" style="flex:1"><button class="btn primary" id="ainv">Erstellen</button></div>
       <p class="small">Jeder Link richtet genau eine Familie ein. Den Namen sieht die Familie bei der Einladung, sonst nur du.</p></div>
     <h2 class="h2">Familien</h2>${fams.length ? `<div class="rlist adm">${fams.map(f => { const I = byInv[f.inv];
-      return `<div><span>${f.inv === 'alt' ? '🏠' : I && I.blocked ? '⛔' : '👪'}</span><span><b>${esc(f.inv === 'alt' ? 'Bestehende Familie (vor Einladungen)' : I ? I.name : 'Einladung gelöscht')}</b><small>seit ${dt(f.created)} · zuletzt ${ago(f.updated)} · ${f.kids || 0} Kind${f.kids === 1 ? '' : 'er'}, ${f.parents || 0} Eltern · Version ${esc(f.ver || '–')} · ${f.kb} KB</small></span><span></span>
+      const J = famInv(f);
+      return `<div><span>${J && J.blocked ? '⛔' : '👪'}</span><span><b>${esc(J ? J.name : f.inv === 'alt' ? 'Familie ohne Namen' : 'Einladung gelöscht')}</b> <a href="#" class="small" data-fren="${f.id}">umbenennen</a><small>seit ${dt(f.created)} · zuletzt ${ago(f.updated)} · ${f.kids || 0} Kind${f.kids === 1 ? '' : 'er'}, ${f.parents || 0} Eltern · Version ${esc(f.ver || '–')} · ${f.kb} KB</small></span><span></span>
         <button class="btn sm" data-fdel="${f.id}">Löschen</button></div>`; }).join('')}</div>` : '<p class="small">Noch keine Familien.</p>'}
-    <h2 class="h2">Einladungen</h2>${invs.length ? `<div class="rlist adm">${invs.map(i => `<div><span>${i.blocked ? '⛔' : i.used ? '✅' : '✉️'}</span><span><b>${esc(i.name)}</b><small>erstellt ${dt(i.created)} · ${i.blocked ? 'gesperrt' : i.used ? 'eingerichtet ' + dt(i.usedAt) : 'noch offen'}</small></span>
+    <h2 class="h2">Einladungen</h2>${invs.filter(i => !i.label).length ? `<div class="rlist adm">${invs.filter(i => !i.label).map(i => `<div><span>${i.blocked ? '⛔' : i.used ? '✅' : '✉️'}</span><span><b>${esc(i.name)}</b><small>erstellt ${dt(i.created)} · ${i.blocked ? 'gesperrt' : i.used ? 'eingerichtet ' + dt(i.usedAt) : 'noch offen'}</small></span>
       ${i.used || i.blocked ? '<span></span>' : `<button class="btn sm" data-ishare="${i.id}">Link</button>`}<button class="btn sm" data-iblock="${i.id}">${i.blocked ? 'Entsperren' : 'Sperren'}</button></div>`).join('')}</div>` : '<p class="small">Noch keine Einladungen.</p>'}
     <div class="tip">📲 Schnellzugriff auf Android: Lernsprung-Symbol lange drücken → «Betreiber-Bereich» auf den Startbildschirm ziehen.</div>
     <p class="small">Inhalte der Familien (Namen, Noten, Listen) sind verschlüsselt und hier nicht sichtbar. «Sperren» stoppt die Synchronisation dieser Familie, «Löschen» entfernt ihre Online-Daten.</p>
@@ -3950,6 +3952,12 @@ async function showAdmin(){
     const id = newFamilyCode(); try { await fs.collection('invites').doc(id).set({ name, created:Date.now(), used:null, usedAt:null, blocked:false }); } catch (e) { return toast('Ging nicht: ' + (e.code || e.message)); }
     await showAdmin(); share(id); };
   app.querySelectorAll('[data-ishare]').forEach(b => b.onclick = () => share(b.dataset.ishare));
+  app.querySelectorAll('[data-fren]').forEach(a => a.onclick = async e => { e.preventDefault(); const f = fams.find(x => x.id === a.dataset.fren), J = famInv(f);
+    const row = a.closest('div'); row.insertAdjacentHTML('afterend', `<div class="inrow" id="frenbox" style="padding:6px 0 10px"><input id="frenv" class="inp fld" maxlength="40" value="${esc(J ? J.name : '')}" placeholder="z.B. Familie Schieler" style="flex:1"><button class="btn sm primary" id="frenok">OK</button></div>`);
+    const old = $('#frenbox'); if (old && old !== row.nextElementSibling) old.remove(); $('#frenv').focus();
+    $('#frenok').onclick = async () => { const name = $('#frenv').value.trim(); if (!name) return toast('Bitte einen Namen eingeben.');
+      try { if (J) await fs.collection('invites').doc(J.id).update({ name }); else await fs.collection('invites').doc(newFamilyCode()).set({ name, created:Date.now(), used:f.id, usedAt:f.created || Date.now(), blocked:false, label:true }); }
+      catch (x) { return toast('Ging nicht: ' + (x.code || x.message)); } toast('Name gespeichert'); showAdmin(); }; });
   app.querySelectorAll('[data-iblock]').forEach(b => b.onclick = async () => { const I = byInv[b.dataset.iblock]; await fs.collection('invites').doc(I.id).update({ blocked:!I.blocked }); toast(I.blocked ? 'Entsperrt' : 'Gesperrt'); showAdmin(); });
   app.querySelectorAll('[data-fdel]').forEach(b => b.onclick = async () => { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Sicher?'; b.style.background = 'var(--bad)'; b.style.color = '#fff'; return; }
     await fs.collection('fam2').doc(b.dataset.fdel).delete(); toast('Online-Daten der Familie gelöscht'); showAdmin(); });
@@ -4059,7 +4067,7 @@ window.addEventListener('popstate', () => {
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-21';
+const APP_VERSION = '2026-11-06-22';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {

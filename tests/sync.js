@@ -60,7 +60,11 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   // 4. Betreiber-Bereich: sieht Familien, aber keine Inhalte
   const e = open('https://rschieler.github.io/Lernsprung/?admin', { email:'ronny.schieler@gmail.com', isAnonymous:false }); await wait(800);
   const t = e.document.body.textContent;
-  if (!t.includes('Familie Test') || !t.includes('Bestehende Familie') || /Lina/.test(t)) throw new Error('Betreiber-Bereich falsch: ' + t.slice(0, 300));
+  if (!t.includes('Familie Test') || !t.includes('Familie ohne Namen') || /Lina/.test(t)) throw new Error('Betreiber-Bereich falsch: ' + t.slice(0, 300));
+  [...e.document.querySelectorAll('[data-fren]')].find(x => x.closest('div').textContent.includes('Familie ohne Namen')).click(); e.document.querySelector('#frenv').value = 'Familie Schieler'; e.document.querySelector('#frenok').click(); await wait(500);
+  const famList = e.document.querySelector('.rlist.adm').textContent;
+  if (!famList.includes('Familie Schieler') || famList.includes('Familie ohne Namen')) throw new Error('Familie umbenennen geht nicht');
+  if ([...e.document.querySelectorAll('.rlist.adm')].pop().textContent.includes('Familie Schieler')) throw new Error('Namens-Eintrag erscheint bei den Einladungen');
   e.document.querySelector('#ainm').value = 'Familie Neu'; e.document.querySelector('#ainv').click(); await wait(500);
   if (![...STORE.values()].some(v => v.name === 'Familie Neu' && v.used === null)) throw new Error('Einladung nicht erstellt');
   const f = open('https://rschieler.github.io/Lernsprung/?admin', { email:'fremd@example.com', isAnonymous:false }); await wait(600);
