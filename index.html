@@ -3953,8 +3953,13 @@ async function showAdmin(){
     await showAdmin(); share(id); };
   app.querySelectorAll('[data-ishare]').forEach(b => b.onclick = () => share(b.dataset.ishare));
   app.querySelectorAll('[data-fren]').forEach(a => a.onclick = async e => { e.preventDefault(); const f = fams.find(x => x.id === a.dataset.fren), J = famInv(f);
-    const row = a.closest('div'); row.insertAdjacentHTML('afterend', `<div class="inrow" id="frenbox" style="padding:6px 0 10px"><input id="frenv" class="inp fld" maxlength="40" value="${esc(J ? J.name : '')}" placeholder="z.B. Familie Schieler" style="flex:1"><button class="btn sm primary" id="frenok">OK</button></div>`);
-    const old = $('#frenbox'); if (old && old !== row.nextElementSibling) old.remove(); $('#frenv').focus();
+    const old = $('#frenbox'); if (old) old.remove();
+    a.closest('.rlist').insertAdjacentHTML('beforebegin', `<div class="card" id="frenbox"><label for="frenv"><b>Neuer Name für diese Familie</b></label>
+      <p class="small" style="margin:2px 0 8px">Bisher: ${esc(J ? J.name : 'Familie ohne Namen')} · seit ${dt(f.created)} · ${f.kids || 0} Kind${f.kids === 1 ? '' : 'er'}</p>
+      <input id="frenv" class="inp fld" maxlength="40" value="${esc(J ? J.name : '')}" placeholder="z.B. Familie Schieler">
+      <div class="row" style="justify-content:flex-start"><button class="btn primary" id="frenok">Speichern</button><button class="btn" id="fren0">Abbrechen</button></div></div>`);
+    $('#fren0').onclick = () => $('#frenbox').remove();
+    try { $('#frenbox').scrollIntoView({ block:'center', behavior:'smooth' }); } catch (x) {} $('#frenv').focus();
     $('#frenok').onclick = async () => { const name = $('#frenv').value.trim(); if (!name) return toast('Bitte einen Namen eingeben.');
       try { if (J) await fs.collection('invites').doc(J.id).update({ name }); else await fs.collection('invites').doc(newFamilyCode()).set({ name, created:Date.now(), used:f.id, usedAt:f.created || Date.now(), blocked:false, label:true }); }
       catch (x) { return toast('Ging nicht: ' + (x.code || x.message)); } toast('Name gespeichert'); showAdmin(); }; });
@@ -4067,7 +4072,7 @@ window.addEventListener('popstate', () => {
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-22';
+const APP_VERSION = '2026-11-06-23';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
