@@ -285,6 +285,7 @@ body.menuopen{overflow:hidden}
 .rlist>div{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}.rlist>div:last-child{border:0}.rlist b{white-space:nowrap}
 .btn.sm{min-height:38px;padding:6px 12px}.mitem.rew>span:last-child{flex:1;min-width:0}.mitem.rew .dbar{width:100%}
 .ndot{display:inline-block;width:.8em;height:.8em;border-radius:50%;vertical-align:-.05em;margin-right:4px;box-shadow:0 0 0 1px rgba(0,0,0,.12)}.nleg .ndot{margin-left:6px}.nleg{margin:6px 0 0}
+.pausebox{margin-bottom:14px;border-color:var(--c)}
 .hx{margin-bottom:14px}.hx .card{margin-bottom:10px}.goal{display:flex;flex-direction:column;gap:4px;padding:14px 18px}.goal .dbar{height:10px;margin-top:4px}
 .exam.soon{border-color:var(--c);box-shadow:0 0 0 2px var(--c) inset,var(--shadow)}.eunits{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.eunits .btn{font-size:.85rem;min-height:34px}
 .exl{display:flex;gap:8px;align-items:flex-start;padding:6px 0;font-size:.95rem}.exl input{margin-top:4px}
@@ -2062,10 +2063,10 @@ function showUnit(){
   <div class="tiles3">
     <button class="tile3" id="tLearn"><span class="ti">📖</span><b>Lernen</b><span class="td">${u.gen || u.quiz ? 'Tipps und Beispiele' : 'Wörter mit Karten lernen'}</span></button>
     <button class="tile3" id="tPractice"><span class="ti">🎯</span><b>Üben</b><span class="td">Spiele mit sofortiger Rückmeldung</span></button>
-    <button class="tile3" id="tTest"><span class="ti">📝</span><b>Probetest</b><span class="td">${st.best !== null ? 'Beste Note bisher: ' + fmtNote(st.best) : 'Üben wie für den Test in der Schule'}</span></button>
+    <button class="tile3" id="tTest"><span class="ti">📝</span><b>Probetest</b><span class="td">${pauseGet(ukey()) ? '⏸️ Angefangen: weitermachen' : st.best !== null ? 'Beste Note bisher: ' + fmtNote(st.best) : 'Üben wie für den Test in der Schule'}</span></button>
   </div>
   ${(u.tests || []).length ? `<h2 class="h2">Übungstests</h2><div class="menu">${u.tests.map((t,i) => { const h = DB.tests[ukey() + '-' + t.id] || [];
-    return mbtn('ct' + i, '📝', 'Übungstest: ' + t.title, h.length ? 'Beste Note bisher: ' + fmtNote(Math.max(...h.map(x => x.note))) : t.de); }).join('')}</div>` : ''}`;
+    return mbtn('ct' + i, pauseGet(ukey() + '-' + t.id) ? '⏸️' : '📝', 'Übungstest: ' + t.title, pauseGet(ukey() + '-' + t.id) ? 'Angefangen: hier weitermachen' : h.length ? 'Beste Note bisher: ' + fmtNote(Math.max(...h.map(x => x.note))) : t.de); }).join('')}</div>` : ''}`;
   if (u.custom && DB.custom[u.custom] && (DB.custom[u.custom].by === 'kind' ? kidListsOn() : false)) {
     app.insertAdjacentHTML('beforeend', `<div class="row" style="justify-content:flex-start"><button class="btn" id="kidedit">✏️ Liste bearbeiten</button></div>${listApproved(u.custom) ? '' : '<p class="small">⏳ Spielminuten gibt es, sobald Mama oder Papa die Liste freigegeben hat.</p>'}`);
     $('#kidedit').onclick = () => { LISTCTX = { kid:true }; showListEditor(u.custom); };
@@ -2848,32 +2849,58 @@ function showCustomTest(t){
   stop(); crumbs();
   const hk = ukey() + '-' + t.id, parts = buildCustomTest(t), total = parts.reduce((a,p) => a + p.tasks.length, 0);
   const hist = (DB.tests[hk] || []).slice(-5).reverse();
-  app.innerHTML = `<h1 class="h1">Übungstest: ${esc(t.title)}</h1>
+  app.innerHTML = `<h1 class="h1">Übungstest: ${esc(t.title)}</h1>${pauseBox(hk)}
   <div class="card"><p>${esc(t.de)}. Alle ${t.words.length} Wörter kommen vor, dazu Wörter aus früheren Units zur Wiederholung. ${total} Aufgaben:</p>
     <ul class="plist">${parts.map(p => `<li>${esc(p.label)} (${p.tasks.length} Aufgaben)</li>`).join('')}</ul>
     <p>Du siehst erst am Schluss, was richtig war. Dann bekommst du eine Note.</p>
-    <button class="btn primary wide" id="go">Test starten</button></div>
+    <button class="btn ${pauseGet(hk) ? '' : 'primary'} wide" id="go">${pauseGet(hk) ? 'Neu anfangen' : 'Test starten'}</button></div>
   ${hist.length ? `<h2 class="h2">Deine letzten Tests</h2><div class="hist">${hist.map(h => `<div><span>${new Date(h.d).toLocaleDateString('de-CH')}</span><span>${h.pts} von ${h.n}</span><b>Note ${fmtNote(h.note)}</b></div>`).join('')}</div>` : ''}`;
-  $('#go').onclick = () => run(parts.flatMap(p => p.tasks), { test:true, histKey:hk, restart: () => showCustomTest(t) });
+  if ($('#resume')) $('#resume').onclick = () => resume(hk, () => showCustomTest(t));
+  $('#go').onclick = () => pauseClear(hk) || run(parts.flatMap(p => p.tasks), { test:true, histKey:hk, restart: () => showCustomTest(t) });
 }
 
 function showTestIntro(){
   stop(); crumbs();
   const u = NAV.u, plan = testPlan(u), total = plan.reduce((a,p) => a + p.n, 0);
   const hist = (DB.tests[ukey()] || []).slice(-5).reverse();
-  app.innerHTML = `<h1 class="h1">Probetest</h1>
+  app.innerHTML = `<h1 class="h1">Probetest</h1>${pauseBox(ukey())}
   <div class="card"><p>${total} Aufgaben aus der ganzen Unit, wie bei einem Test in der Schule:</p>
     <ul class="plist">${plan.map(p => `<li>${esc(p.label)} (${p.n} Aufgaben)</li>`).join('')}</ul>
     <p>Du siehst erst am Schluss, was richtig war. Dann bekommst du eine Note.</p>
-    <button class="btn primary wide" id="go">Test starten</button></div>
+    <button class="btn ${pauseGet(ukey()) ? '' : 'primary'} wide" id="go">${pauseGet(ukey()) ? 'Neu anfangen' : 'Test starten'}</button></div>
   ${hist.length ? `<h2 class="h2">Deine letzten Tests</h2><div class="hist">${hist.map(h => `<div><span>${new Date(h.d).toLocaleDateString('de-CH')}</span><span>${h.pts} von ${h.n}</span><b>Note ${fmtNote(h.note)}</b></div>`).join('')}</div>` : ''}`;
-  $('#go').onclick = () => run(plan.flatMap(p => p.make().map(t => Object.assign(t, { part:p.label }))), { test:true, restart:showTestIntro });
+  if ($('#resume')) $('#resume').onclick = () => resume(ukey(), showTestIntro);
+  $('#go').onclick = () => pauseClear(ukey()) || run(plan.flatMap(p => p.make().map(t => Object.assign(t, { part:p.label }))), { test:true, restart:showTestIntro });
 }
 
 /* =====================================================================
    8) ABLAUF EINER RUNDE (Üben und Test)
    ===================================================================== */
 let SES = null;
+/* Angefangene Tests (Probetest, Übungstest) pro Profil und Test speichern, um später weiterzumachen. Nur auf diesem Gerät. */
+const PAUSE_STORE = 'lernsprung-pause', PAUSE_DAYS = 14;
+let PAUSEMEM = (() => { try { return JSON.parse(localStorage.getItem(PAUSE_STORE) || '{}'); } catch (e) { return {}; } })();
+const pauseKey = k => ACTIVE + '|' + k;
+function pauseWrite(){ const lim = Date.now() - PAUSE_DAYS * 864e5; Object.keys(PAUSEMEM).forEach(k => { if (PAUSEMEM[k].d < lim) delete PAUSEMEM[k]; });
+  try { localStorage.setItem(PAUSE_STORE, JSON.stringify(PAUSEMEM)); } catch (e) {} }
+const pauseGet = k => { const p = PAUSEMEM[pauseKey(k)]; return p && p.d > Date.now() - PAUSE_DAYS * 864e5 && p.i < p.tasks.length ? p : null; };
+function pauseClear(k){ delete PAUSEMEM[pauseKey(k)]; pauseWrite(); }
+function pauseSave(){
+  if (!SES || !SES.test || SES.fix) return; const k = SES.histKey || ukey();
+  PAUSEMEM[pauseKey(k)] = { d:Date.now(), i:SES.i, right:SES.right, think:SES.think || 0, tasks:SES.tasks, res:SES.results.map(r => [r.given == null ? null : r.given, r.ok ? 1 : 0]) };
+  pauseWrite();
+}
+function resume(k, restart){
+  const p = pauseGet(k); if (!p) return restart();
+  const tasks = JSON.parse(JSON.stringify(p.tasks));
+  run(tasks, { test:true, histKey:k === ukey() ? undefined : k, restart, i:p.i, right:p.right, think:p.think, results:p.res.map((r, j) => ({ t:tasks[j], given:r[0], ok:!!r[1] })) });
+}
+function pauseBox(k){
+  const p = pauseGet(k); if (!p) return '';
+  return `<div class="card pausebox"><b>⏸️ Angefangen am ${new Date(p.d).toLocaleDateString('de-CH', { weekday:'short', day:'numeric', month:'numeric' })}</b>
+    <p class="small" style="margin:4px 0 10px">${p.i} von ${p.tasks.length} Aufgaben gemacht. Du kannst dort weitermachen, wo du aufgehört hast.</p>
+    <button class="btn primary wide" id="resume">▶️ Weitermachen bei Aufgabe ${p.i + 1}</button></div>`;
+}
 function run(tasks, opt){ stop(); SES = Object.assign({ tasks, i:0, right:0, streak:0, results:[], test:false, locked:false }, opt); showTask(); }
 
 function showTask(){
@@ -2898,7 +2925,9 @@ function showTask(){
       <div class="row"><button class="btn" id="del">⌫ Löschen</button></div>`;
   }
   h += `<div class="fb" id="fb" aria-live="polite"></div>`;
-  app.innerHTML = bar(SES.i, n, (SES.test ? 'Test: ' : '') + `Aufgabe ${SES.i + 1} von ${n}`) + `<div class="card center">${h}</div>`;
+  app.innerHTML = bar(SES.i, n, (SES.test ? 'Test: ' : '') + `Aufgabe ${SES.i + 1} von ${n}`) + `<div class="card center">${h}</div>`
+    + (SES.test && !SES.fix ? '<div class="row"><button class="linkbtn" id="tpause">⏸️ Pause: später weitermachen</button></div>' : '');
+  if (SES.test && !SES.fix) { pauseSave(); $('#tpause').onclick = () => { pauseSave(); toast('Test gespeichert. Du kannst später weitermachen.'); showUnit(); }; }
 
   const tk = TOKEN;
   if ($('#say')) $('#say').onclick = () => speak(t.say, .85);
@@ -3022,7 +3051,7 @@ function endTest(){
   stop();
   const R = SES.results, n = R.length, pts = R.filter(r => r.ok).length;
   const note = Math.round((pts / n * 5 + 1) * 2) / 2;
-  const k = SES.histKey || ukey(), again = SES.restart || showTestIntro;
+  const k = SES.histKey || ukey(), again = SES.restart || showTestIntro; pauseClear(k);
   const prev = (DB.tests[k] || []).reduce((m, t) => Math.max(m, t.note || 0), 0);
   DB.tests[k] = (DB.tests[k] || []).concat({ d:Date.now(), note, pts, n }).slice(-10); save();
   const better = prev > 0 && note > prev && (MIN_TEST[note] || 0) > 0;
@@ -3745,7 +3774,7 @@ const PARENT = { subjects:'showHome', units:'showSubjects', unit:'showUnits', le
 function appBack(){
   if (CUR === 'run') {
     const done = $('.bigstars') || $('.note');
-    if (!done && Date.now() - BACKWARN > 2500) { BACKWARN = Date.now(); toast('Nochmals zurück drücken, um aufzuhören.'); return false; }
+    if (!done && Date.now() - BACKWARN > 2500) { BACKWARN = Date.now(); toast(SES && SES.test && !SES.fix ? 'Nochmals zurück: Der Test wird gespeichert, du kannst später weitermachen.' : 'Nochmals zurück drücken, um aufzuhören.'); return false; }
     return (SES && SES.test ? showUnit : showPractice)(), true;
   }
   if (CUR === 'game' || CUR === 'parents') {
@@ -3767,7 +3796,7 @@ window.addEventListener('popstate', () => {
 if (DEV.parent) showParents(); else showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-12';
+const APP_VERSION = '2026-11-06-13';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {

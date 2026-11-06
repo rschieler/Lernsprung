@@ -211,6 +211,22 @@ setTimeout(() => { try {
   if (!w.eval("anyParentPin('7777') && anyParentPin('1234') && !anyParentPin('5555')")) throw new Error('Eltern-PINs falsch');
   if (w.eval('DB.settings.pin') !== '1234') throw new Error('Admin-PIN für alte Versionen fehlt');
   console.log('OK: Elternprofile');
+  // Probetest und Übungstest unterbrechen und weitermachen
+  w.eval("NAV.s = CATALOG[0]; NAV.g = NAV.s.grades[0]; NAV.b = NAV.g.books[0]; NAV.u = NAV.b.units.find(u => u.tests && u.tests.length) || NAV.b.units[1]; NAV.n = NAV.g.grade; pauseClear(ukey()); showTestIntro()");
+  d.querySelector('#go').click(); for (let g = 0; g < 3; g++) { step(); w.eval('nextTask()'); }
+  const pausedAt = w.eval('SES.i'), pausedTasks = w.eval('JSON.stringify(SES.tasks.map(t => t.solution))');
+  d.querySelector('#tpause').click(); if (!d.querySelector('#tTest').textContent.includes('Angefangen')) throw new Error('Unit zeigt angefangenen Test nicht');
+  w.eval('showTestIntro()'); if (!d.querySelector('#resume')) throw new Error('Weitermachen fehlt');
+  d.querySelector('#resume').click();
+  if (w.eval('SES.i') !== pausedAt || w.eval('SES.results.length') !== pausedAt || w.eval('JSON.stringify(SES.tasks.map(t => t.solution))') !== pausedTasks) throw new Error('Test geht nicht an derselben Stelle weiter');
+  for (let g = 0; g < 80 && !d.querySelector('.note'); g++) { step(); w.eval('nextTask()'); }
+  if (!d.querySelector('.note') || w.eval('pauseGet(ukey())')) throw new Error('Fortgesetzter Test endet nicht richtig');
+  if (w.eval('NAV.u.tests && NAV.u.tests.length')) {
+    w.eval('showCustomTest(NAV.u.tests[0])'); d.querySelector('#go').click(); step(); w.eval('nextTask()'); d.querySelector('#tpause').click();
+    w.eval('showCustomTest(NAV.u.tests[0])'); if (!d.querySelector('#resume')) throw new Error('Übungstest: Weitermachen fehlt');
+    d.querySelector('#resume').click(); if (w.eval('SES.i') !== 1 || !w.eval('SES.histKey')) throw new Error('Übungstest geht nicht weiter');
+  }
+  console.log('OK: Test unterbrechen und weitermachen');
   // Wochenziel und Prüfungsplaner
   w.eval("touchProfile(ACTIVE, { goal:{ min:1, days:1 } }); DB.pt = {}; DB.red = []; NAV.s = CATALOG[0]; NAV.g = NAV.s.grades[0]; NAV.b = NAV.g.books[0]; NAV.u = NAV.b.units[1]; track(true, 30000); track(true, 40000)");
   if (w.eval("DB.pt['W' + dayStr(weekStart(new Date()))]") !== 5) throw new Error('Wochenziel-Bonus fehlt');
