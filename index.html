@@ -248,8 +248,8 @@ mark{background:#ffe27a;color:#1b2238;border-radius:6px;padding:0 4px}
 .hit-ok,.kp.hit-ok .kpdot{fill:var(--ok)!important}.hit-no,.kp.hit-no .kpdot{fill:var(--bad)!important}
 .hit-show{stroke:var(--bad)!important;stroke-width:3!important}.kp.hit-show .kpdot{stroke:var(--bad);stroke-width:3;fill:#fff}
 
-#led .fld{width:100%;max-width:100%;text-align:left;font-size:1rem;font-weight:500;padding:10px 12px;margin-top:6px;box-sizing:border-box}
-#led textarea.fld{line-height:1.5}
+.fld{width:100%;max-width:100%;text-align:left;font-size:1rem;font-weight:500;padding:10px 12px;margin-top:6px;box-sizing:border-box}
+textarea.fld{line-height:1.5}
 
 .pthumbs{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.pthumb{position:relative}.pthumb img{width:96px;height:128px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
 .pdel{position:absolute;top:-8px;right:-8px;width:28px;height:28px;border-radius:50%;border:none;background:var(--bad);color:#fff;font-weight:800;cursor:pointer}
@@ -262,10 +262,26 @@ label.btn{display:inline-flex;align-items:center;cursor:pointer}
 .mitem.mine{box-shadow:0 0 0 2.5px var(--c) inset}
 
 @media(max-width:560px){.hasprof .brand .bt{display:none}.hasprof .profchip{max-width:7rem}}
+
+.menubtn{border:none;background:transparent;font-size:1.5rem;line-height:1;padding:6px 8px;margin-right:2px;cursor:pointer;color:var(--ink);border-radius:10px}
+.menubtn:focus-visible,.ditem:focus-visible{outline:3px solid var(--c);outline-offset:2px}
+.drawerbg{position:fixed;inset:0;background:rgba(20,26,48,.35);z-index:60}
+.drawer{position:fixed;top:0;left:0;bottom:0;width:min(320px,86vw);background:#fff;z-index:61;box-shadow:4px 0 24px rgba(20,26,48,.18);padding:14px 12px calc(14px + env(safe-area-inset-bottom));overflow-y:auto;display:flex;flex-direction:column;gap:4px;animation:dslide .18s ease-out}
+@keyframes dslide{from{transform:translateX(-100%)}to{transform:none}}@media(prefers-reduced-motion:reduce){.drawer{animation:none}}
+.drawer[hidden],.drawerbg[hidden]{display:none}
+.dhead{display:flex;gap:10px;align-items:center;padding:4px 4px 12px;border-bottom:1px solid var(--line);margin-bottom:6px}.dhead div{flex:1;display:flex;flex-direction:column}.dhead small{color:var(--muted)}
+.dclose{padding:6px 12px}
+.ditem{display:flex;gap:12px;align-items:center;width:100%;text-align:left;border:none;background:transparent;font:inherit;color:var(--ink);padding:12px 10px;border-radius:12px;cursor:pointer}
+.ditem:hover{background:var(--soft)}.ditem>span:first-child{font-size:1.35rem;width:30px;text-align:center}.ditem b{display:block}.ditem small{color:var(--muted)}
+.drawer hr{border:none;border-top:1px solid var(--line);margin:6px 0}.dver{margin-top:auto;padding:8px 10px;color:var(--muted)}
+body.menuopen{overflow:hidden}
+.ptabs{flex-wrap:nowrap;gap:6px;overflow-x:auto}.ptabs .btn{padding:7px 11px;font-size:.92rem;white-space:nowrap;flex:0 0 auto}
+.pcards{display:grid;gap:12px}.pcard .kpi{margin-top:8px}.pchead{display:flex;gap:10px;align-items:center}.pchead div{display:flex;flex-direction:column}
 </style>
 </head>
 <body>
 <header class="top">
+  <button class="menubtn" id="menuBtn" aria-label="Menü öffnen" aria-expanded="false" aria-controls="drawer">☰</button>
   <button class="brand" id="homeBtn" aria-label="Zur Klassenauswahl">🦘 <span class="bt">Lernsprung</span></button>
   <nav class="crumbs" id="crumbs" aria-label="Pfad"></nav>
   <span class="sync" id="sync" hidden></span>
@@ -274,6 +290,8 @@ label.btn{display:inline-flex;align-items:center;cursor:pointer}
   <span class="stars" id="stars" aria-label="Gesammelte Sterne">⭐ 0</span>
 </header>
 <main class="sheet" id="app"></main>
+<div class="drawerbg" id="drawerbg" hidden></div>
+<nav class="drawer" id="drawer" aria-label="Menü" hidden></nav>
 
 <script>
 'use strict';
@@ -1956,7 +1974,7 @@ const allGrades = () => [...new Set(CATALOG.flatMap(s => s.grades.filter(g => g.
 const gradeOf = (s,n) => s.grades.find(g => g.grade === n && g.books.length);
 
 function showHome(){
-  stop(); NAV.n = NAV.s = NAV.g = NAV.b = NAV.u = null; setColor(); crumbs();
+  stop(); if (!(DEV.parent && DEV.remember)) PARENT_OK = false; NAV.n = NAV.s = NAV.g = NAV.b = NAV.u = null; setColor(); crumbs();
   const P = activeProfile(), many = liveProfiles().length > 1;
   app.innerHTML = `<h1 class="h1">${many ? 'Hallo ' + esc(P.name) + '! ' : ''}In welche Klasse gehst du?</h1><p class="lead">Wähle deine Klasse.${many ? ` <button class="btn" id="hprof" style="padding:4px 12px;margin-left:6px">${P.icon} Profil wechseln</button>` : ''}</p>
   <div class="menu">${allGrades().map(n => mbtn(n, n + '.', n + '. Klasse', CATALOG.filter(s => gradeOf(s,n)).map(s => s.name).join(', '))).join('')}</div>`;
@@ -2327,7 +2345,7 @@ function applyCustom(){
   });
 }
 let LISTCTX = { kid:false };
-const kidListsOn = () => !DB.settings || DB.settings.kidLists !== false;
+const kidListsOn = () => { const P = activeProfile(); return P.kidLists !== undefined ? P.kidLists !== false : !(DB.settings && DB.settings.kidLists === false); };
 const listApproved = id => { const L = (DB.custom || {})[id]; return !L || L.by !== 'kind' || !!L.ok; };
 function listBack(){ if (LISTCTX.kid && NAV.s && NAV.g) showUnits(); else parentPanel(); }
 function startKidList(){ LISTCTX = { kid:true }; showAiImport(); }
@@ -2336,13 +2354,12 @@ function listsPanelHTML(){
   return `<h2 class="h2">Eigene Lernlisten</h2><div class="card"><p class="small" style="margin-top:0">Wörter oder Fragen vom Lernziel-Blatt erfassen. Die App macht daraus Übungen, Lernspiele und einen Probetest. Die Listen erscheinen im Fach unter «Eigene Lernlisten».</p>
     ${L.length ? `<div class="menu">${L.map(x => `<button class="mitem" data-list="${x.id}"><span class="mi">${x.by === 'kind' ? '🧒' : '📝'}</span><span><b>${esc(x.title)}</b><span>${esc(sn(x.s))}, ${x.g}. Klasse · ${x.items.length} Einträge${x.by === 'kind' ? (x.ok ? ' · vom Kind, freigegeben' : ' · <b>vom Kind, wartet auf Freigabe</b>') : ''}</span></span></button>`).join('')}</div>` : ''}
     <div class="row" style="justify-content:flex-start"><button class="btn primary" id="plcam">✨ Mit KI erstellen</button><button class="btn" id="plnew">✏️ Selbst eingeben</button></div>
-    <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="pkid" ${kidListsOn() ? 'checked' : ''}> Kinder dürfen eigene Lernlisten erstellen (ohne PIN). Spielminuten gibt es dafür erst nach deiner Freigabe.</label>
     </div>`;
 }
 function bindListsPanel(){
   LISTCTX = { kid:false };
   $('#plnew').onclick = () => showListEditor(null);
-  $('#pkid').onchange = e => { DB.settings.kidLists = e.target.checked; DB.settings.t = Date.now(); save(); toast(e.target.checked ? 'Kinder dürfen Lernlisten erstellen' : 'Nur Eltern erstellen Lernlisten'); };
+
   $('#plcam').onclick = showAiImport;
   app.querySelectorAll('[data-list]').forEach(b => b.onclick = () => showListEditor(b.dataset.list));
 }
@@ -2482,58 +2499,22 @@ function updateProfileChip(){
   b.hidden = !many; if (many) b.textContent = P.icon + ' ' + P.name;
   document.body.classList.toggle('hasprof', many);
 }
-function switchProfile(id){
+function switchProfile(id, force){
   if (id === ACTIVE) return;
+  const T = DB.profiles[id];
+  if (!force && T && T.pin && !PARENT_OK) return pinForm(T.icon + ' ' + esc(T.name), 'Dieses Profil ist mit einem PIN geschützt.', false, a => {
+    if (a === T.pin || a === DB.settings.pin) { switchProfile(id, true); showHome(); } else { toast('Falscher PIN'); $('#p1').value = ''; } });
   const c = toCanon(DB); ACTIVE = id; try { localStorage.setItem(ACTIVE_STORE, id); } catch (e) {}
   DB = fromCanon(c); updateStars(); updatePlay(); updateProfileChip(); toast('Hallo ' + activeProfile().name + '!');
 }
 function showProfiles(){
   stop(); NAV.n = NAV.s = NAV.g = NAV.b = NAV.u = null; setColor(); crumbs();
   app.innerHTML = `<h1 class="h1">Wer lernt?</h1><p class="lead">Wähle dein Profil. Jedes Profil hat seinen eigenen Lernstand und eigene Spielminuten.</p>
-  <div class="menu">${liveProfiles().map(P => mbtn(P.id, P.icon, P.name + (P.id === ACTIVE ? ' ✓' : ''), P.test ? 'Testprofil für Eltern' : (P.grade ? P.grade + '. Klasse' : ''))).join('')}</div>
+  <div class="menu">${liveProfiles().map(P => mbtn(P.id, P.icon, P.name + (P.id === ACTIVE ? ' ✓' : '') + (P.pin ? ' 🔒' : ''), P.test ? 'Testprofil für Eltern' : (P.grade ? P.grade + '. Klasse' : ''))).join('')}</div>
   <div class="row"><button class="btn" id="pmanage">👪 Profile verwalten</button></div>`;
-  app.querySelectorAll('.mitem').forEach(b => b.onclick = () => { switchProfile(b.dataset.k); showHome(); });
+  app.querySelectorAll('.mitem').forEach(b => b.onclick = () => { const T = DB.profiles[b.dataset.k]; if (T && T.pin && b.dataset.k !== ACTIVE && !PARENT_OK) switchProfile(b.dataset.k); else { switchProfile(b.dataset.k, true); showHome(); } });
   $('#pmanage').onclick = () => showParents();
 }
-function profilesPanelHTML(){
-  return `<h2 class="h2">Profile</h2><div class="card"><p class="small" style="margin-top:0">Für jedes Kind ein eigenes Profil mit eigenem Lernstand, Noten und Spielminuten. Jedes Gerät merkt sich sein Profil. Zum Ausprobieren eignet sich ein Testprofil, dann bleibt der Lernstand der Kinder unberührt.</p>
-    <div class="menu">${liveProfiles().map(P => `<button class="mitem" data-prof="${P.id}"><span class="mi">${P.icon}</span><span><b>${esc(P.name)}${P.id === ACTIVE ? ' · auf diesem Gerät aktiv' : ''}</b><span>${P.test ? 'Testprofil' : (P.grade ? P.grade + '. Klasse' : 'Profil')} · antippen zum Bearbeiten</span></span></button>`).join('')}</div>
-    <div class="row" style="justify-content:flex-start"><button class="btn primary" id="pfadd">+ Kind hinzufügen</button>${liveProfiles().some(P => P.test) ? '' : '<button class="btn" id="pftest">🧪 Testprofil anlegen</button>'}</div></div>`;
-}
-function bindProfilesPanel(){
-  app.querySelectorAll('[data-prof]').forEach(b => b.onclick = () => showProfileEditor(b.dataset.prof));
-  $('#pfadd').onclick = () => showProfileEditor(null);
-  if ($('#pftest')) $('#pftest').onclick = () => {
-    const id = 'p' + Date.now().toString(36); DB.profiles[id] = { id, name:'Testprofil', icon:'🧪', test:true, t:Date.now(), c:Date.now() };
-    DB.pd = DB.pd || {}; DB.pd[id] = emptyPF(); switchProfile(id); save(); parentPanel();
-  };
-}
-function showProfileEditor(id){
-  stop();
-  const P = id ? DB.profiles[id] : { name:'', icon:PROFILE_ICONS[liveProfiles().length % 10], grade:null }, grades = allGrades();
-  let icon = P.icon;
-  app.innerHTML = `<h1 class="h1">${id ? 'Profil bearbeiten' : 'Neues Profil'}</h1><div class="card" id="led">
-    <label for="pfname"><b>Name oder Spitzname</b></label><input id="pfname" class="inp fld" maxlength="20" value="${esc(P.name)}" placeholder="z.B. Lea">
-    <p style="margin-bottom:6px"><b>Bild</b></p><div class="row" style="justify-content:flex-start;margin-top:0" id="pficons">${PROFILE_ICONS.map(i => `<button class="btn picon ${i === icon ? 'primary' : ''}" data-i="${i}" aria-label="Bild ${i}">${i}</button>`).join('')}</div>
-    <label for="pfgrade" style="display:block;margin-top:12px"><b>Klasse</b></label><select id="pfgrade" class="inp fld"><option value="">–</option>${grades.map(g => `<option value="${g}" ${P.grade === g ? 'selected' : ''}>${g}. Klasse</option>`).join('')}</select>
-    <div class="row">${id && id !== ACTIVE ? '<button class="btn good" id="pfuse">Auf diesem Gerät verwenden</button>' : ''}<button class="btn primary" id="pfsave">Speichern</button>${id && id !== 'p1' ? '<button class="btn" id="pfdel">Löschen</button>' : ''}<button class="btn" id="pfback">Zurück</button></div>
-  </div>`;
-  app.querySelectorAll('.picon').forEach(b => b.onclick = () => { icon = b.dataset.i; app.querySelectorAll('.picon').forEach(x => x.classList.toggle('primary', x.dataset.i === icon)); });
-  const store = () => { const name = $('#pfname').value.trim(); if (!name) { toast('Bitte einen Namen eingeben.'); $('#pfname').focus(); return null; }
-    const pid = id || ('p' + Date.now().toString(36)), g = $('#pfgrade').value;
-    DB.profiles[pid] = Object.assign({}, DB.profiles[pid] || { id:pid, c:Date.now() }, { id:pid, name, icon, grade: g ? +g : null, t:Date.now() });
-    if (!id) { DB.pd = DB.pd || {}; DB.pd[pid] = emptyPF(); }
-    return pid; };
-  $('#pfsave').onclick = () => { if (store()) { save(); toast('Profil gespeichert'); parentPanel(); } };
-  if ($('#pfuse')) $('#pfuse').onclick = () => { const pid = store(); if (pid) { switchProfile(pid); save(); parentPanel(); } };
-  $('#pfback').onclick = parentPanel;
-  if ($('#pfdel')) $('#pfdel').onclick = () => {
-    $('#led').querySelector('.row:last-child').innerHTML = `<p style="margin:0"><b>Profil «${esc(P.name)}» mit seinem ganzen Lernstand löschen?</b></p><button class="btn" id="pfdel2" style="background:var(--bad);border-color:var(--bad);color:#fff">Ja, löschen</button><button class="btn" id="pfdel0">Abbrechen</button>`;
-    $('#pfdel0').onclick = () => showProfileEditor(id);
-    $('#pfdel2').onclick = () => { if (id === ACTIVE) switchProfile('p1'); DB.profiles[id] = { id, del:true, t:Date.now() }; delete DB.pd[id]; save(); toast('Profil gelöscht'); parentPanel(); };
-  };
-}
-
 /* =====================================================================
    6b) LERNSPIELE: Blitz-Sprung, Memory, Sortieren
    ===================================================================== */
@@ -3036,7 +3017,7 @@ window.addEventListener('error', () => {
    ===================================================================== */
 function today(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 function playState(){ const t = today(); if (!DB.play || DB.play.day !== t) DB.play = { day:t, earned:0, used:0, bonus:0, cnt:{} }; return DB.play; }
-const maxMin = () => { const m = DB.settings && DB.settings.max; return typeof m === 'number' ? m : 30; };
+const maxMin = () => profMax(ACTIVE);
 const remaining = () => { const P = playState(); return Math.max(0, Math.min(P.earned, maxMin()) + (P.bonus || 0) - P.used); };
 const fmtRest = () => { const r = remaining(); return r >= 1 ? String(Math.floor(r)) : r > 0 ? '<1' : '0'; };
 function updatePlay(){ const b = $('#playBtn'); if (b) b.textContent = '🎮 ' + fmtRest() + ' Min'; }
@@ -3084,7 +3065,7 @@ function showGame(){
   <div class="tip">🛠️ Alle Fehler korrigiert: 1 Min · Wer zu schnell tippt, bekommt keine Minuten.</div>
   <div class="tip">🔁 Jede Übung zählt höchstens zweimal pro Tag. Heute sind höchstens ${max} Minuten möglich.</div>
   <p class="center"><button class="linkbtn" id="gParents">👪 Eltern-Bereich</button></p>`;
-  $('#gParents').onclick = showParents;
+  $('#gParents').onclick = () => showParents();
   $('#cv').addEventListener('pointerdown', e => { e.preventDefault(); gameJump(); });
   gameIdle();
 }
@@ -3160,28 +3141,6 @@ function gameOver(){
   const el = $('#gRest'); if (el) el.textContent = fmtRest();
 }
 
-function showParents(){
-  stop(); crumbs();
-  const S = DB.settings || (DB.settings = { max:30, pin:'' });
-  const form = (lead, two) => `<h1 class="h1">👪 Eltern-Bereich</h1><p class="lead">${lead}</p>
-    <div class="card"><form id="pf" class="inrow" autocomplete="off">
-      <input id="p1" class="inp pin" type="password" inputmode="numeric" maxlength="4" placeholder="PIN" aria-label="PIN">
-      ${two ? '<input id="p2" class="inp pin" type="password" inputmode="numeric" maxlength="4" placeholder="nochmals" aria-label="PIN wiederholen">' : ''}
-      <button class="btn primary">${two ? 'Speichern' : 'Öffnen'}</button></form></div>`;
-  if (!S.pin) {
-    app.innerHTML = form('Lege einen 4-stelligen PIN fest. Damit können nur Eltern die Einstellungen ändern.', true);
-    $('#pf').onsubmit = e => {
-      e.preventDefault(); const a = $('#p1').value, b = $('#p2').value;
-      if (!/^\d{4}$/.test(a)) return toast('Der PIN muss 4 Ziffern haben.');
-      if (a !== b) return toast('Die beiden PINs sind nicht gleich.');
-      S.pin = a; S.t = Date.now(); save(); parentPanel();
-    };
-  } else {
-    app.innerHTML = form('Bitte PIN eingeben.', false);
-    $('#pf').onsubmit = e => { e.preventDefault(); if ($('#p1').value === S.pin) parentPanel(); else { toast('Falscher PIN'); $('#p1').value = ''; } };
-  }
-  $('#p1').focus();
-}
 function unitNames(){
   const m = {};
   CATALOG.forEach(s => s.grades.forEach(g => g.books.forEach(b => b.units.forEach(u => {
@@ -3190,43 +3149,123 @@ function unitNames(){
   }))));
   return m;
 }
+/* =====================================================================
+   ELTERN-BEREICH: Übersicht (alle Profile) · Profil-Einstellungen · Familie
+   ===================================================================== */
+const DEV_STORE = 'lernsprung-geraet';
+let DEV = (() => { try { return JSON.parse(localStorage.getItem(DEV_STORE) || '{}'); } catch (e) { return {}; } })();
+const saveDev = () => { try { localStorage.setItem(DEV_STORE, JSON.stringify(DEV)); } catch (e) {} };
+let PTAB = 'home', PARENT_OK = false;
+const profPD = id => id === ACTIVE ? DB : (DB.pd[id] = DB.pd[id] || emptyPF());
+function playOf(d){ const t = today(); if (!d.play || d.play.day !== t) d.play = { day:t, earned:0, used:0, bonus:0, cnt:{} }; return d.play; }
+const profMax = id => { const P = (DB.profiles || {})[id] || {}; if (typeof P.max === 'number') return P.max; const m = DB.settings && DB.settings.max; return typeof m === 'number' ? m : 30; };
+const restOf = id => { const p = playOf(profPD(id)); return Math.max(0, Math.min(p.earned, profMax(id)) + (p.bonus || 0) - p.used); };
+const fmtMin = r => r >= 1 ? String(Math.floor(r)) : r > 0 ? '<1' : '0';
+function testsOf(id, n){ const names = unitNames(); return Object.entries(profPD(id).tests || {}).flatMap(([k, arr]) => arr.map(t => Object.assign({ k, name:names[k] || k }, t))).sort((a, b) => b.d - a.d).slice(0, n); }
+function touchProfile(id, patch){ DB.profiles[id] = Object.assign({}, DB.profiles[id], patch, { t:Date.now() }); save(); }
+function pinForm(title, lead, two, onOk){
+  app.innerHTML = `<h1 class="h1">${title}</h1><p class="lead">${lead}</p>
+    <div class="card"><form id="pf" class="inrow" autocomplete="off">
+      <input id="p1" class="inp pin" type="password" inputmode="numeric" maxlength="4" placeholder="PIN" aria-label="PIN">
+      ${two ? '<input id="p2" class="inp pin" type="password" inputmode="numeric" maxlength="4" placeholder="nochmals" aria-label="PIN wiederholen">' : ''}
+      <button class="btn primary">${two ? 'Speichern' : 'Öffnen'}</button></form></div>`;
+  $('#pf').onsubmit = e => { e.preventDefault(); onOk($('#p1').value, two ? $('#p2').value : null); };
+  $('#p1').focus();
+}
+function showParents(){
+  stop(); crumbs();
+  const S = DB.settings || (DB.settings = { max:30, pin:'' });
+  if (!S.pin) return pinForm('👪 Eltern-Bereich', 'Lege einen 4-stelligen Eltern-PIN fest. Damit können nur Eltern die Einstellungen ändern und alles sehen.', true, (a, b) => {
+    if (!/^\d{4}$/.test(a)) return toast('Der PIN muss 4 Ziffern haben.'); if (a !== b) return toast('Die beiden PINs sind nicht gleich.');
+    S.pin = a; S.t = Date.now(); save(); PARENT_OK = true; PTAB = 'home'; parentPanel(); });
+  if (PARENT_OK || (DEV.parent && DEV.remember && DEV.pin === S.pin)) { PARENT_OK = true; return parentPanel(); }
+  pinForm('👪 Eltern-Bereich', 'Bitte Eltern-PIN eingeben.', false, a => { if (a === S.pin) { PARENT_OK = true; if (DEV.parent && DEV.remember) { DEV.pin = a; saveDev(); } PTAB = 'home'; parentPanel(); } else { toast('Falscher PIN'); $('#p1').value = ''; } });
+}
+function parentTabs(){
+  const t = (k, l) => `<button class="btn ${PTAB === k || (k === 'home' && PTAB.startsWith('prof:')) ? 'primary' : ''}" data-tab="${k}">${l}</button>`;
+  return `<h1 class="h1">👪 Eltern-Bereich</h1><div class="row ptabs" style="justify-content:flex-start;margin-top:0">${t('home', '👧 Kinder')}${t('family', '🏠 Familie')}${t('device', '📱 Dieses Gerät')}</div>`;
+}
+function bindTabs(){ app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { PTAB = b.dataset.tab; parentPanel(); }); }
 function parentPanel(){
-  stop();
-  const S = DB.settings, P = playState(), names = unitNames(), max = maxMin();
-  const res = Object.entries(DB.tests || {}).flatMap(([k, arr]) => arr.map(t => Object.assign({ k }, t))).sort((a,b) => b.d - a.d).slice(0, 15);
-  app.innerHTML = `<h1 class="h1">👪 Eltern-Bereich</h1>
-  <h2 class="h2">Spielzeit heute</h2>
-  <div class="kpi"><div><b>${Math.round(Math.min(P.earned, max) + (P.bonus || 0))}</b>verdient</div><div><b>${Math.round(P.used)}</b>gespielt</div><div><b>${fmtRest()}</b>übrig</div></div>
-  <div class="card" style="margin-top:12px">
+  stop(); crumbs();
+  if (!PARENT_OK) return showParents();
+  if (PTAB.startsWith('prof:')) return profileSettings(PTAB.slice(5));
+  if (PTAB === 'family') return familyPage();
+  if (PTAB === 'device') return devicePage();
+  app.innerHTML = parentTabs() + `<div class="pcards">${liveProfiles().map(P => { const p = playOf(profPD(P.id)), mx = profMax(P.id), last = testsOf(P.id, 1)[0];
+    return `<div class="card pcard"><div class="pchead"><span class="uicon">${P.icon}</span><div><b>${esc(P.name)}</b><span class="small">${P.test ? 'Testprofil' : P.grade ? P.grade + '. Klasse' : 'Profil'}${P.pin ? ' · 🔒 PIN' : ''}${P.id === ACTIVE ? ' · auf diesem Gerät' : ''}</span></div></div>
+      <div class="kpi"><div><b>${Math.round(Math.min(p.earned, mx) + (p.bonus || 0))}</b>verdient</div><div><b>${Math.round(p.used)}</b>gespielt</div><div><b>${fmtMin(restOf(P.id))}</b>übrig</div></div>
+      <p class="small">Höchstens ${mx} Min pro Tag · ⭐ ${profPD(P.id).stars || 0}${last ? ` · Letzter Probetest: ${esc(last.name)}, Note ${fmtNote(last.note)}` : ''}</p>
+      <div class="row" style="justify-content:flex-start"><button class="btn" data-bonus="${P.id}">+5 Min heute</button><button class="btn primary" data-prof="${P.id}">Einstellungen</button></div></div>`; }).join('')}</div>
+    <div class="row" style="justify-content:flex-start"><button class="btn primary" id="pfadd">+ Kind hinzufügen</button>${liveProfiles().some(P => P.test) ? '' : '<button class="btn" id="pftest">🧪 Testprofil anlegen</button>'}</div>
+    <div class="row"><button class="btn" id="pdone">Zur Lern-App</button></div>`;
+  bindTabs();
+  app.querySelectorAll('[data-prof]').forEach(b => b.onclick = () => { PTAB = 'prof:' + b.dataset.prof; parentPanel(); });
+  app.querySelectorAll('[data-bonus]').forEach(b => b.onclick = () => { const id = b.dataset.bonus, p = playOf(profPD(id)); p.bonus = (p.bonus || 0) + 5; save(); updatePlay(); toast('+5 Minuten für ' + DB.profiles[id].name); parentPanel(); });
+  $('#pfadd').onclick = () => { const id = 'p' + Date.now().toString(36); DB.profiles[id] = { id, name:'Kind ' + (liveProfiles().length + 1), icon:PROFILE_ICONS[liveProfiles().length % 10], t:Date.now(), c:Date.now() }; DB.pd[id] = emptyPF(); save(); PTAB = 'prof:' + id; parentPanel(); };
+  if ($('#pftest')) $('#pftest').onclick = () => { const id = 'p' + Date.now().toString(36); DB.profiles[id] = { id, name:'Testprofil', icon:'🧪', test:true, max:120, t:Date.now(), c:Date.now() }; DB.pd[id] = emptyPF(); switchProfile(id, true); save(); toast('Dieses Gerät nutzt jetzt das Testprofil'); parentPanel(); };
+  $('#pdone').onclick = showHome;
+}
+function profileSettings(id){
+  const P = DB.profiles[id]; if (!P || P.del) { PTAB = 'home'; return parentPanel(); }
+  const grades = allGrades(), res = testsOf(id, 12), mx = profMax(id);
+  app.innerHTML = parentTabs() + `<div class="card" id="led"><div class="pchead"><span class="uicon">${P.icon}</span><div><b>${esc(P.name)}</b><span class="small">${P.id === ACTIVE ? 'auf diesem Gerät aktiv' : ''}</span></div></div>
+    <label for="pfname"><b>Name oder Spitzname</b></label><input id="pfname" class="inp fld" maxlength="20" value="${esc(P.name)}">
+    <p style="margin-bottom:6px"><b>Bild</b></p><div class="row" style="justify-content:flex-start;margin-top:0">${PROFILE_ICONS.map(i => `<button class="btn picon ${i === P.icon ? 'primary' : ''}" data-i="${i}" aria-label="Bild ${i}">${i}</button>`).join('')}</div>
+    <label for="pfgrade" style="display:block;margin-top:12px"><b>Klasse</b></label><select id="pfgrade" class="inp fld"><option value="">–</option>${grades.map(g => `<option value="${g}" ${P.grade === g ? 'selected' : ''}>${g}. Klasse</option>`).join('')}</select>
+    <div class="row"><button class="btn primary" id="pfsave">Speichern</button>${id !== ACTIVE ? '<button class="btn good" id="pfuse">Auf diesem Gerät verwenden</button>' : ''}</div></div>
+  <h2 class="h2">Spielzeit</h2><div class="card">
     <label for="pmax"><b>Maximale Spielminuten pro Tag</b></label>
-    <div class="inrow"><input id="pmax" class="inp" type="number" inputmode="numeric" min="0" max="120" step="5" value="${max}"><button class="btn primary" id="psave">Speichern</button></div>
-    <p class="small">Pro Juventute empfiehlt für Kinder bis 9 Jahre 30 bis 60 Minuten Bildschirmzeit pro Tag, Lernen mitgezählt.</p>
-    <div class="row"><button class="btn" id="pb5">+5 Minuten heute</button><button class="btn" id="pb10">+10 Minuten heute</button></div>
-  </div>
-  ${isHosted() ? familyBox() : ''}
+    <div class="inrow"><input id="pmax" class="inp fld" type="number" inputmode="numeric" min="0" max="120" step="5" value="${mx}"><button class="btn primary" id="psave">Speichern</button></div>
+    <p class="small">Heute: ${fmtMin(restOf(id))} Minuten übrig. Pro Juventute empfiehlt für Kinder bis 9 Jahre 30 bis 60 Minuten Bildschirmzeit pro Tag, Lernen mitgezählt.</p>
+    <div class="row" style="justify-content:flex-start"><button class="btn" id="pb5">+5 Minuten heute</button><button class="btn" id="pb10">+10 Minuten heute</button></div></div>
+  <h2 class="h2">Schutz und Rechte</h2><div class="card">
+    <p style="margin-top:0"><b>Profil-PIN</b> ${P.pin ? '· 🔒 eingeschaltet' : '· aus'}</p>
+    <p class="small">Mit einem Profil-PIN kann niemand ohne PIN auf dieses Profil wechseln, z.B. Geschwister auf einem gemeinsamen Gerät. Der Eltern-PIN funktioniert immer.</p>
+    <input id="ppin1" class="inp fld" type="password" inputmode="numeric" maxlength="4" placeholder="Neuer PIN (4 Ziffern)" aria-label="Profil-PIN">
+    <div class="row" style="justify-content:flex-start"><button class="btn primary" id="ppinset">${P.pin ? 'PIN ändern' : 'PIN einschalten'}</button>${P.pin ? '<button class="btn" id="ppinoff">Ausschalten</button>' : ''}</div>
+    <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="pkid" ${P.kidLists !== false ? 'checked' : ''}> Darf eigene Lernlisten erstellen (Spielminuten dafür erst nach deiner Freigabe)</label></div>
   <h2 class="h2">Letzte Probetests</h2>
-  ${res.length ? `<div class="hist">${res.map(r => `<div><span>${new Date(r.d).toLocaleDateString('de-CH')}</span><span class="hn">${esc(names[r.k] || r.k)}</span><b>Note ${fmtNote(r.note)}</b></div>`).join('')}</div>` : '<p class="small">Noch keine Probetests gemacht.</p>'}
-  ${profilesPanelHTML()}
-  ${listsPanelHTML()}
+  ${res.length ? `<div class="hist">${res.map(r => `<div><span>${new Date(r.d).toLocaleDateString('de-CH')}</span><span class="hn">${esc(r.name)}</span><b>Note ${fmtNote(r.note)}</b></div>`).join('')}</div>` : '<p class="small">Noch keine Probetests gemacht.</p>'}
   <h2 class="h2">Lernstand zurücksetzen</h2>
-  <div class="card" id="preset"><p class="small" style="margin-top:0">Löscht für das Profil «${esc(activeProfile().name)}» auf allen verbundenen Geräten: gelernte Wörter, Probetest-Noten, Sterne, Spiel-Rekorde und die heute verdienten Spielminuten. Andere Profile, PIN, Tagesmaximum und eigene Lernlisten bleiben.</p>
-    <button class="btn" id="pr1">Lernstand zurücksetzen</button></div>
-  <div class="row"><button class="btn" id="ppin">PIN ändern</button><button class="btn primary" id="pdone">Fertig</button></div>`;
-  bindProfilesPanel(); bindListsPanel();
+  <div class="card" id="preset"><p class="small" style="margin-top:0">Löscht nur für «${esc(P.name)}» auf allen verbundenen Geräten: gelernte Wörter, Probetest-Noten, Sterne, Spiel-Rekorde und die heute verdienten Spielminuten. Andere Profile und die Einstellungen bleiben.</p>
+    <button class="btn" id="pr1">Lernstand von ${esc(P.name)} zurücksetzen</button></div>
+  <div class="row">${id !== 'p1' ? '<button class="btn" id="pfdel">Profil löschen</button>' : ''}<button class="btn" id="pback">Zurück zur Übersicht</button></div>`;
+  bindTabs();
+  let icon = P.icon;
+  app.querySelectorAll('.picon').forEach(b => b.onclick = () => { icon = b.dataset.i; app.querySelectorAll('.picon').forEach(x => x.classList.toggle('primary', x.dataset.i === icon)); });
+  const meta = () => { const name = $('#pfname').value.trim() || P.name, g = $('#pfgrade').value; touchProfile(id, { name, icon, grade: g ? +g : null }); updateProfileChip(); };
+  $('#pfsave').onclick = () => { meta(); toast('Profil gespeichert'); parentPanel(); };
+  if ($('#pfuse')) $('#pfuse').onclick = () => { meta(); switchProfile(id, true); parentPanel(); };
+  $('#psave').onclick = () => { const v = Math.max(0, Math.min(120, Math.round(+$('#pmax').value || 0))); touchProfile(id, { max:v }); updatePlay(); toast(`Gespeichert: höchstens ${v} Minuten pro Tag für ${P.name}`); parentPanel(); };
+  const bonus = n => { const p = playOf(profPD(id)); p.bonus = (p.bonus || 0) + n; save(); updatePlay(); toast(`+${n} Minuten für ${P.name}`); parentPanel(); };
+  $('#pb5').onclick = () => bonus(5); $('#pb10').onclick = () => bonus(10);
+  $('#ppinset').onclick = () => { const v = $('#ppin1').value; if (!/^\d{4}$/.test(v)) return toast('Der PIN muss 4 Ziffern haben.'); touchProfile(id, { pin:v }); toast('Profil-PIN gespeichert'); parentPanel(); };
+  if ($('#ppinoff')) $('#ppinoff').onclick = () => { touchProfile(id, { pin:'' }); toast('Profil-PIN ausgeschaltet'); parentPanel(); };
+  $('#pkid').onchange = e => { touchProfile(id, { kidLists:e.target.checked }); toast(e.target.checked ? P.name + ' darf Lernlisten erstellen' : 'Lernlisten nur durch Eltern'); };
+  $('#pback').onclick = () => { PTAB = 'home'; parentPanel(); };
   $('#pr1').onclick = () => {
-    $('#preset').innerHTML = `<p style="margin-top:0"><b>Wirklich alles löschen?</b> Das kann nicht rückgängig gemacht werden.</p>
-      <div class="row" style="justify-content:flex-start"><button class="btn" id="pr2" style="background:var(--bad);border-color:var(--bad);color:#fff;box-shadow:0 4px 0 #a51e1e">Ja, alles löschen</button><button class="btn" id="pr0">Abbrechen</button></div>`;
+    $('#preset').innerHTML = `<p style="margin-top:0"><b>Lernstand von ${esc(P.name)} wirklich löschen?</b> Das kann nicht rückgängig gemacht werden.</p>
+      <div class="row" style="justify-content:flex-start"><button class="btn" id="pr2" style="background:var(--bad);border-color:var(--bad);color:#fff;box-shadow:0 4px 0 #a51e1e">Ja, löschen</button><button class="btn" id="pr0">Abbrechen</button></div>`;
     $('#pr0').onclick = parentPanel;
-    $('#pr2').onclick = () => {
-      Object.assign(DB, { known:{}, tests:{}, stars:0, best:0, play:null, games:{}, reset:Date.now() });
-      save(); updateStars(); updatePlay(); toast('Lernstand zurückgesetzt'); parentPanel();
-    };
+    $('#pr2').onclick = () => { Object.assign(profPD(id), { known:{}, tests:{}, stars:0, best:0, play:null, games:{}, reset:Date.now() }); save(); updateStars(); updatePlay(); toast('Lernstand von ' + P.name + ' zurückgesetzt'); parentPanel(); };
   };
-  $('#psave').onclick = () => { const v = Math.max(0, Math.min(120, Math.round(+$('#pmax').value || 0))); S.max = v; S.t = Date.now(); save(); updatePlay(); toast('Gespeichert: höchstens ' + v + ' Minuten pro Tag'); parentPanel(); };
-  const bonus = n => { P.bonus = (P.bonus || 0) + n; save(); updatePlay(); toast('+' + n + ' Minuten für heute'); parentPanel(); };
-  $('#pb5').onclick = () => bonus(5);
-  $('#pb10').onclick = () => bonus(10);
-  $('#ppin').onclick = () => { S.pin = ''; S.t = Date.now(); save(); showParents(); };
+  if ($('#pfdel')) $('#pfdel').onclick = () => {
+    $('#preset').innerHTML = `<p style="margin-top:0"><b>Profil «${esc(P.name)}» mit seinem ganzen Lernstand löschen?</b></p><div class="row" style="justify-content:flex-start"><button class="btn" id="pfdel2" style="background:var(--bad);border-color:var(--bad);color:#fff">Ja, Profil löschen</button><button class="btn" id="pfdel0">Abbrechen</button></div>`;
+    try { $('#preset').scrollIntoView({ block:'center' }); } catch (e) {}
+    $('#pfdel0').onclick = parentPanel;
+    $('#pfdel2').onclick = () => { if (id === ACTIVE) switchProfile('p1', true); DB.profiles[id] = { id, del:true, t:Date.now() }; delete DB.pd[id]; save(); toast('Profil gelöscht'); PTAB = 'home'; parentPanel(); };
+  };
+}
+function familyPage(){
+  app.innerHTML = parentTabs() + `${isHosted() ? familyBox() : ''}
+  ${listsPanelHTML()}
+  <h2 class="h2">Eltern-PIN</h2><div class="card"><p class="small" style="margin-top:0">Der Eltern-PIN schützt den Eltern-Bereich und gilt für die ganze Familie.</p><button class="btn" id="ppin">Eltern-PIN ändern</button></div>
+  <div class="row"><button class="btn" id="pdone">Zur Lern-App</button></div>`;
+  bindTabs(); bindListsPanel(); LISTCTX = { kid:false };
+  $('#ppin').onclick = () => pinForm('Eltern-PIN ändern', 'Neuen 4-stelligen PIN eingeben.', true, (a, b) => {
+    if (!/^\d{4}$/.test(a)) return toast('Der PIN muss 4 Ziffern haben.'); if (a !== b) return toast('Die beiden PINs sind nicht gleich.');
+    DB.settings.pin = a; DB.settings.t = Date.now(); if (DEV.pin) { DEV.pin = a; saveDev(); } save(); toast('Eltern-PIN geändert'); parentPanel(); });
   $('#pdone').onclick = showHome;
   if ($('#fNew')) $('#fNew').onclick = () => { const c = newFamilyCode(); try { localStorage.setItem(FAM_KEY, c); } catch (e) {} location.href = familyLink(c); };
   if ($('#fJoin')) $('#fJoin').onclick = () => { const c = ($('#fCode').value || '').trim().toLowerCase().replace(/^.*[?&]f=/, '').replace(/[^a-z0-9]/g, '');
@@ -3235,6 +3274,20 @@ function parentPanel(){
     try { if (navigator.share) await navigator.share({ title:'Lernsprung', url:l }); else { await navigator.clipboard.writeText(l); toast('Link kopiert'); } }
     catch (e) { try { await navigator.clipboard.writeText(l); toast('Link kopiert'); } catch (e2) { prompt('Link kopieren:', l); } } };
 }
+function devicePage(){
+  app.innerHTML = parentTabs() + `<div class="card">
+    <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:0"><input type="checkbox" id="dpar" ${DEV.parent ? 'checked' : ''}> <span><b>Eltern-Gerät:</b> Die App öffnet direkt den Eltern-Bereich.</span></label>
+    <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="drem" ${DEV.remember ? 'checked' : ''} ${DEV.parent ? '' : 'disabled'}> <span><b>PIN auf diesem Gerät merken.</b> Nur einschalten, wenn die Kinder dieses Gerät nicht benutzen.</span></label>
+    <p style="margin-bottom:6px"><b>Lernen auf diesem Gerät als</b></p>
+    <div class="menu">${liveProfiles().map(P => mbtn(P.id, P.icon, P.name + (P.id === ACTIVE ? ' ✓' : ''), P.test ? 'Testprofil' : P.grade ? P.grade + '. Klasse' : '')).join('')}</div></div>
+  <div class="row"><button class="btn" id="pdone">Zur Lern-App</button></div>`;
+  bindTabs();
+  $('#dpar').onchange = e => { DEV.parent = e.target.checked; if (!DEV.parent) { DEV.remember = false; delete DEV.pin; } saveDev(); parentPanel(); };
+  $('#drem').onchange = e => { DEV.remember = e.target.checked; if (DEV.remember) DEV.pin = DB.settings.pin; else delete DEV.pin; saveDev(); toast(DEV.remember ? 'PIN wird auf diesem Gerät gemerkt' : 'PIN wird wieder abgefragt'); };
+  app.querySelectorAll('.menu .mitem').forEach(b => b.onclick = () => { switchProfile(b.dataset.k, true); parentPanel(); });
+  $('#pdone').onclick = showHome;
+}
+
 function syncInfo(){
   if (SYNC.state === 'ok') return '<b style="color:var(--ok)">✅ Verbunden: Lernstand und Einstellungen werden synchronisiert.</b>';
   if (SYNC.state === 'saving') return '<b>⏳ Verbinde mit der Familie …</b>';
@@ -3257,6 +3310,30 @@ function familyBox(){
 }
 
 /* Start */
+
+/* Hamburger-Menü: alles Wichtige mit einem Tippen */
+function openMenu(){
+  const P = activeProfile(), many = liveProfiles().length > 1, d = document.getElementById('drawer');
+  const it = (k, i, l, sub) => `<button class="ditem" data-m="${k}"><span>${i}</span><span><b>${l}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
+  d.innerHTML = `<div class="dhead"><span class="uicon">${P.icon}</span><div><b>${esc(P.name)}</b><small>⭐ ${DB.stars} · 🎮 ${fmtRest()} Min übrig</small></div><button class="btn dclose" data-m="close" aria-label="Menü schliessen">✕</button></div>
+    ${it('home', '🏠', 'Start', 'Klasse und Fach wählen')}
+    ${NAV.s && NAV.g ? it('units', NAV.s.icon, NAV.s.name, NAV.g.grade + '. Klasse: alle Themen') : ''}
+    ${many ? it('prof', '👤', 'Profil wechseln', liveProfiles().map(x => x.icon).join(' ')) : ''}
+    ${it('game', '🎮', 'Känguru-Spiel', fmtRest() + ' Minuten übrig')}
+    ${kidListsOn() ? it('list', '✨', 'Lernliste erstellen', 'Eigene Wörter oder Fragen') : ''}
+    <hr>${it('parents', '👪', 'Eltern-Bereich', DEV.parent ? 'Dieses Gerät ist ein Eltern-Gerät' : 'Mit Eltern-PIN')}
+    <p class="small dver">Lernsprung · Version ${APP_VERSION}</p>`;
+  d.hidden = false; document.getElementById('drawerbg').hidden = false; document.body.classList.add('menuopen');
+  document.getElementById('menuBtn').setAttribute('aria-expanded', 'true');
+  d.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { const m = b.dataset.m; closeMenu();
+    if (m === 'home') showHome(); else if (m === 'units') showUnits(); else if (m === 'prof') showProfiles(); else if (m === 'game') showGame();
+    else if (m === 'list') startKidList(); else if (m === 'parents') showParents(); });
+  const f = d.querySelector('.ditem'); if (f) f.focus();
+}
+function closeMenu(){ const d = document.getElementById('drawer'); d.hidden = true; document.getElementById('drawerbg').hidden = true; document.body.classList.remove('menuopen'); document.getElementById('menuBtn').setAttribute('aria-expanded', 'false'); }
+document.getElementById('menuBtn').onclick = () => document.getElementById('drawer').hidden ? openMenu() : closeMenu();
+document.getElementById('drawerbg').onclick = closeMenu;
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !document.getElementById('drawer').hidden) closeMenu(); });
 $('#homeBtn').onclick = () => showHome();
 $('#playBtn').onclick = () => showGame();
 $('#profBtn').onclick = () => showProfiles();
@@ -3295,16 +3372,17 @@ function appBack(){
 }
 window.addEventListener('popstate', () => {
   if (SKIP) { SKIP = false; return; }
+  if (!document.getElementById('drawer').hidden) { closeMenu(); ARMED = false; if (CUR !== 'home') { ARMED = true; hist('pushState', { ls:1 }, ''); } return; }
   ARMED = false;
   if (CUR === 'home') { hist('back'); return; }
   appBack();
   if (CUR !== 'home' && !ARMED) { ARMED = true; hist('pushState', { ls:1 }, ''); }
 });
 
-showHome();
+if (DEV.parent) showParents(); else showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-7';
+const APP_VERSION = '2026-11-06-8';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {

@@ -11,7 +11,7 @@ const step = () => { const o = d.querySelector('.opt:not([disabled])'), f = d.qu
   if (o) o.click(); else if (f && !d.querySelector('#inp').disabled) submit(); else if (d.querySelector('.ltile:not(.used)')) d.querySelectorAll('.ltile').forEach(b => b.click()); };
 setTimeout(() => { try {
   // Eigene Lernlisten über den Editor im Eltern-Bereich anlegen
-  w.eval("DB.settings.pin = ''; parentPanel()");
+  w.eval("DB.settings.pin = ''; PARENT_OK = true; PTAB = 'family'; parentPanel()");
   const mk = (sg, kind, title, text) => { d.querySelector('#plnew').click(); d.querySelector('#lsg').value = sg; d.querySelector('#lsg').onchange();
     d.querySelector('#lkind').value = kind; d.querySelector('#lkind').onchange(); d.querySelector('#ltitle').value = title; d.querySelector('#ltext').value = text; d.querySelector('#ltext').oninput(); d.querySelector('#lsave').click(); };
   mk('en|4', 'vok', 'Test Vokabeln', 'the bakery = die Bäckerei\nthe library = die Bibliothek\nturn left = links abbiegen\nthe bridge = die Brücke\nthe station = der Bahnhof\nthe castle = das Schloss');
@@ -40,7 +40,7 @@ setTimeout(() => { try {
   if (P[0].kind !== 'vok' || P[0].items.length !== 2 || P[0].goals[0] !== 'Ich kann Orte nennen.' || P[1].kind !== 'qa' || P[1].items[0].length !== 4 || P[2].items.length !== 2 || P[3] !== null)
     throw new Error('KI-Antwort falsch eingelesen: ' + pa);
   // Antwort einfügen öffnet den Entwurf; die App selbst ruft keine KI auf
-  w.eval("parentPanel()"); d.querySelector('#plcam').click(); if (!d.querySelector('#acopy') || d.querySelector('#pcam')) throw new Error('KI-Seite falsch');
+  w.eval("PTAB = 'family'; parentPanel()"); d.querySelector('#plcam').click(); if (!d.querySelector('#acopy') || d.querySelector('#pcam')) throw new Error('KI-Seite falsch');
   d.querySelector('#apaste').value = F + 'json\n{"kind":"qa","title":"Einfügen","items":[{"a":"X?","b":"1"},{"a":"Y?","b":"2"}]}\n' + F; d.querySelector('#atake').click();
   if (!d.querySelector('#lsave') || !d.querySelector('#ltext').value.includes('X? = 1')) throw new Error('Einfügen öffnet keinen Entwurf');
   console.log('OK: Mit KI erstellen (Auftrag kopieren, Antwort einfügen)');
@@ -70,7 +70,7 @@ setTimeout(() => { try {
   w.eval("DB.play = null; LISTCTX = { kid:false }");
   console.log('OK: Kinder-Listen mit Freigabe');
   // Profile: Testprofil verändert den Lernstand von Profil 1 nicht, ältere App-Version (ohne Profile) löscht nichts
-  w.eval("DB.settings.pin = ''; parentPanel()"); const s1 = w.eval('DB.stars'), k1 = w.eval('JSON.stringify(DB.known)');
+  w.eval("DB.settings.pin = ''; PARENT_OK = true; PTAB = 'home'; parentPanel()"); const s1 = w.eval('DB.stars'), k1 = w.eval('JSON.stringify(DB.known)');
   d.querySelector('#pftest').click();
   if (w.eval('ACTIVE') === 'p1' || w.eval('DB.stars') !== 0 || w.eval('liveProfiles().length') !== 2) throw new Error('Testprofil nicht aktiv oder nicht leer');
   w.eval("DB.stars = 42; DB.known = { x:{ a:1 } }; save()");
@@ -81,12 +81,28 @@ setTimeout(() => { try {
   if (old !== JSON.stringify([s1 + 1, 42, 2])) throw new Error('Gerät mit alter Version zerstört Profile: ' + old);
   w.eval("switchProfile('p1')");
   if (w.eval('DB.stars') !== s1 || w.eval('JSON.stringify(DB.known)') !== k1) throw new Error('Lernstand von Profil 1 verändert');
-  w.eval("parentPanel()"); d.querySelector('#pfadd').click(); d.querySelector('#pfname').value = 'Noah'; d.querySelector('#pfsave').click();
+  w.eval("PTAB = 'home'; parentPanel()"); d.querySelector('#pfadd').click(); d.querySelector('#pfname').value = 'Noah'; d.querySelector('#pfsave').click();
   if (w.eval('liveProfiles().length') !== 3 || w.eval('ACTIVE') !== 'p1') throw new Error('Neues Profil falsch angelegt');
   w.eval("showProfiles()"); if (d.querySelectorAll('.mitem').length !== 3) throw new Error('Profilwahl zeigt nicht alle Profile');
-  const tid = w.eval("liveProfiles().find(p => p.test).id"); w.eval(`showProfileEditor('${tid}')`); d.querySelector('#pfdel').click(); d.querySelector('#pfdel2').click();
+  const tid = w.eval("liveProfiles().find(p => p.test).id"); w.eval(`PTAB = 'prof:${tid}'; parentPanel()`); d.querySelector('#pfdel').click(); d.querySelector('#pfdel2').click();
   if (w.eval('liveProfiles().length') !== 2 || w.eval(`!!DB.pd['${tid}']`)) throw new Error('Profil nicht gelöscht');
   console.log('OK: Profile (Testprofil, Geschwister, alte App-Version)');
+  // Pro Profil: Tagesmaximum, Profil-PIN; Eltern-Gerät
+  const noah = w.eval("liveProfiles().find(p => p.name === 'Noah').id");
+  w.eval(`PTAB = 'prof:${noah}'; parentPanel()`); d.querySelector('#pmax').value = '15'; d.querySelector('#psave').click();
+  d.querySelector('#ppin1').value = '4321'; d.querySelector('#ppinset').click();
+  if (w.eval(`profMax('${noah}')`) !== 15 || w.eval("profMax('p1')") === 15 || w.eval(`DB.profiles['${noah}'].pin`) !== '4321') throw new Error('Profil-Einstellungen nicht pro Profil');
+  w.eval("PARENT_OK = false"); w.eval(`switchProfile('${noah}')`);
+  if (w.eval('ACTIVE') !== 'p1' || !d.querySelector('#pf')) throw new Error('Profil-PIN wird nicht abgefragt');
+  d.querySelector('#p1').value = '0000'; d.querySelector('#pf').dispatchEvent(new w.Event('submit', { cancelable:true }));
+  if (w.eval('ACTIVE') !== 'p1') throw new Error('Falscher Profil-PIN akzeptiert');
+  d.querySelector('#p1').value = '4321'; d.querySelector('#pf').dispatchEvent(new w.Event('submit', { cancelable:true }));
+  if (w.eval('ACTIVE') !== noah || w.eval('maxMin()') !== 15) throw new Error('Richtiger Profil-PIN wechselt nicht');
+  w.eval("switchProfile('p1', true); PARENT_OK = true; PTAB = 'device'; parentPanel()");
+  d.querySelector('#dpar').checked = true; d.querySelector('#dpar').onchange({ target:d.querySelector('#dpar') });
+  if (!w.eval('DEV.parent')) throw new Error('Eltern-Gerät lässt sich nicht einschalten');
+  w.eval("DEV = {}; saveDev(); PTAB = 'home'");
+  console.log('OK: Einstellungen pro Profil, Profil-PIN, Eltern-Gerät');
   const cat = w.eval('CATALOG'), games = {};
   for (let si = 0; si < cat.length; si++) for (let gi = 0; gi < cat[si].grades.length; gi++) {
     w.eval(`NAV.s=CATALOG[${si}];NAV.g=NAV.s.grades[${gi}];NAV.n=NAV.g.grade;setColor();showUnits()`);
@@ -114,9 +130,12 @@ setTimeout(() => { try {
     console.log(`${cat[si].name} ${cat[si].grades[gi].grade}. Klasse: ${n} Units OK`);
   }
   w.eval('showGame()'); if (d.querySelector('#gGo')) d.querySelector('#gGo').click();
-  w.eval('showParents()'); d.querySelector('#p1').value = '1234'; if (d.querySelector('#p2')) d.querySelector('#p2').value = '1234';
+  w.eval("PARENT_OK = false; DB.settings.pin = ''; showParents()"); d.querySelector('#p1').value = '1234'; if (d.querySelector('#p2')) d.querySelector('#p2').value = '1234';
   d.querySelector('#pf').dispatchEvent(new w.Event('submit', { cancelable: true }));
-  if (!d.querySelector('#pmax')) throw new Error('Eltern-Bereich öffnet nicht');
+  if (!d.querySelector('.pcard')) throw new Error('Eltern-Bereich öffnet nicht');
+  // Hamburger-Menü
+  w.eval('closeMenu(); openMenu()'); if (d.getElementById('drawer').hidden || !d.querySelector('[data-m="parents"]')) throw new Error('Menü öffnet nicht');
+  d.querySelector('[data-m="home"]').click(); if (!d.getElementById('drawer').hidden || !d.querySelector('.menu')) throw new Error('Menü-Eintrag Start funktioniert nicht');
   if (errs.length) throw new Error('JS-Fehler: ' + errs.slice(0, 3).join(' | '));
   console.log('Lernspiele:', JSON.stringify(games));
   // Schreiben: Gross-/Kleinschreibung im Deutsch, Artikel optional, Englisch ohne
@@ -134,6 +153,7 @@ setTimeout(() => { try {
   console.log('OK: Uhrzeiten');
   // Zurücksetzen im Eltern-Bereich
   if (!(w.eval('DB.stars') > 0)) throw new Error('Vor dem Zurücksetzen keine Sterne gesammelt');
+  w.eval("PARENT_OK = true; PTAB = 'prof:' + ACTIVE; parentPanel()"); if (!d.querySelector('#pmax')) throw new Error('Profil-Einstellungen fehlen');
   d.querySelector('#pr1').click(); d.querySelector('#pr2').click();
   if (w.eval('DB.stars') !== 0 || w.eval('Object.keys(DB.known).length + Object.keys(DB.tests).length') !== 0 || !w.eval('DB.settings.pin')) throw new Error('Zurücksetzen hat nicht alles gelöscht oder den PIN verloren');
   // Zweites Gerät mit altem Stand darf den Lernstand nicht zurückbringen, neuer Stand nach dem Zurücksetzen bleibt
