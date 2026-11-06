@@ -3937,6 +3937,7 @@ async function showAdmin(){
         <button class="btn sm" data-fdel="${f.id}">Löschen</button></div>`; }).join('')}</div>` : '<p class="small">Noch keine Familien.</p>'}
     <h2 class="h2">Einladungen</h2>${invs.length ? `<div class="rlist adm">${invs.map(i => `<div><span>${i.blocked ? '⛔' : i.used ? '✅' : '✉️'}</span><span><b>${esc(i.name)}</b><small>erstellt ${dt(i.created)} · ${i.blocked ? 'gesperrt' : i.used ? 'eingerichtet ' + dt(i.usedAt) : 'noch offen'}</small></span>
       ${i.used || i.blocked ? '<span></span>' : `<button class="btn sm" data-ishare="${i.id}">Link</button>`}<button class="btn sm" data-iblock="${i.id}">${i.blocked ? 'Entsperren' : 'Sperren'}</button></div>`).join('')}</div>` : '<p class="small">Noch keine Einladungen.</p>'}
+    ${window.LS_ADMIN ? '' : `<div class="tip">📲 Als eigene App mit dunklem Symbol: <b>${esc(location.origin + new URL('betreiber/', document.baseURI).pathname)}</b> öffnen und installieren.</div>`}
     <p class="small">Inhalte der Familien (Namen, Noten, Listen) sind verschlüsselt und hier nicht sichtbar. «Sperren» stoppt die Synchronisation dieser Familie, «Löschen» entfernt ihre Online-Daten.</p>
     <div class="row"><button class="btn" id="aback">Zur App</button></div>`;
   $('#aback').onclick = showHome;
@@ -3992,7 +3993,7 @@ function openMenu(){
     ${it('exam', '📅', 'Prüfung eintragen', (() => { const e = liveExams(ACTIVE).find(x => daysTo(x.d) >= 0); return e ? 'Nächste: ' + whenTxt(daysTo(e.d)) : 'Damit die App beim Lernen hilft'; })())}
     ${kidListsOn() ? it('list', '✨', 'Lernliste erstellen', 'Eigene Wörter oder Fragen') : ''}
     <hr>${it('parents', '👪', 'Elternprofil', DEV.parent ? 'Dieses Gerät ist ein Eltern-Gerät' : 'Mit Eltern-PIN')}
-    ${(() => { try { return localStorage.getItem('lernsprung-betreiber') ? it('admin', '🛠️', 'Betreiber-Bereich', 'Einladungen und Familien') : ''; } catch (e) { return ''; } })()}
+    ${(() => { try { return localStorage.getItem('lernsprung-betreiber') ? it('admin', '🛠️', 'Betreiber-Bereich', 'Eigene App: Lernsprung/betreiber') : ''; } catch (e) { return ''; } })()}
     ${it('privacy', '🔒', 'Datenschutz', '')}${it('mail', '✉️', 'Problem melden', 'E-Mail an den Betreiber')}
     <p class="small dver">Lernsprung · Version ${APP_VERSION}</p>`;
   d.hidden = false; document.getElementById('drawerbg').hidden = false; document.body.classList.add('menuopen');
@@ -4053,16 +4054,16 @@ window.addEventListener('popstate', () => {
 
 { const q = new URLSearchParams(location.search);
   if (isHosted() && q.get('i') && /^[a-z0-9]{16,40}$/.test(q.get('i'))) showInvite(q.get('i'));
-  else if (isHosted() && q.has('admin')) showAdmin();
+  else if (isHosted() && (q.has('admin') || window.LS_ADMIN)) showAdmin();
   else if (q.has('neu')) { PTAB = 'home'; showParents(); try { const u = new URL(location.href); u.searchParams.delete('neu'); history.replaceState(history.state, '', u.toString()); } catch (e) {} }
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-19';
+const APP_VERSION = '2026-11-06-20';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
-    const r = await fetch(location.pathname + '?v=' + Date.now(), { cache:'no-store' }); if (!r.ok) return;
+    const r = await fetch(new URL('index.html', document.baseURI).pathname + '?v=' + Date.now(), { cache:'no-store' }); if (!r.ok) return;
     const m = (await r.text()).match(/APP_VERSION = '([^']+)'/);
     if (!m || m[1] === APP_VERSION || $('#upd')) return;
     const bar = document.createElement('button'); bar.id = 'upd'; bar.className = 'toast'; bar.style.border = 'none'; bar.style.cursor = 'pointer';

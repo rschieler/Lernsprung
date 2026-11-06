@@ -1,0 +1,17 @@
+{
+  "name": "Lernsprung Betreiber",
+  "short_name": "LS Betreiber",
+  "description": "Betreiber-Bereich von Lernsprung: Einladungen und Familien verwalten",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "lang": "de-CH",
+  "background_color": "#16181d",
+  "theme_color": "#16181d",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
