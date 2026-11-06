@@ -2810,7 +2810,14 @@ function customUnit(L){
     quiz: L.items.map(([q, a, ...w]) => [q, a, ...(w.length >= 2 ? w.slice(0, 3) : shuffle([...new Set(answers.filter(x => x !== a))]).slice(0, 3))]).filter(q => q.length >= 3 && new Set(q.slice(1)).size === q.length - 1),
     write: L.items.map(([q, a]) => [q, qaAlts(a)]) });
 }
+/* Standard-Klasse für neue Lernlisten: aktuelle Klasse, sonst Klasse des aktiven Profils, sonst des ersten Kindes */
+function defGrade(){ const G = [...new Set(CATALOG.flatMap(s => s.grades.filter(g => g.books.length && !g.customOnly).map(g => g.grade)))], ok = n => G.includes(+n) ? +n : 0, A = DB.profiles && DB.profiles[ACTIVE] || {};
+  let n = 0; try { n = NAV.n; } catch (e) {}
+  return ok(n) || ok(A.grade) || ok((Object.values(DB.profiles || {}).find(p => p && !p.del && !p.test && p.grade) || {}).grade) || (G.includes(4) ? 4 : G[0]); }
 function applyCustom(){
+  // Listen, die seit der 3. Klasse (6.11.2026) ungewollt dort gelandet sind, zur Klasse der Kinder verschieben
+  try { const kidG = Object.values(DB.profiles || {}).filter(p => p && !p.del && !p.test).map(p => +p.grade);
+    if (kidG.length && !kidG.includes(3)) Object.values(DB.custom || {}).forEach(L => { if (L && !L.del && L.g === 3 && !L.mg && (L.c || L.t) > 1793976000000) { L.g = defGrade(); L.mg = 1; L.t = Date.now(); } }); } catch (e) {}
   CATALOG.forEach(s => s.grades.forEach(g => { g.books = g.books.filter(b => b.id !== 'eigene'); }));
   CATALOG.forEach(s => s.grades = s.grades.filter(g => g.books.length || !g.customOnly));
   Object.values(DB.custom || {}).filter(L => !L.del && L.items && L.items.length).sort((a, b) => (a.c || a.t) - (b.c || b.t)).forEach(L => {
@@ -2841,7 +2848,7 @@ function bindListsPanel(){
 }
 function showListEditor(id, draft){
   stop();
-  const L = id ? DB.custom[id] : null, grades = allGrades(), cur = L || draft || { s:(NAV.s && NAV.s.id) || 'en', g:NAV.n || grades[0], kind:'', title:'', items:[] };
+  const L = id ? DB.custom[id] : null, grades = allGrades(), cur = L || draft || { s:(NAV.s && NAV.s.id) || 'en', g:defGrade(), kind:'', title:'', items:[] };
   const extra = {}; (cur.items || []).forEach(x => { if (x.length > 2) extra[x[0]] = x.slice(2); });
   const opts = CATALOG.flatMap(s => grades.map(g => `<option value="${s.id}|${g}" ${s.id === cur.s && g === cur.g ? 'selected' : ''}>${esc(s.name)}, ${g}. Klasse</option>`)).join('');
   const toText = (k, items) => items.map(([a, b]) => k === 'diktat' ? a : `${a} = ${b}`).join('\n');
@@ -2940,7 +2947,7 @@ function parseAiAnswer(text, sid){
 }
 function showAiImport(){
   stop();
-  const grades = allGrades(), cur = { s:(NAV.s && NAV.s.id) || 'en', g:NAV.n || grades[0] }, kid = LISTCTX.kid;
+  const grades = allGrades(), cur = { s:(NAV.s && NAV.s.id) || 'en', g:defGrade() }, kid = LISTCTX.kid;
   const opts = CATALOG.flatMap(s => grades.map(g => `<option value="${s.id}|${g}" ${s.id === cur.s && g === cur.g ? 'selected' : ''}>${esc(s.name)}, ${g}. Klasse</option>`)).join('');
   const sel = () => { const [sid, g] = $('#lsg').value.split('|'); return { s:CATALOG.find(x => x.id === sid), sid, g:+g }; };
   const aiBox = `<p style="margin-top:0"><b>1.</b> Auftrag kopieren</p>
@@ -4653,7 +4660,7 @@ try { applyTheme(); } catch (e) {}
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-31';
+const APP_VERSION = '2026-11-06-32';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
