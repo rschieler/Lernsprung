@@ -12,6 +12,11 @@
 <meta name="application-name" content="Lernsprung">
 <meta name="theme-color" content="#3b6ef5">
 <link rel="manifest" href="manifest.json">
+<script>/* Betreiber-Zugang als eigene App: anderer Name und anderes Symbol */
+if (/[?&]admin\b/.test(location.search)) { document.querySelector('link[rel=manifest]').href = 'manifest-admin.json';
+  document.title = 'Lernsprung Betreiber'; document.querySelector('meta[name=apple-mobile-web-app-title]').content = 'LS Betreiber';
+  document.querySelector('meta[name=application-name]').content = 'Lernsprung Betreiber'; document.querySelector('meta[name=theme-color]').content = '#16181d';
+  document.querySelector('link[rel=apple-touch-icon]').href = 'icon-admin-180.png'; }</script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4056,7 +4061,7 @@ window.addEventListener('popstate', () => {
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-17';
+const APP_VERSION = '2026-11-06-18';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
