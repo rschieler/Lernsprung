@@ -284,6 +284,7 @@ body.menuopen{overflow:hidden}
 .derr>div{padding:8px 0;border-bottom:1px solid var(--line)}.derr>div:last-child{border:0}.derr .small{display:block;margin-top:2px}
 .rlist>div{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}.rlist>div:last-child{border:0}.rlist b{white-space:nowrap}
 .btn.sm{min-height:38px;padding:6px 12px}.mitem.rew>span:last-child{flex:1;min-width:0}.mitem.rew .dbar{width:100%}
+.ndot{display:inline-block;width:.8em;height:.8em;border-radius:50%;vertical-align:-.05em;margin-right:4px;box-shadow:0 0 0 1px rgba(0,0,0,.12)}.nleg .ndot{margin-left:6px}.nleg{margin:6px 0 0}
 .hx{margin-bottom:14px}.hx .card{margin-bottom:10px}.goal{display:flex;flex-direction:column;gap:4px;padding:14px 18px}.goal .dbar{height:10px;margin-top:4px}
 .exam.soon{border-color:var(--c);box-shadow:0 0 0 2px var(--c) inset,var(--shadow)}.eunits{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.eunits .btn{font-size:.85rem;min-height:34px}
 .exl{display:flex;gap:8px;align-items:flex-start;padding:6px 0;font-size:.95rem}.exl input{margin-top:4px}
@@ -3457,7 +3458,7 @@ function statsOf(id){
   const days = []; for (let i = 13; i >= 0; i--) { const k = dayStr(addDays(now, -i)), e = log[k] || {}; days.push({ k, s:e.s || 0, n:e.n || 0, ok:e.ok || 0 }); }
   const units = {}; Object.values(log).forEach(e => Object.entries(e.u || {}).forEach(([k, v]) => { const u = units[k] = units[k] || [0, 0]; u[0] += v[0]; u[1] += v[1]; }));
   const subj = {}; Object.entries(units).forEach(([k, v]) => { const S = subjOf(k); if (!S) return; const o = subj[S.id] = subj[S.id] || { S, n:0, ok:0, best:0, units:0 }; o.n += v[0]; o.ok += v[1]; });
-  Object.entries(D.tests || {}).forEach(([k, arr]) => { const S = subjOf(k); if (!S) return; const o = subj[S.id] = subj[S.id] || { S, n:0, ok:0, best:0, units:0 }; o.best = Math.max(o.best, ...arr.map(t => t.note || 0)); if (arr.some(t => t.note >= 5)) o.units++; });
+  Object.entries(D.tests || {}).forEach(([k, arr]) => { const S = subjOf(k); if (!S) return; const o = subj[S.id] = subj[S.id] || { S, n:0, ok:0, best:0, units:0 }; o.best = Math.max(o.best, ...arr.map(t => t.note || 0)); if (arr.some(t => t.note >= 5.5)) o.units++; });
   const ranked = Object.entries(units).filter(([, v]) => v[0] >= 10).map(([k, v]) => ({ k, name:names[k] || k, n:v[0], p:pct(v[1], v[0]) })).sort((a, b) => b.p - a.p);
   const notes = Object.entries(D.tests || {}).flatMap(([k, arr]) => arr.map(t => ({ d:t.d, note:t.note, name:names[k] || k }))).sort((a, b) => a.d - b.d).slice(-20);
   const errs = {}; (D.err || []).forEach(e => { const x = errs[e.k + '|' + e.q] = errs[e.k + '|' + e.q] || Object.assign({ cnt:0 }, e); x.cnt++; x.a = e.a; });
@@ -3476,7 +3477,7 @@ function notesSVG(notes){
   const W = 300, y = n => 8 + (6 - n) / 5 * 64, x = i => 10 + i * (W - 20) / (notes.length - 1);
   return `<svg viewBox="0 0 ${W} 84" class="dbars" role="img" aria-label="Notenverlauf">${[6, 5, 4].map(n => `<line x1="0" x2="${W}" y1="${y(n)}" y2="${y(n)}" stroke="currentColor" opacity=".12"/><text x="${W - 2}" y="${y(n) - 2}" text-anchor="end" font-size="9" fill="currentColor" opacity=".6">${n}</text>`).join('')}
     <polyline fill="none" stroke="var(--c)" stroke-width="2.5" points="${notes.map((t, i) => x(i) + ',' + y(t.note)).join(' ')}"/>
-    ${notes.map((t, i) => `<circle cx="${x(i)}" cy="${y(t.note)}" r="4" fill="${t.note >= 5 ? 'var(--ok)' : t.note >= 4 ? 'var(--c)' : 'var(--bad)'}"><title>${new Date(t.d).toLocaleDateString('de-CH')} · ${esc(t.name)} · Note ${fmtNote(t.note)}</title></circle>`).join('')}</svg>`;
+    ${notes.map((t, i) => `<circle cx="${x(i)}" cy="${y(t.note)}" r="4" fill="${noteColor(t.note)}" stroke="var(--card)" stroke-width="1"><title>${new Date(t.d).toLocaleDateString('de-CH')} · ${esc(t.name)} · Note ${fmtNote(t.note)}</title></circle>`).join('')}</svg>`;
 }
 function weekReport(P, st){
   const c = st.cur, lines = [`Lernsprung – Wochenbericht für ${P.name}`, `Woche ab ${weekStart(new Date()).toLocaleDateString('de-CH')}`, '',
@@ -3503,7 +3504,7 @@ function dashboard(id){
       <div><b>${fmtDur(c.s)}</b>Lernzeit${trend(Math.round(c.s / 60), Math.round(p.s / 60), ' Min')}</div><div><b>${c.days}</b>aktive Tage${trend(c.days, p.days)}</div>
       <div><b>${c.n}</b>Aufgaben${trend(c.n, p.n)}</div><div><b>${c.n ? pct(c.ok, c.n) + ' %' : '–'}</b>richtig${p.n && c.n ? trend(pct(c.ok, c.n), pct(p.ok, p.n), ' %') : ''}</div></div>
       ${barsSVG(st.days)}<p class="small" style="margin:0">Lernminuten der letzten 14 Tage (diese Woche kräftig).</p></div>
-    <h2 class="h2">Fächer</h2>${st.subj.length ? `<div class="card"><div class="dtab">${st.subj.map(o => `<div><span>${o.S.icon} ${esc(o.S.name)}</span><span>${o.n} Aufg.</span><span class="dbar"><i style="width:${pct(o.ok, o.n)}%"></i></span><b>${pct(o.ok, o.n)} %</b><span class="small">${o.best ? 'Bestnote ' + fmtNote(o.best) + ' · ' + o.units + ' Thema' + (o.units === 1 ? '' : 'en') + ' ≥ 5' : 'kein Probetest'}</span></div>`).join('')}</div></div>` : '<p class="small">Noch keine Übungen erfasst. Die Auswertung beginnt mit dieser App-Version.</p>'}
+    <h2 class="h2">Fächer</h2>${st.subj.length ? `<div class="card"><div class="dtab">${st.subj.map(o => `<div><span>${o.S.icon} ${esc(o.S.name)}</span><span>${o.n} Aufg.</span><span class="dbar"><i style="width:${pct(o.ok, o.n)}%"></i></span><b>${pct(o.ok, o.n)} %</b><span class="small">${o.best ? 'Bestnote ' + fmtNote(o.best) + ' · ' + o.units + ' Thema' + (o.units === 1 ? '' : 'en') + ' ≥ 5,5' : 'kein Probetest'}</span></div>`).join('')}</div></div>` : '<p class="small">Noch keine Übungen erfasst. Die Auswertung beginnt mit dieser App-Version.</p>'}
     <h2 class="h2">Notenverlauf</h2><div class="card">${notesSVG(st.notes)}</div>
     ${st.top.length ? `<h2 class="h2">Stärken und Schwächen</h2><div class="card dsw"><div><b>💪 Stark</b>${st.top.map(t => `<p>${esc(t.name)} <span class="small">${t.p} %</span></p>`).join('')}</div>
       ${st.low.length ? `<div><b>🔁 Noch üben</b>${st.low.map(t => `<p>${esc(t.name)} <span class="small">${t.p} %</span></p>`).join('')}</div>` : ''}</div><p class="small">Ab 10 Aufgaben pro Thema.</p>` : ''}
@@ -3603,11 +3604,14 @@ function findUnit(k){
   return null;
 }
 function openUnit(k){ const f = findUnit(k); if (!f) return toast('Dieses Thema gibt es nicht mehr.'); NAV.n = f.g.grade; NAV.s = f.s; NAV.g = f.g; NAV.b = f.b; NAV.u = f.u; setColor(); showUnit(); }
+/* Notenfarben: 5,5–6 dunkelgrün, 5–5,4 hellgrün, 4–4,9 gelb, unter 4 rot, ohne Probetest grau */
+const noteColor = n => !n ? '#c3c9d6' : n >= 5.5 ? '#0b7a4b' : n >= 5 ? '#7fd08f' : n >= 4 ? '#f5b800' : '#ef4444';
+const ndot = n => `<i class="ndot" style="background:${noteColor(n)}"></i>`;
 function readiness(pid, k){
   const D = profPD(pid), best = (D.tests[k] || []).reduce((m, t) => Math.max(m, t.note || 0), 0);
   let n = 0, ok = 0; Object.values(D.log || {}).forEach(e => { const v = (e.u || {})[k]; if (v) { n += v[0]; ok += v[1]; } });
   const score = best ? best : n ? 1 + 4 * ok / n : 0;
-  return { best, n, p:pct(ok, n), score, sym: best >= 5 ? '✅' : best || n >= 10 ? '🟡' : '⚪' };
+  return { best, n, p:pct(ok, n), score, sym:ndot(best) };
 }
 function examPlan(e){
   const L = daysTo(e.d), R = e.units.map(k => ({ k, f:findUnit(k), r:readiness(e.p, k) })).filter(x => x.f);
@@ -3617,7 +3621,7 @@ function examPlan(e){
   else if (L === 0) tip = 'Heute ist die Prüfung. Viel Glück! 🍀';
   else if (L === 1) tip = 'Morgen ist die Prüfung: Mach heute nochmals den Probetest' + (R.length > 1 ? 's' : '') + ' und schlaf gut.';
   else if (!weak) tip = 'Wähle ein Thema und übe.';
-  else if (weak.r.best >= 5 && R.every(x => x.r.best >= 5)) tip = 'Alles im grünen Bereich! Wiederhole kurz und mach einen Probetest.';
+  else if (R.every(x => x.r.best >= 5.5)) tip = 'Alles im grünen Bereich! Wiederhole kurz und mach einen Probetest.';
   else tip = `Heute üben: ${weak.f.u.title}` + (weak.r.n >= 20 && !weak.r.best ? ' (jetzt den Probetest probieren)' : '');
   return { L, R, weak, tip };
 }
@@ -3626,7 +3630,8 @@ function examCard(e, kid){
   const P = DB.profiles[e.p] || {}, S = CATALOG.find(x => x.id === e.s) || { icon:'📅', name:e.s }, pl = examPlan(e);
   return `<div class="card exam ${pl.L <= 2 && pl.L >= 0 ? 'soon' : ''}"><div class="pchead"><span class="uicon">${S.icon}</span><div><b>${esc(e.title || S.name + '-Prüfung')}</b>
     <span class="small">${kid ? '' : esc(P.icon + ' ' + (P.name || '')) + ' · '}${new Date(e.d + 'T12:00').toLocaleDateString('de-CH', { weekday:'short', day:'numeric', month:'numeric' })} · <b>${whenTxt(pl.L)}</b>${e.note ? ' · Note ' + fmtNote(e.note) : ''}</span></div></div>
-    ${pl.R.length ? `<div class="eunits">${pl.R.map(x => `<button class="btn sm" data-ou="${esc(x.k)}">${x.r.sym} ${esc(x.f.u.title)}${x.r.best ? ' · ' + fmtNote(x.r.best) : ''}</button>`).join('')}</div>` : ''}
+    ${pl.R.length ? `<div class="eunits">${pl.R.map(x => `<button class="btn sm" data-ou="${esc(x.k)}">${x.r.sym} ${esc(x.f.u.title)}${x.r.best ? ' · ' + fmtNote(x.r.best) : x.r.n ? ' · geübt' : ''}</button>`).join('')}</div>
+      <p class="small nleg">${ndot(6)}5,5–6 ${ndot(5)}5–5,4 ${ndot(4.5)}4–4,9 ${ndot(3)}unter 4 ${ndot(0)}noch kein Probetest</p>` : ''}
     ${pl.L >= 0 ? `<p class="small" style="margin:8px 0 0">💡 ${esc(pl.tip)}</p>` : ''}
     ${pl.weak && pl.L >= 1 && kid ? `<div class="row" style="justify-content:flex-start"><button class="btn primary" data-ou="${esc(pl.weak.k)}">Jetzt üben</button></div>` : ''}
     ${!kid ? `<div class="row" style="justify-content:flex-start">${pl.L < 0 && !e.note ? `<input class="inp" style="width:5em" type="text" inputmode="decimal" maxlength="4" placeholder="Note" data-enote="${e.id}"><button class="btn sm" data-enotes="${e.id}">Note speichern</button>` : ''}<button class="btn sm" data-edel="${e.id}">Löschen</button></div>` : ''}</div>`;
@@ -3762,7 +3767,7 @@ window.addEventListener('popstate', () => {
 if (DEV.parent) showParents(); else showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-11';
+const APP_VERSION = '2026-11-06-12';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
