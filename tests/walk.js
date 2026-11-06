@@ -53,6 +53,24 @@ setTimeout(() => { try {
   const rt = w.eval("JSON.stringify(customFromCloud(JSON.parse(JSON.stringify(customToCloud(DB.custom))))) === JSON.stringify(DB.custom)");
   if (!rt) throw new Error('Eigene Lernlisten gehen beim Synchronisieren verloren');
   console.log('OK: Cloud-Format (Firestore)');
+  // Kind erstellt eine Liste ohne PIN: erst nach Freigabe Spielminuten
+  w.eval("NAV.s = CATALOG.find(x => x.id === 'en'); NAV.g = NAV.s.grades.find(x => x.grade === 4); NAV.n = 4; setColor(); showUnits()");
+  if (!d.querySelector('#kidnew')) throw new Error('Kein Knopf «Lernliste erstellen» für Kinder');
+  d.querySelector('#kidnew').click(); d.querySelector('#pman').click();
+  d.querySelector('#ltitle').value = 'Kinder-Liste'; d.querySelector('#ltext').value = 'red = rot\nblue = blau\ngreen = grün\nyellow = gelb'; d.querySelector('#ltext').oninput(); d.querySelector('#lsave').click();
+  const kid = w.eval("JSON.stringify(Object.values(DB.custom).find(x => x.title === 'Kinder-Liste'))");
+  if (!kid || !kid.includes('"by":"kind"') || !kid.includes('"ok":false') || !d.querySelector('.unit')) throw new Error('Kinder-Liste falsch gespeichert: ' + kid);
+  const kidId = JSON.parse(kid).id;
+  const e1 = w.eval(`DB.play = null; NAV.u = CATALOG.find(x => x.id === 'en').grades[0].books.find(b => b.id === 'eigene').units.find(u => u.custom === '${kidId}'); earn(3, 'kidtest').why`);
+  if (e1 !== 'unapproved') throw new Error('Kinder-Liste gibt ohne Freigabe Spielminuten: ' + e1);
+  w.eval(`LISTCTX = { kid:false }; showListEditor('${kidId}')`); if (!d.querySelector('#lsave').textContent.includes('freigeben')) throw new Error('Eltern sehen keinen Freigabe-Knopf');
+  d.querySelector('#lsave').click();
+  const e2 = w.eval(`NAV.u = CATALOG.find(x => x.id === 'en').grades[0].books.find(b => b.id === 'eigene').units.find(u => u.custom === '${kidId}'); earn(3, 'kidtest2').add`);
+  if (e2 !== 3) throw new Error('Freigegebene Liste gibt keine Spielminuten: ' + e2);
+  w.eval(`LISTCTX = { kid:true }; showListEditor('${kidId}')`); d.querySelector('#lsave').click();
+  if (w.eval(`DB.custom['${kidId}'].ok`) !== false) throw new Error('Nach Änderung durch das Kind bleibt die Freigabe bestehen');
+  w.eval("DB.play = null; LISTCTX = { kid:false }");
+  console.log('OK: Kinder-Listen mit Freigabe');
   const cat = w.eval('CATALOG'), games = {};
   for (let si = 0; si < cat.length; si++) for (let gi = 0; gi < cat[si].grades.length; gi++) {
     w.eval(`NAV.s=CATALOG[${si}];NAV.g=NAV.s.grades[${gi}];NAV.n=NAV.g.grade;setColor();showUnits()`);

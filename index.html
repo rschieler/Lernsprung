@@ -1949,6 +1949,8 @@ function showUnits(){
         <span class="ubody"><span class="uno">${esc(u.no)}</span><span class="utitle">${esc(u.title)}</span><span class="usub">${esc(u.de)}</span>
         ${pct !== null ? `<span class="ubar" aria-label="${pct} Prozent gelernt"><span style="width:${pct}%"></span></span>` : ''}</span>
         ${st.best !== null ? `<span class="badge" aria-label="Beste Note ${fmtNote(st.best)}">${fmtNote(st.best)}</span>` : ''}</button>`; }).join('')}</div>`).join('');
+  if (kidListsOn()) app.insertAdjacentHTML('beforeend', `${g.books.some(b => b.id === 'eigene') ? '' : '<h2 class="h2">Eigene Lernlisten</h2>'}<div class="row" style="justify-content:flex-start"><button class="btn" id="kidnew">+ Lernliste erstellen</button></div>`);
+  if ($('#kidnew')) $('#kidnew').onclick = startKidList;
   app.querySelectorAll('.unit').forEach(b => b.onclick = () => { NAV.b = g.books[+b.dataset.b]; NAV.u = NAV.b.units[+b.dataset.u]; showUnit(); });
 }
 
@@ -1966,6 +1968,10 @@ function showUnit(){
   </div>
   ${(u.tests || []).length ? `<h2 class="h2">Übungstests</h2><div class="menu">${u.tests.map((t,i) => { const h = DB.tests[ukey() + '-' + t.id] || [];
     return mbtn('ct' + i, '📝', 'Übungstest: ' + t.title, h.length ? 'Beste Note bisher: ' + fmtNote(Math.max(...h.map(x => x.note))) : t.de); }).join('')}</div>` : ''}`;
+  if (u.custom && DB.custom[u.custom] && (DB.custom[u.custom].by === 'kind' ? kidListsOn() : false)) {
+    app.insertAdjacentHTML('beforeend', `<div class="row" style="justify-content:flex-start"><button class="btn" id="kidedit">✏️ Liste bearbeiten</button></div>${listApproved(u.custom) ? '' : '<p class="small">⏳ Spielminuten gibt es, sobald Mama oder Papa die Liste freigegeben hat.</p>'}`);
+    $('#kidedit').onclick = () => { LISTCTX = { kid:true }; showListEditor(u.custom); };
+  }
   $('#tLearn').onclick = showLearn;
   $('#tPractice').onclick = showPractice;
   $('#tTest').onclick = showTestIntro;
@@ -2257,16 +2263,16 @@ function qaAlts(a){
 }
 function customUnit(L){
   const n = L.items.length, base = { id:'c_' + L.id, no:'Eigene Liste', title:L.title || 'Meine Lernliste', icon:'📝', custom:L.id, sentences:[], words:[] };
-  if (L.kind === 'vok') return Object.assign(base, { de:`${n} Wörter, von den Eltern erfasst`, words:L.items.map(([a, b]) => ({ en:a, de:b, pic:'📝', nl:true, cat:'' })) });
+  if (L.kind === 'vok') return Object.assign(base, { de:`${n} Wörter, ${L.by === 'kind' ? 'selbst erstellt' : 'von den Eltern erfasst'}`, words:L.items.map(([a, b]) => ({ en:a, de:b, pic:'📝', nl:true, cat:'' })) });
   if (L.kind === 'diktat') {
     const ws = L.items.map(x => x[0]);
-    return Object.assign(base, { de:`${n} Lernwörter, von den Eltern erfasst`, learn:{ tips:[...(L.goals || []).map(x => 'Lernziel: ' + x), 'Lies jedes Wort genau, schliess die Augen und buchstabiere es im Kopf.','Schreib das Wort auswendig und vergleiche es danach.'], examples:ws },
+    return Object.assign(base, { de:`${n} Lernwörter, ${L.by === 'kind' ? 'selbst erstellt' : 'von den Eltern erfasst'}`, learn:{ tips:[...(L.goals || []).map(x => 'Lernziel: ' + x), 'Lies jedes Wort genau, schliess die Augen und buchstabiere es im Kopf.','Schreib das Wort auswendig und vergleiche es danach.'], examples:ws },
       quiz: ws.map(w => ['Welches Wort ist richtig geschrieben?', w, ...misspell(w)]).filter(q => q.length >= 3),
       write: ws.map(w => ['🔊 Hör gut zu und schreib das Wort.', w, w]),
       labels:{ quiz:['💬','Richtig geschrieben?','Finde die richtige Schreibweise'], qwrite:['🎧','Diktat','Hör zu und schreib das Wort'] } });
   }
   const answers = L.items.map(x => x[1]);
-  return Object.assign(base, { de:`${n} Fragen, von den Eltern erfasst`, learn:{ tips:[...(L.goals || []).map(x => 'Lernziel: ' + x), ...L.items.slice(0, 40).map(([q, a]) => `${q} → ${a}`)], examples:[] },
+  return Object.assign(base, { de:`${n} Fragen, ${L.by === 'kind' ? 'selbst erstellt' : 'von den Eltern erfasst'}`, learn:{ tips:[...(L.goals || []).map(x => 'Lernziel: ' + x), ...L.items.slice(0, 40).map(([q, a]) => `${q} → ${a}`)], examples:[] },
     quiz: L.items.map(([q, a, ...w]) => [q, a, ...(w.length >= 2 ? w.slice(0, 3) : shuffle([...new Set(answers.filter(x => x !== a))]).slice(0, 3))]).filter(q => q.length >= 3 && new Set(q.slice(1)).size === q.length - 1),
     write: L.items.map(([q, a]) => [q, qaAlts(a)]) });
 }
@@ -2280,14 +2286,23 @@ function applyCustom(){
     b.units.push(customUnit(L));
   });
 }
+let LISTCTX = { kid:false };
+const kidListsOn = () => !DB.settings || DB.settings.kidLists !== false;
+const listApproved = id => { const L = (DB.custom || {})[id]; return !L || L.by !== 'kind' || !!L.ok; };
+function listBack(){ if (LISTCTX.kid && NAV.s && NAV.g) showUnits(); else parentPanel(); }
+function startKidList(){ LISTCTX = { kid:true }; showAiImport(); }
 function listsPanelHTML(){
   const L = Object.values(DB.custom || {}).filter(x => !x.del).sort((a, b) => b.t - a.t), sn = id => (CATALOG.find(s => s.id === id) || {}).name || id;
   return `<h2 class="h2">Eigene Lernlisten</h2><div class="card"><p class="small" style="margin-top:0">Wörter oder Fragen vom Lernziel-Blatt erfassen. Die App macht daraus Übungen, Lernspiele und einen Probetest. Die Listen erscheinen im Fach unter «Eigene Lernlisten».</p>
-    ${L.length ? `<div class="menu">${L.map(x => `<button class="mitem" data-list="${x.id}"><span class="mi">📝</span><span><b>${esc(x.title)}</b><span>${esc(sn(x.s))}, ${x.g}. Klasse · ${x.items.length} Einträge</span></span></button>`).join('')}</div>` : ''}
-    <div class="row" style="justify-content:flex-start"><button class="btn primary" id="plcam">✨ Mit KI erstellen</button><button class="btn" id="plnew">✏️ Selbst eingeben</button></div>${geminiKeyHTML()}</div>`;
+    ${L.length ? `<div class="menu">${L.map(x => `<button class="mitem" data-list="${x.id}"><span class="mi">${x.by === 'kind' ? '🧒' : '📝'}</span><span><b>${esc(x.title)}</b><span>${esc(sn(x.s))}, ${x.g}. Klasse · ${x.items.length} Einträge${x.by === 'kind' ? (x.ok ? ' · vom Kind, freigegeben' : ' · <b>vom Kind, wartet auf Freigabe</b>') : ''}</span></span></button>`).join('')}</div>` : ''}
+    <div class="row" style="justify-content:flex-start"><button class="btn primary" id="plcam">✨ Mit KI erstellen</button><button class="btn" id="plnew">✏️ Selbst eingeben</button></div>
+    <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="pkid" ${kidListsOn() ? 'checked' : ''}> Kinder dürfen eigene Lernlisten erstellen (ohne PIN). Spielminuten gibt es dafür erst nach deiner Freigabe.</label>
+    ${geminiKeyHTML()}</div>`;
 }
 function bindListsPanel(){
+  LISTCTX = { kid:false };
   $('#plnew').onclick = () => showListEditor(null);
+  $('#pkid').onchange = e => { DB.settings.kidLists = e.target.checked; DB.settings.t = Date.now(); save(); toast(e.target.checked ? 'Kinder dürfen Lernlisten erstellen' : 'Nur Eltern erstellen Lernlisten'); };
   $('#plcam').onclick = showAiImport; bindGeminiKey();
   app.querySelectorAll('[data-list]').forEach(b => b.onclick = () => showListEditor(b.dataset.list));
 }
@@ -2298,6 +2313,8 @@ function showListEditor(id, draft){
   const opts = CATALOG.flatMap(s => grades.map(g => `<option value="${s.id}|${g}" ${s.id === cur.s && g === cur.g ? 'selected' : ''}>${esc(s.name)}, ${g}. Klasse</option>`)).join('');
   const toText = (k, items) => items.map(([a, b]) => k === 'diktat' ? a : `${a} = ${b}`).join('\n');
   app.innerHTML = `<h1 class="h1">${L ? 'Lernliste bearbeiten' : 'Neue Lernliste'}</h1>
+  ${LISTCTX.kid ? '<div class="tip">🧒 Deine eigene Lernliste. Üben kannst du sofort. Spielminuten gibt es, sobald Mama oder Papa die Liste im Eltern-Bereich freigegeben hat.</div>' : ''}
+  ${!LISTCTX.kid && L && L.by === 'kind' && !L.ok ? '<div class="tip">🧒 Diese Liste hat dein Kind erstellt. Prüfe sie und tippe auf «Speichern und freigeben», damit es Spielminuten gibt.</div>' : ''}
   ${draft && draft.ai ? '<div class="tip">✨ Die KI hat das Blatt gelesen. Bitte kurz prüfen und bei Bedarf korrigieren, dann speichern.</div>' : ''}
   <div class="card" id="led">
     <label for="lsg"><b>Fach und Klasse</b></label><select id="lsg" class="inp fld">${opts}</select>
@@ -2309,7 +2326,7 @@ function showListEditor(id, draft){
     <label for="lgoals" style="display:block;margin-top:6px"><b>Lernziele</b> <span class="small">· optional, pro Zeile ein Ziel, erscheint auf der Lernseite</span></label>
     <textarea id="lgoals" class="inp fld" rows="3" style="width:100%;font:inherit;resize:vertical">${esc((cur.goals || []).join('\n'))}</textarea>
     <div class="tip">📷 Tipp: Foto vom Lernziel-Blatt machen und den Text mit dem Handy erkennen lassen (Android: Google Lens «Text» → kopieren, iPhone: im Foto lange auf den Text tippen → kopieren). Dann hier einfügen und kurz prüfen.</div>
-    <div class="row"><button class="btn primary" id="lsave">Speichern</button>${L ? '<button class="btn" id="ldel">Löschen</button>' : ''}<button class="btn" id="lback">Zurück</button></div>
+    <div class="row"><button class="btn primary" id="lsave">${!LISTCTX.kid && L && L.by === 'kind' && !L.ok ? 'Speichern und freigeben' : 'Speichern'}</button>${L && (!LISTCTX.kid || L.by === 'kind') ? '<button class="btn" id="ldel">Löschen</button>' : ''}<button class="btn" id="lback">Zurück</button></div>
   </div>`;
   const kindSel = $('#lkind'), txt = $('#ltext');
   const fillKinds = () => { const sid = $('#lsg').value.split('|')[0], ks = listKindsFor(sid), keep = ks.includes(kindSel.value) ? kindSel.value : (ks.includes(cur.kind) ? cur.kind : ks[0]);
@@ -2318,7 +2335,7 @@ function showListEditor(id, draft){
     const r = parseList(k, txt.value); $('#lstat').innerHTML = `${r.items.length} Einträge erkannt${r.bad.length ? ` · <b>${r.bad.length} Zeilen ohne «=»</b>: ${esc(r.bad.slice(0, 3).join(' | '))}` : ''}${k !== 'diktat' && r.items.length && r.items.length < 4 ? ' · Für das Quiz braucht es mindestens 4 Einträge.' : ''}`; };
   if (cur.items && cur.items.length) txt.value = toText(cur.kind, cur.items);
   $('#lsg').onchange = fillKinds; kindSel.onchange = upd; txt.oninput = upd; fillKinds();
-  $('#lback').onclick = draft && draft.ai ? showAiImport : parentPanel;
+  $('#lback').onclick = draft && draft.ai ? showAiImport : listBack;
   $('#lsave').onclick = () => {
     const [s, g] = $('#lsg').value.split('|'), kind = kindSel.value, r = parseList(kind, txt.value), title = $('#ltitle').value.trim();
     if (!title) { toast('Bitte einen Titel eingeben.'); $('#ltitle').focus(); return; }
@@ -2326,13 +2343,15 @@ function showListEditor(id, draft){
     const nid = id || ('l' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5));
     DB.custom = DB.custom || {};
     const goals = $('#lgoals').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 12);
-    DB.custom[nid] = { id:nid, t:Date.now(), c:(L && L.c) || Date.now(), s, g:+g, title, kind, goals, items:r.items.slice(0, 200).map(x => extra[x[0]] && kind === 'qa' ? x.concat(extra[x[0]].filter(w => w !== x[1])) : x) };
-    save(); applyCustom(); toast('Lernliste gespeichert'); parentPanel();
+    const by = LISTCTX.kid ? 'kind' : ((L && L.by) || 'eltern'), ok = LISTCTX.kid ? false : true;
+    DB.custom[nid] = { id:nid, t:Date.now(), c:(L && L.c) || Date.now(), s, g:+g, title, kind, goals, by, ok, items:r.items.slice(0, 200).map(x => extra[x[0]] && kind === 'qa' ? x.concat(extra[x[0]].filter(w => w !== x[1])) : x) };
+    save(); applyCustom(); toast('Lernliste gespeichert');
+    if (LISTCTX.kid) { NAV.s = CATALOG.find(x => x.id === s); NAV.g = NAV.s.grades.find(x => x.grade === +g); NAV.n = +g; setColor(); showUnits(); } else parentPanel();
   };
   if (L) $('#ldel').onclick = () => {
     $('#led').querySelector('.row').innerHTML = `<p style="margin:0"><b>Liste «${esc(L.title)}» wirklich löschen?</b></p><button class="btn" id="ldel2" style="background:var(--bad);border-color:var(--bad);color:#fff">Ja, löschen</button><button class="btn" id="ldel0">Abbrechen</button>`;
     $('#ldel0').onclick = () => showListEditor(id);
-    $('#ldel2').onclick = () => { DB.custom[id] = { id, t:Date.now(), del:true }; save(); applyCustom(); toast('Lernliste gelöscht'); parentPanel(); };
+    $('#ldel2').onclick = () => { DB.custom[id] = { id, t:Date.now(), del:true }; save(); applyCustom(); toast('Lernliste gelöscht'); listBack(); };
   };
 }
 
@@ -2418,7 +2437,7 @@ function showAiImport(){
   const grades = allGrades(), cur = { s:(NAV.s && NAV.s.id) || 'en', g:NAV.n || grades[0] }, pics = [], key = geminiKey();
   const opts = CATALOG.flatMap(s => grades.map(g => `<option value="${s.id}|${g}" ${s.id === cur.s && g === cur.g ? 'selected' : ''}>${esc(s.name)}, ${g}. Klasse</option>`)).join('');
   const sel = () => { const [sid, g] = $('#lsg').value.split('|'); return { s:CATALOG.find(x => x.id === sid), sid, g:+g }; };
-  app.innerHTML = `<h1 class="h1">✨ Mit KI erstellen</h1><p class="lead">Eine KI liest das Lernziel-Blatt und macht daraus eine Lernliste. Du prüfst sie und speicherst.</p>
+  app.innerHTML = `<h1 class="h1">${LISTCTX.kid ? '✨ Eigene Lernliste' : '✨ Mit KI erstellen'}</h1><p class="lead">${LISTCTX.kid ? 'Mach aus deinem Lernziel-Blatt eine Lernliste: mit einer KI-App oder indem du die Wörter selbst eintippst.' : 'Eine KI liest das Lernziel-Blatt und macht daraus eine Lernliste. Du prüfst sie und speicherst.'}</p>
   <div class="card" id="led"><label for="lsg"><b>Fach und Klasse</b></label><select id="lsg" class="inp fld">${opts}</select></div>
   ${key ? `<h2 class="h2">📷 Foto mit deinem Gemini-Schlüssel</h2><div class="card">
     <div class="row" style="justify-content:flex-start;margin-top:0"><label class="btn primary" for="pcam">📷 Foto aufnehmen</label><input id="pcam" type="file" accept="image/*" capture="environment" hidden>
@@ -2455,7 +2474,7 @@ function showAiImport(){
     $('#pcam').onchange = e => add(e.target.files); $('#pgal').onchange = e => add(e.target.files);
   }
   $('#pman').onclick = () => { const x = sel(); showListEditor(null, { s:x.sid, g:x.g, kind:'', title:'', items:[] }); };
-  $('#pback').onclick = parentPanel;
+  $('#pback').onclick = listBack;
 }
 function geminiKeyHTML(){
   const k = geminiKey();
@@ -2988,6 +3007,7 @@ function earnNote(note, table, key, extra){
   return r;
 }
 function earn(min, key){
+  if (NAV.u && NAV.u.custom && !listApproved(NAV.u.custom)) return { add:0, why:'unapproved' };
   const P = playState(), max = maxMin();
   if (P.earned >= max) return { add:0, why:'max' };
   if (key) { const c = P.cnt[key] || 0; if (c >= 2) return { add:0, why:'repeat' }; P.cnt[key] = c + 1; }
@@ -3000,6 +3020,7 @@ const earnHTML = r => r.add > 0
   : r.why === 'fast' ? '<p class="earn off">Zu schnell! Lies die Aufgaben genau, dann gibt es Spielminuten.</p>'
   : r.why === 'low' ? `<p class="earn off">Diesmal keine Spielminuten. ${r.hint || ''}</p>`
   : r.why === 'fix' ? '<p class="earn off">Korrigiere alle Fehler, dann gibt es 1 Spielminute.</p>'
+  : r.why === 'unapproved' ? '<p class="earn off">Für deine eigene Liste gibt es Spielminuten, sobald Mama oder Papa sie freigegeben hat.</p>'
   : r.why === 'repeat' ? '<p class="earn off">Für diese Übung gibt es heute keine Spielminuten mehr. Probier eine andere Übung!</p>'
   : '<p class="earn off">Für heute hast du alle Spielminuten gesammelt. Super gelernt!</p>';
 
@@ -3234,7 +3255,7 @@ window.addEventListener('popstate', () => {
 showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-4';
+const APP_VERSION = '2026-11-06-5';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
