@@ -275,7 +275,17 @@ label.btn{display:inline-flex;align-items:center;cursor:pointer}
 .ditem:hover{background:var(--soft)}.ditem>span:first-child{font-size:1.35rem;width:30px;text-align:center}.ditem b{display:block}.ditem small{color:var(--muted)}
 .drawer hr{border:none;border-top:1px solid var(--line);margin:6px 0}.dver{margin-top:auto;padding:8px 10px;color:var(--muted)}
 body.menuopen{overflow:hidden}
-.ptabs{flex-wrap:nowrap;gap:6px;overflow-x:auto}.ptabs .btn{padding:7px 11px;font-size:.92rem;white-space:nowrap;flex:0 0 auto}
+.phead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}.phead .h1{margin-bottom:6px}.nb{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--bad);color:#fff;font-size:.8rem;font-weight:900;text-align:center}
+.kpi4{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:520px){.kpi4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.dbars{width:100%;height:auto;display:block;margin:10px 0 4px;color:var(--ink)}
+.dtab>div{display:grid;grid-template-columns:minmax(0,1.4fr) auto minmax(50px,1fr) 3.2em;gap:4px 10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}.dtab>div:last-child{border:0}.dtab>div>.small{grid-column:1/-1;margin-top:-4px}
+.dbar{display:block;height:8px;border-radius:9px;background:var(--line);overflow:hidden}.dbar i{display:block;height:100%;background:var(--ok)}.mitem .dbar{margin-top:6px}
+.dsw{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dsw p{margin:6px 0}@media(max-width:520px){.dsw{grid-template-columns:1fr}}
+.derr>div{padding:8px 0;border-bottom:1px solid var(--line)}.derr>div:last-child{border:0}.derr .small{display:block;margin-top:2px}
+.rlist>div{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}.rlist>div:last-child{border:0}.rlist b{white-space:nowrap}
+.btn.sm{min-height:38px;padding:6px 12px}.mitem.rew>span:last-child{flex:1;min-width:0}.mitem.rew .dbar{width:100%}
+.wrep{white-space:pre-wrap;font:inherit;font-size:.92rem;margin:0}.mitem.rew.off{opacity:.65}
+.ptabs{margin-bottom:10px;flex-wrap:nowrap;gap:6px;overflow-x:auto}.ptabs .btn{padding:7px 11px;font-size:.92rem;white-space:nowrap;flex:0 0 auto}
 .pcards{display:grid;gap:12px}.pcard .kpi{margin-top:8px}.pchead{display:flex;gap:10px;align-items:center}.pchead div{display:flex;flex-direction:column}
 </style>
 </head>
@@ -1771,11 +1781,11 @@ CATALOG.forEach(s => s.grades.forEach(g => g.books.forEach(b => b.units.forEach(
 const STORE = 'lernheft-v1';
 /* Profile: Gespeichert (localStorage, Cloud) wird «kanonisch»: oben der Lernstand von Profil p1 (wie in älteren Versionen),
    in pd die weiteren Profile. Im Speicher steht oben immer das aktive Profil dieses Geräts. */
-const PF = ['known','tests','stars','play','best','games','reset'];
+const PF = ['known','tests','stars','play','best','games','reset','log','err','pt','red'];
 const ACTIVE_STORE = 'lernsprung-profil';
 let ACTIVE = (() => { try { return localStorage.getItem(ACTIVE_STORE) || 'p1'; } catch (e) { return 'p1'; } })();
 const pickPF = d => { const o = {}; PF.forEach(k => { o[k] = d[k]; }); return o; };
-const emptyPF = () => ({ known:{}, tests:{}, stars:0, play:null, best:0, games:{}, reset:0 });
+const emptyPF = () => ({ known:{}, tests:{}, stars:0, play:null, best:0, games:{}, reset:0, log:{}, err:[], pt:{}, red:[] });
 const DEF_PROFILES = () => ({ p1:{ id:'p1', name:'Kind 1', icon:'🦘', t:0 } });
 function toCanon(d){ const c = Object.assign({}, d, { pd:Object.assign({}, d.pd || {}) });
   if (ACTIVE !== 'p1') { const act = pickPF(d); Object.assign(c, Object.assign(emptyPF(), c.pd.p1 || {})); c.pd[ACTIVE] = act; }
@@ -1787,7 +1797,7 @@ function fromCanon(c){ const d = Object.assign({}, c, { pd:Object.assign({}, c.p
   return d; }
 const liveProfiles = () => Object.values(DB.profiles || {}).filter(x => !x.del).sort((a, b) => (a.id === 'p1' ? -1 : b.id === 'p1' ? 1 : (a.c || 0) - (b.c || 0)));
 const activeProfile = () => (DB.profiles || {})[ACTIVE] || DEF_PROFILES().p1;
-let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0, reset:0, games:{}, custom:{}, profiles:DEF_PROFILES(), pd:{} };
+let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0, reset:0, games:{}, custom:{}, profiles:DEF_PROFILES(), pd:{}, log:{}, err:[], pt:{}, red:[], parents:{}, rewards:{} };
 try { const r = localStorage.getItem(STORE); if (r) DB = Object.assign(DB, JSON.parse(r)); } catch (e) {}
 DB = fromCanon(DB);
 applyCustom();
@@ -1803,10 +1813,30 @@ function setSync(state, err){
   el.textContent = state === 'ok' ? '☁️ gespeichert' : state === 'saving' ? '☁️ …' : '☁️ offline';
   el.title = state === 'off' ? 'Online-Speicherung im Moment nicht möglich. Der Lernstand bleibt auf diesem Gerät.' : 'Lernstand wird online gespeichert';
 }
+/* Lernzeit, Aufgaben, Treffer pro Tag und Thema, letzte Fehler, Lernpunkte (pro Profil) */
+const LOG_DAYS = 120, ERR_MAX = 60;
+function mergeLog(a, b){ const o = {};
+  new Set([...Object.keys(a), ...Object.keys(b)]).forEach(day => { const x = a[day], y = b[day]; if (!x || !y) { o[day] = x || y; return; }
+    const u = {}; new Set([...Object.keys(x.u || {}), ...Object.keys(y.u || {})]).forEach(k => { const p = (x.u || {})[k] || [0, 0], q = (y.u || {})[k] || [0, 0]; u[k] = [Math.max(p[0], q[0]), Math.max(p[1], q[1])]; });
+    o[day] = { s:Math.max(x.s || 0, y.s || 0), n:Math.max(x.n || 0, y.n || 0), ok:Math.max(x.ok || 0, y.ok || 0), dp:Math.max(x.dp || 0, y.dp || 0), u }; });
+  return o; }
+function track(ok, ms, err){
+  if (!NAV.u || !NAV.s || !NAV.b) return;
+  const day = today(), L = DB.log = DB.log || {}, e = L[day] = L[day] || { s:0, n:0, ok:0, u:{} };
+  e.s += Math.round(Math.min(60000, Math.max(0, ms || 0)) / 1000); e.n++; if (ok) e.ok++;
+  const k = ukey(), u = e.u[k] = e.u[k] || [0, 0]; u[0]++; if (ok) u[1]++;
+  if (!ok && err && err.c != null) DB.err = (DB.err || []).concat({ d:Date.now(), k, q:String(err.q || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120), a:String(err.a == null ? '' : err.a).slice(0, 60), c:String(err.c).slice(0, 60) }).slice(-ERR_MAX);
+  if (e.s >= 600 && !e.dp) { e.dp = 1; addPoints(1); toast('🏅 +1 Lernpunkt für 10 Minuten Lernen heute'); }
+  const keys = Object.keys(L).sort(); while (keys.length > LOG_DAYS) delete L[keys.shift()];
+}
+function addPoints(n){ const d = today(); DB.pt = DB.pt || {}; DB.pt[d] = (DB.pt[d] || 0) + n; }
+const pointsOf = d => Object.values(d.pt || {}).reduce((a, b) => a + b, 0) - (d.red || []).filter(r => r.st !== 'nein').reduce((a, r) => a + (r.cost || 0), 0);
 function mergeDB(local, remote, remoteWins){
   const out = mergeCore(local, remote, remoteWins);
   const lpf = local.profiles || {}, rpf = remote.profiles || {}; out.profiles = DEF_PROFILES();
   new Set([...Object.keys(lpf), ...Object.keys(rpf)]).forEach(k => { const a = lpf[k], b = rpf[k]; out.profiles[k] = !a ? b : !b ? a : ((b.t || 0) > (a.t || 0) ? b : a); });
+  ['parents', 'rewards'].forEach(f => { const a0 = local[f] || {}, b0 = remote[f] || {}; out[f] = {};
+    new Set([...Object.keys(a0), ...Object.keys(b0)]).forEach(k => { const a = a0[k], b = b0[k]; out[f][k] = !a ? b : !b ? a : ((b.t || 0) > (a.t || 0) ? b : a); }); });
   const lpd = local.pd || {}, rpd = remote.pd || {}; out.pd = {};
   new Set([...Object.keys(lpd), ...Object.keys(rpd)]).forEach(k => { if (k === 'p1' || (out.profiles[k] && out.profiles[k].del)) return;
     out.pd[k] = pickPF(mergeCore(Object.assign(emptyPF(), lpd[k] || {}), Object.assign(emptyPF(), rpd[k] || {}), remoteWins)); });
@@ -1814,7 +1844,7 @@ function mergeDB(local, remote, remoteWins){
 }
 function mergeCore(local, remote, remoteWins){
   // Zurücksetzen: Wer einen älteren Stand als das letzte Zurücksetzen hat, verliert seinen Lernstand (Einstellungen bleiben)
-  const R = Math.max(local.reset || 0, remote.reset || 0), blank = d => ({ known:{}, tests:{}, stars:0, best:0, play:null, games:{}, settings:d.settings, custom:d.custom, reset:R });
+  const R = Math.max(local.reset || 0, remote.reset || 0), blank = d => ({ known:{}, tests:{}, stars:0, best:0, play:null, games:{}, log:{}, err:[], pt:{}, red:[], settings:d.settings, custom:d.custom, reset:R });
   if ((local.reset || 0) < R) local = blank(local);
   if ((remote.reset || 0) < R) remote = blank(remote);
   const out = { reset:R, games:{}, custom:{}, known:{}, tests:{}, stars: Math.max(local.stars || 0, remote.stars || 0), best: Math.max(local.best || 0, remote.best || 0) };
@@ -1832,6 +1862,10 @@ function mergeCore(local, remote, remoteWins){
   const lg = local.games || {}, rg = remote.games || {};
   new Set([...Object.keys(lg), ...Object.keys(rg)]).forEach(k => { const a = lg[k], b = rg[k];
     out.games[k] = a == null ? b : b == null ? a : (k.endsWith(':mem') ? Math.min(a, b) : Math.max(a, b)); });
+  out.log = mergeLog(local.log || {}, remote.log || {});
+  out.pt = {}; const lpt = local.pt || {}, rpt = remote.pt || {}; new Set([...Object.keys(lpt), ...Object.keys(rpt)]).forEach(k => { out.pt[k] = Math.max(lpt[k] || 0, rpt[k] || 0); });
+  { const m = new Map(); [...(local.err || []), ...(remote.err || [])].forEach(e => m.set(e.d + '|' + e.k + '|' + e.q, e)); out.err = [...m.values()].sort((a, b) => a.d - b.d).slice(-ERR_MAX); }
+  { const m = new Map(); [...(local.red || []), ...(remote.red || [])].forEach(r => { const o = m.get(r.id); if (!o || (r.t || 0) > (o.t || 0)) m.set(r.id, r); }); out.red = [...m.values()].sort((a, b) => a.d - b.d).slice(-200); }
   const lt = local.tests || {}, rt = remote.tests || {};
   new Set([...Object.keys(lt), ...Object.keys(rt)]).forEach(k => {
     const m = new Map(); [...(lt[k] || []), ...(rt[k] || [])].forEach(t => m.set(t.d, t));
@@ -1842,9 +1876,9 @@ function mergeCore(local, remote, remoteWins){
 // Firestore erlaubt keine Listen in Listen: Einträge der eigenen Lernlisten als Objekte speichern
 const customToCloud = c => Object.fromEntries(Object.entries(c || {}).map(([k, L]) => [k, L && L.items ? Object.assign({}, L, { items:L.items.map(x => Array.isArray(x) ? { a:x[0], b:x[1], w:x.slice(2) } : x) }) : L]));
 const customFromCloud = c => Object.fromEntries(Object.entries(c || {}).map(([k, L]) => [k, L && L.items ? Object.assign({}, L, { items:L.items.map(x => Array.isArray(x) ? x : [x.a, x.b, ...(x.w || [])]) }) : L]));
-const cloudPayload = () => { const c = toCanon(DB); return { known:c.known, tests:c.tests, stars:c.stars || 0, play:c.play || null, settings:c.settings || null, best:c.best || 0, reset:c.reset || 0, games:c.games || {}, custom:customToCloud(c.custom), profiles:c.profiles || DEF_PROFILES(), pd:c.pd || {}, updated:Date.now() }; };
-const snapshotOf = d => JSON.stringify({ profiles:d.profiles || {}, pd:d.pd || {}, known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0, reset:d.reset || 0, games:d.games || {}, custom:d.custom || {} });
-const remoteOf = r => ({ profiles:r.profiles || {}, pd:r.pd || {}, known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0, games:r.games || {}, custom:customFromCloud(r.custom) });
+const cloudPayload = () => { const c = toCanon(DB); return { known:c.known, tests:c.tests, stars:c.stars || 0, play:c.play || null, settings:c.settings || null, best:c.best || 0, reset:c.reset || 0, games:c.games || {}, custom:customToCloud(c.custom), profiles:c.profiles || DEF_PROFILES(), pd:c.pd || {}, log:c.log || {}, err:c.err || [], pt:c.pt || {}, red:c.red || [], parents:c.parents || {}, rewards:c.rewards || {}, updated:Date.now() }; };
+const snapshotOf = d => JSON.stringify({ parents:d.parents || {}, rewards:d.rewards || {}, log:d.log || {}, err:d.err || [], pt:d.pt || {}, red:d.red || [], profiles:d.profiles || {}, pd:d.pd || {}, known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0, reset:d.reset || 0, games:d.games || {}, custom:d.custom || {} });
+const remoteOf = r => ({ parents:r.parents || {}, rewards:r.rewards || {}, log:r.log || {}, err:r.err || [], pt:r.pt || {}, red:r.red || [], profiles:r.profiles || {}, pd:r.pd || {}, known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0, games:r.games || {}, custom:customFromCloud(r.custom) });
 function scheduleCloud(){ if (!CLOUD) return; cloudDirty = true; clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 1500); }
 async function pushCloud(){
   if (!CLOUD || cloudBusy || !cloudDirty) return;
@@ -2503,17 +2537,16 @@ function switchProfile(id, force){
   if (id === ACTIVE) return;
   const T = DB.profiles[id];
   if (!force && T && T.pin && !PARENT_OK) return pinForm(T.icon + ' ' + esc(T.name), 'Dieses Profil ist mit einem PIN geschützt.', false, a => {
-    if (a === T.pin || a === DB.settings.pin) { switchProfile(id, true); showHome(); } else { toast('Falscher PIN'); $('#p1').value = ''; } });
+    if (a === T.pin || anyParentPin(a)) { switchProfile(id, true); showHome(); } else { toast('Falscher PIN'); $('#p1').value = ''; } });
   const c = toCanon(DB); ACTIVE = id; try { localStorage.setItem(ACTIVE_STORE, id); } catch (e) {}
   DB = fromCanon(c); updateStars(); updatePlay(); updateProfileChip(); toast('Hallo ' + activeProfile().name + '!');
 }
 function showProfiles(){
   stop(); NAV.n = NAV.s = NAV.g = NAV.b = NAV.u = null; setColor(); crumbs();
   app.innerHTML = `<h1 class="h1">Wer lernt?</h1><p class="lead">Wähle dein Profil. Jedes Profil hat seinen eigenen Lernstand und eigene Spielminuten.</p>
-  <div class="menu">${liveProfiles().map(P => mbtn(P.id, P.icon, P.name + (P.id === ACTIVE ? ' ✓' : '') + (P.pin ? ' 🔒' : ''), P.test ? 'Testprofil für Eltern' : (P.grade ? P.grade + '. Klasse' : ''))).join('')}</div>
-  <div class="row"><button class="btn" id="pmanage">👪 Profile verwalten</button></div>`;
-  app.querySelectorAll('.mitem').forEach(b => b.onclick = () => { const T = DB.profiles[b.dataset.k]; if (T && T.pin && b.dataset.k !== ACTIVE && !PARENT_OK) switchProfile(b.dataset.k); else { switchProfile(b.dataset.k, true); showHome(); } });
-  $('#pmanage').onclick = () => showParents();
+  <div class="menu">${liveProfiles().map(P => mbtn(P.id, P.icon, P.name + (P.id === ACTIVE ? ' ✓' : '') + (P.pin ? ' 🔒' : ''), P.test ? 'Testprofil für Eltern' : (P.grade ? P.grade + '. Klasse' : ''))).join('')}
+    ${mbtn('__par', '👪', 'Eltern', liveParents().map(P => P.icon + ' ' + P.name).join(' · ') || 'Elternprofil mit PIN')}</div>`;
+  app.querySelectorAll('.mitem').forEach(b => b.onclick = () => { if (b.dataset.k === '__par') return showParents(); const T = DB.profiles[b.dataset.k]; if (T && T.pin && b.dataset.k !== ACTIVE && !PARENT_OK) switchProfile(b.dataset.k); else { switchProfile(b.dataset.k, true); showHome(); } });
 }
 /* =====================================================================
    6b) LERNSPIELE: Blitz-Sprung, Memory, Sortieren
@@ -2586,11 +2619,12 @@ function showBlitz(){
   app.innerHTML = `<div id="lg" class="blitz"><div class="bhead"><b id="btime">${T}</b><span>Sekunden</span><span class="bsc">🦘 <b id="bsc">0</b> Sprünge</span></div>
     <div class="btrack"><div class="bbar" id="bbar"></div><span id="broo">🦘</span></div><div class="card" id="bq"></div></div>`;
   const draw = () => {
-    const t = make(); LG.t = t;
+    const t = make(); LG.t = t; const t0 = Date.now();
     $('#bq').innerHTML = `<div class="q">${esc(t.prompt)}</div>${t.text ? `<div class="word ${t.plain && t.plain.length > 45 ? 'long' : ''}">${t.text}</div>` : ''}
       <div class="opts ${t.grid || ''}">${t.options.map((o, i) => `<button class="btn opt gopt ${o.big ? 'bigopt' : ''}" data-i="${i}">${esc(o.label)}</button>`).join('')}</div><div id="bfb" class="small center"></div>`;
     $('#bq').querySelectorAll('.gopt').forEach(b => b.onclick = () => {
       if (LG.lock) return; const o = t.options[+b.dataset.i]; LG.n++;
+      try { track(o.ok, Date.now() - t0, { q:t.plain || t.text || t.prompt, a:o.label, c:t.solution }); } catch (e) {}
       if (o.ok) { LG.right++; LG.score++; $('#bsc').textContent = LG.score; const r = $('#broo'); r.classList.remove('hop'); void r.offsetWidth; r.classList.add('hop');
         r.style.left = (6 + (LG.score % 10) * 9) + '%'; draw(); }
       else { LG.lock = true; LG.end -= 3000; b.classList.add('no'); $('#bfb').innerHTML = `−3 Sekunden · Richtig: <b>${esc(t.solution)}</b>`;
@@ -2923,7 +2957,9 @@ function answer(ok, given){
   if (SES.locked) return; SES.locked = true;
   const t = SES.tasks[SES.i];
   SES.results.push({ t, given, ok });
-  SES.think = (SES.think || 0) + Math.min(60000, Date.now() - (SES.shown || Date.now()));
+  const dt = Date.now() - (SES.shown || Date.now());
+  SES.think = (SES.think || 0) + Math.min(60000, dt);
+  try { track(ok, dt, { q:t.plain || t.text || t.prompt, a:given, c:t.solution }); } catch (e) {}
   if (ok) SES.right++;
   if (t.word && !ok) markWord(t.word, 0, t.wkey);
   const tk = ++TOKEN;
@@ -3029,6 +3065,8 @@ const tooFast = () => SES && SES.results.length >= 3 && (SES.think || 0) / SES.r
 function earnNote(note, table, key, extra){
   const base = table[note] || 0;
   const r = base > 0 ? earn(base + (extra || 0), key) : { add:0, why:'low' };
+  const pts = base > 0 && !['repeat', 'unapproved', 'fast'].includes(r.why) ? (table === MIN_TEST ? (note >= 6 ? 3 : 2) : 1) : 0;
+  if (pts) { addPoints(pts); r.pts = pts; save(); }
   const next = Object.keys(table).map(Number).sort((a,b) => a - b).find(x => x > note);
   if (next) r.hint = `Mit Note ${fmtNote(next)} ${base > 0 ? 'hättest du' : 'gibt es'} ${table[next]} Minute${table[next] > 1 ? 'n' : ''}${base > 0 ? ' bekommen' : ''}.`;
   return r;
@@ -3042,7 +3080,8 @@ function earn(min, key){
   save(); updatePlay();
   return { add:Math.round(P.earned - before), why: P.earned >= max ? 'max' : '' };
 }
-const earnHTML = r => r.add > 0
+const earnHTML = r => (r.pts ? `<p class="earn">🏅 +${r.pts} Lernpunkt${r.pts > 1 ? 'e' : ''} für Belohnungen</p>` : '') + earnHTML0(r);
+const earnHTML0 = r => r.add > 0
   ? `<p class="earn">🎮 +${r.add} Spielminute${r.add > 1 ? 'n' : ''}${r.better ? ' (mit 2 Extra-Minuten, weil du dich verbessert hast)' : ''}${r.why === 'max' ? '. Für heute hast du jetzt alle Minuten gesammelt.' : ''}</p>${r.hint && r.why !== 'max' ? `<p class="small">${r.hint}</p>` : ''}`
   : r.why === 'fast' ? '<p class="earn off">Zu schnell! Lies die Aufgaben genau, dann gibt es Spielminuten.</p>'
   : r.why === 'low' ? `<p class="earn off">Diesmal keine Spielminuten. ${r.hint || ''}</p>`
@@ -3194,42 +3233,109 @@ function pinForm(title, lead, two, onOk){
   $('#pf').onsubmit = e => { e.preventDefault(); onOk($('#p1').value, two ? $('#p2').value : null); };
   $('#p1').focus();
 }
+/* Elternprofile: jedes Elternteil hat Name, Bild und eigenen PIN. Admins verwalten die Elternprofile.
+   settings.pin = PIN des ersten Admins (für ältere App-Versionen). */
+const PARENT_ICONS = ['👨','👩','🧔','👱‍♀️','👴','👵','🧑','👨‍🦱','👩‍🦰','🦸'];
+let PARENT_WHO = null;
+function liveParents(){
+  DB.parents = DB.parents || {};
+  let L = Object.values(DB.parents).filter(P => P && !P.del);
+  if (!L.length && DB.settings && DB.settings.pin) { DB.parents.e1 = { id:'e1', name:'Eltern', icon:'👨', pin:DB.settings.pin, admin:true, t:Date.now() }; L = [DB.parents.e1]; }
+  return L.sort((a, b) => (a.c || 0) - (b.c || 0));
+}
+const parentByPin = a => a && liveParents().find(P => P.pin === a);
+const anyParentPin = a => !!parentByPin(a);
+const curParent = () => (DB.parents || {})[PARENT_WHO] || liveParents()[0] || null;
+const isAdmin = () => !!(curParent() && curParent().admin);
+function syncAdminPin(){ const A = liveParents().find(P => P.admin); if (A && DB.settings.pin !== A.pin) { DB.settings.pin = A.pin; DB.settings.t = Date.now(); } }
+function touchParent(id, patch){ DB.parents[id] = Object.assign({}, DB.parents[id], patch, { t:Date.now() }); syncAdminPin(); save(); }
+function parentLogin(P){
+  PARENT_OK = true; PARENT_WHO = P.id; PTAB = 'home';
+  if (DEV.parent && DEV.remember) { DEV.pin = P.pin; DEV.who = P.id; saveDev(); }
+  if (P.tmp) return pinForm(P.icon + ' Hallo ' + esc(P.name), 'Lege jetzt deinen eigenen 4-stelligen PIN fest. Der Start-PIN gilt danach nicht mehr.', true, (a, b) => setOwnPin(P.id, a, b));
+  parentPanel();
+}
+function setOwnPin(id, a, b){
+  if (!/^\d{4}$/.test(a)) return toast('Der PIN muss 4 Ziffern haben.'); if (a !== b) return toast('Die beiden PINs sind nicht gleich.');
+  const o = parentByPin(a); if (o && o.id !== id) return toast('Diesen PIN hat schon ein anderes Elternteil. Bitte einen anderen wählen.');
+  touchParent(id, { pin:a, tmp:false }); if (DEV.pin && DEV.who === id) { DEV.pin = a; saveDev(); } toast('PIN gespeichert'); PTAB = 'home'; parentPanel();
+}
 function showParents(){
   stop(); crumbs();
-  const S = DB.settings || (DB.settings = { max:30, pin:'' });
-  if (!S.pin) return pinForm('👪 Eltern-Bereich', 'Lege einen 4-stelligen Eltern-PIN fest. Damit können nur Eltern die Einstellungen ändern und alles sehen.', true, (a, b) => {
+  const S = DB.settings || (DB.settings = { max:30, pin:'' }), L = liveParents();
+  if (!L.length) return pinForm('👪 Elternprofil', 'Lege deinen 4-stelligen Eltern-PIN fest. Du bist dann Administrator der Familie und kannst weitere Elternprofile anlegen, z.B. für deinen Partner oder deine Partnerin.', true, (a, b) => {
     if (!/^\d{4}$/.test(a)) return toast('Der PIN muss 4 Ziffern haben.'); if (a !== b) return toast('Die beiden PINs sind nicht gleich.');
-    S.pin = a; S.t = Date.now(); save(); PARENT_OK = true; PTAB = 'home'; parentPanel(); });
-  if (PARENT_OK || (DEV.parent && DEV.remember && DEV.pin === S.pin)) { PARENT_OK = true; return parentPanel(); }
-  pinForm('👪 Eltern-Bereich', DEV.bio ? 'Mit Fingerabdruck oder Gesicht entsperren, oder Eltern-PIN eingeben.' : 'Bitte Eltern-PIN eingeben.', false, a => { if (a === S.pin) { PARENT_OK = true; if (DEV.parent && DEV.remember) { DEV.pin = a; saveDev(); } PTAB = 'home'; parentPanel(); } else { toast('Falscher PIN'); $('#p1').value = ''; } });
-  if (DEV.bio) {
+    DB.parents.e1 = { id:'e1', name:'Eltern', icon:'👨', pin:a, admin:true, c:Date.now(), t:Date.now() }; S.pin = a; S.t = Date.now(); save(); parentLogin(DB.parents.e1); });
+  if (PARENT_OK) return parentPanel();
+  const mem = DEV.parent && DEV.remember && parentByPin(DEV.pin); if (mem) { PARENT_OK = true; PARENT_WHO = mem.id; return parentPanel(); }
+  const bioP = DEV.bio && (DB.parents[DEV.who || 'e1'] || L[0]);
+  pinForm('👪 Elternprofil', (bioP ? 'Mit Fingerabdruck oder Gesicht entsperren, oder ' : 'Bitte ') + 'deinen Eltern-PIN eingeben.' + (L.length > 1 ? ' <span class="small">(' + L.map(P => P.icon + ' ' + esc(P.name)).join(', ') + ')</span>' : ''), false, a => {
+    const P = parentByPin(a); if (P) parentLogin(P); else { toast('Falscher PIN'); $('#p1').value = ''; } });
+  if (bioP && !bioP.del) {
     const tk = TOKEN;
-    $('#pf').insertAdjacentHTML('beforebegin', '<div class="row" style="justify-content:flex-start;margin-top:0;margin-bottom:12px"><button class="btn primary" id="pbio">🔓 Mit Fingerabdruck / Gesicht öffnen</button></div>');
-    const go = async () => { try { if (await bioVerify()) { if (tk !== TOKEN) return; PARENT_OK = true; PTAB = 'home'; parentPanel(); } else toast('Nicht bestätigt. Bitte PIN eingeben.'); }
+    $('#pf').insertAdjacentHTML('beforebegin', `<div class="row" style="justify-content:flex-start;margin-top:0;margin-bottom:12px"><button class="btn primary" id="pbio">🔓 ${esc(bioP.icon + ' ' + bioP.name)}: Fingerabdruck / Gesicht</button></div>`);
+    const go = async () => { try { if (await bioVerify()) { if (tk !== TOKEN) return; parentLogin(DB.parents[bioP.id]); } else toast('Nicht bestätigt. Bitte PIN eingeben.'); }
       catch (e) { if (tk === TOKEN) toast(e && e.name === 'NotAllowedError' ? 'Abgebrochen. Du kannst auch den PIN eingeben.' : 'Entsperren ging nicht. Bitte PIN eingeben.'); } };
     $('#pbio').onclick = go;
   }
 }
 function parentTabs(){
-  const t = (k, l) => `<button class="btn ${PTAB === k || (k === 'home' && PTAB.startsWith('prof:')) ? 'primary' : ''}" data-tab="${k}">${l}</button>`;
-  return `<h1 class="h1">👪 Eltern-Bereich</h1><div class="row ptabs" style="justify-content:flex-start;margin-top:0">${t('home', '👧 Kinder')}${t('family', '🏠 Familie')}${t('device', '📱 Dieses Gerät')}</div>`;
+  const t = (k, l) => `<button class="btn ${PTAB === k || (k === 'home' && /^(prof|dash):/.test(PTAB)) ? 'primary' : ''}" data-tab="${k}">${l}</button>`, P = curParent();
+  const open = liveProfiles().reduce((n, K) => n + (profPD(K.id).red || []).filter(r => r.st === 'offen').length, 0);
+  return `<div class="phead"><h1 class="h1">👪 Elternprofil</h1>${P ? `<span class="small">${P.icon} ${esc(P.name)}${P.admin ? ' · Admin' : ''} · <a href="#" id="plogout">abmelden</a></span>` : ''}</div>
+    <div class="row ptabs" style="justify-content:flex-start;margin-top:0">${t('home', '👧 Kinder')}${t('rew', '🏆 Belohnungen' + (open ? ` <span class="nb">${open}</span>` : ''))}${t('family', '🏠 Familie')}${isAdmin() ? t('parents', '👪 Eltern') : ''}${t('device', '📱 Gerät')}</div>`;
 }
-function bindTabs(){ app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { PTAB = b.dataset.tab; parentPanel(); }); }
+function parentsPage(){
+  if (!isAdmin()) { PTAB = 'home'; return parentPanel(); }
+  const L = liveParents(), admins = L.filter(P => P.admin).length;
+  app.innerHTML = parentTabs() + `<p class="lead">Elternprofile haben Zugriff auf alle Kinder, Auswertungen und Belohnungen. Admins können zusätzlich Elternprofile verwalten.</p>
+    ${L.map(P => `<div class="card pcard"><div class="pchead"><span class="uicon">${P.icon}</span><div><b>${esc(P.name)}</b><span class="small">${P.admin ? '⭐ Admin' : 'Elternteil'}${P.tmp ? ' · Start-PIN, eigener PIN noch nicht gesetzt' : ''}${P.id === PARENT_WHO ? ' · du' : ''}</span></div></div>
+      <div class="row" style="justify-content:flex-start">
+        ${P.admin && admins < 2 ? '' : `<button class="btn" data-adm="${P.id}">${P.admin ? 'Admin-Recht wegnehmen' : 'Zum Admin machen'}</button>`}
+        ${P.id !== PARENT_WHO ? `<button class="btn" data-ppin="${P.id}">Start-PIN neu setzen</button>` : ''}
+        ${P.id === PARENT_WHO || (P.admin && admins < 2) ? '' : `<button class="btn" data-pdel="${P.id}">Entfernen</button>`}</div></div>`).join('')}
+    <h2 class="h2">Elternprofil hinzufügen</h2><div class="card" id="padd">
+      <label for="pnm"><b>Name</b></label><input id="pnm" class="inp fld" maxlength="20" placeholder="z.B. Mama">
+      <p style="margin-bottom:6px"><b>Bild</b></p><div class="row" style="justify-content:flex-start;margin-top:0">${PARENT_ICONS.map((i, n) => `<button class="btn picon ${n === 1 ? 'primary' : ''}" data-i="${i}">${i}</button>`).join('')}</div>
+      <label for="ppn" style="display:block;margin-top:12px"><b>Start-PIN</b> <span class="small">(4 Ziffern; beim ersten Öffnen legt sie oder er einen eigenen PIN fest)</span></label>
+      <input id="ppn" class="inp fld pin" type="password" inputmode="numeric" maxlength="4">
+      <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="padm"> Auch Admin (darf Elternprofile verwalten)</label>
+      <div class="row" style="justify-content:flex-start"><button class="btn primary" id="paddok">Hinzufügen</button></div></div>
+    <div class="row"><button class="btn" id="pdone">Zur Lern-App</button></div>`;
+  bindTabs(); $('#pdone').onclick = showHome;
+  let icon = PARENT_ICONS[1];
+  app.querySelectorAll('#padd .picon').forEach(b => b.onclick = () => { icon = b.dataset.i; app.querySelectorAll('#padd .picon').forEach(x => x.classList.toggle('primary', x.dataset.i === icon)); });
+  $('#paddok').onclick = () => { const name = $('#pnm').value.trim(), pin = $('#ppn').value;
+    if (!name) return toast('Bitte einen Namen eingeben.'); if (!/^\d{4}$/.test(pin)) return toast('Der Start-PIN muss 4 Ziffern haben.'); if (parentByPin(pin)) return toast('Diesen PIN hat schon ein anderes Elternteil.');
+    const id = 'e' + Date.now().toString(36); touchParent(id, { id, name, icon, pin, tmp:true, admin:$('#padm').checked, c:Date.now() }); toast(name + ' hinzugefügt. Start-PIN mitteilen.'); parentPanel(); };
+  app.querySelectorAll('[data-adm]').forEach(b => b.onclick = () => { const P = DB.parents[b.dataset.adm]; touchParent(P.id, { admin:!P.admin }); toast(P.admin ? P.name + ' ist jetzt Admin' : P.name + ' ist kein Admin mehr'); if (P.id === PARENT_WHO && !DB.parents[P.id].admin) PTAB = 'home'; parentPanel(); });
+  app.querySelectorAll('[data-ppin]').forEach(b => b.onclick = () => { const P = DB.parents[b.dataset.ppin];
+    pinForm('Start-PIN für ' + esc(P.name), 'Neuen 4-stelligen Start-PIN eingeben. Beim nächsten Öffnen legt ' + esc(P.name) + ' wieder einen eigenen PIN fest.', true, (a, c) => {
+      if (!/^\d{4}$/.test(a)) return toast('Der PIN muss 4 Ziffern haben.'); if (a !== c) return toast('Die beiden PINs sind nicht gleich.'); const o = parentByPin(a); if (o && o.id !== P.id) return toast('Diesen PIN hat schon ein anderes Elternteil.');
+      touchParent(P.id, { pin:a, tmp:true }); toast('Start-PIN gesetzt'); parentPanel(); }); });
+  app.querySelectorAll('[data-pdel]').forEach(b => b.onclick = () => { const P = DB.parents[b.dataset.pdel]; DB.parents[P.id] = { id:P.id, del:true, t:Date.now() }; syncAdminPin(); save(); toast(P.name + ' entfernt'); parentPanel(); });
+}
+function bindTabs(){ app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { PTAB = b.dataset.tab; parentPanel(); });
+  if ($('#plogout')) $('#plogout').onclick = e => { e.preventDefault(); PARENT_OK = false; PARENT_WHO = null; if (DEV.remember) { DEV.remember = false; delete DEV.pin; saveDev(); } showHome(); }; }
 function parentPanel(){
   stop(); crumbs();
   if (!PARENT_OK) return showParents();
   if (PTAB.startsWith('prof:')) return profileSettings(PTAB.slice(5));
   if (PTAB === 'family') return familyPage();
   if (PTAB === 'device') return devicePage();
+  if (PTAB === 'parents') return parentsPage();
+  if (PTAB === 'rew') return rewardsPage();
+  if (PTAB.startsWith('dash:')) return dashboard(PTAB.slice(5));
   app.innerHTML = parentTabs() + `<div class="pcards">${liveProfiles().map(P => { const p = playOf(profPD(P.id)), mx = profMax(P.id), last = testsOf(P.id, 1)[0];
     return `<div class="card pcard"><div class="pchead"><span class="uicon">${P.icon}</span><div><b>${esc(P.name)}</b><span class="small">${P.test ? 'Testprofil' : P.grade ? P.grade + '. Klasse' : 'Profil'}${P.pin ? ' · 🔒 PIN' : ''}${P.id === ACTIVE ? ' · auf diesem Gerät' : ''}</span></div></div>
       <div class="kpi"><div><b>${Math.round(Math.min(p.earned, mx) + (p.bonus || 0))}</b>verdient</div><div><b>${Math.round(p.used)}</b>gespielt</div><div><b>${fmtMin(restOf(P.id))}</b>übrig</div></div>
-      <p class="small">Höchstens ${mx} Min pro Tag · ⭐ ${profPD(P.id).stars || 0}${last ? ` · Letzter Probetest: ${esc(last.name)}, Note ${fmtNote(last.note)}` : ''}</p>
-      <div class="row" style="justify-content:flex-start"><button class="btn" data-bonus="${P.id}">+5 Min heute</button><button class="btn primary" data-prof="${P.id}">Einstellungen</button></div></div>`; }).join('')}</div>
+      <p class="small">Höchstens ${mx} Min pro Tag · ⭐ ${profPD(P.id).stars || 0} · 🏅 ${pointsOf(profPD(P.id))}${(profPD(P.id).red || []).some(r => r.st === 'offen') ? ' · <b>🏆 Wunsch offen</b>' : ''} · diese Woche ${fmtDur(weekSum(profPD(P.id).log || {}, weekStart(new Date())).s)}${last ? ` · Letzter Probetest: ${esc(last.name)}, Note ${fmtNote(last.note)}` : ''}</p>
+      <div class="row" style="justify-content:flex-start"><button class="btn primary" data-dash="${P.id}">📊 Auswertung</button><button class="btn" data-bonus="${P.id}">+5 Min</button><button class="btn" data-prof="${P.id}">⚙️</button></div></div>`; }).join('')}</div>
     <div class="row" style="justify-content:flex-start"><button class="btn primary" id="pfadd">+ Kind hinzufügen</button>${liveProfiles().some(P => P.test) ? '' : '<button class="btn" id="pftest">🧪 Testprofil anlegen</button>'}</div>
     <div class="row"><button class="btn" id="pdone">Zur Lern-App</button></div>`;
   bindTabs();
   app.querySelectorAll('[data-prof]').forEach(b => b.onclick = () => { PTAB = 'prof:' + b.dataset.prof; parentPanel(); });
+  app.querySelectorAll('[data-dash]').forEach(b => b.onclick = () => { PTAB = 'dash:' + b.dataset.dash; parentPanel(); });
   app.querySelectorAll('[data-bonus]').forEach(b => b.onclick = () => { const id = b.dataset.bonus, p = playOf(profPD(id)); p.bonus = (p.bonus || 0) + 5; save(); updatePlay(); toast('+5 Minuten für ' + DB.profiles[id].name); parentPanel(); });
   $('#pfadd').onclick = () => { const id = 'p' + Date.now().toString(36); DB.profiles[id] = { id, name:'Kind ' + (liveProfiles().length + 1), icon:PROFILE_ICONS[liveProfiles().length % 10], t:Date.now(), c:Date.now() }; DB.pd[id] = emptyPF(); save(); PTAB = 'prof:' + id; parentPanel(); };
   if ($('#pftest')) $('#pftest').onclick = () => { const id = 'p' + Date.now().toString(36); DB.profiles[id] = { id, name:'Testprofil', icon:'🧪', test:true, max:120, t:Date.now(), c:Date.now() }; DB.pd[id] = emptyPF(); switchProfile(id, true); save(); toast('Dieses Gerät nutzt jetzt das Testprofil'); parentPanel(); };
@@ -3277,7 +3383,7 @@ function profileSettings(id){
     $('#preset').innerHTML = `<p style="margin-top:0"><b>Lernstand von ${esc(P.name)} wirklich löschen?</b> Das kann nicht rückgängig gemacht werden.</p>
       <div class="row" style="justify-content:flex-start"><button class="btn" id="pr2" style="background:var(--bad);border-color:var(--bad);color:#fff;box-shadow:0 4px 0 #a51e1e">Ja, löschen</button><button class="btn" id="pr0">Abbrechen</button></div>`;
     $('#pr0').onclick = parentPanel;
-    $('#pr2').onclick = () => { Object.assign(profPD(id), { known:{}, tests:{}, stars:0, best:0, play:null, games:{}, reset:Date.now() }); save(); updateStars(); updatePlay(); toast('Lernstand von ' + P.name + ' zurückgesetzt'); parentPanel(); };
+    $('#pr2').onclick = () => { Object.assign(profPD(id), { known:{}, tests:{}, stars:0, best:0, play:null, games:{}, log:{}, err:[], pt:{}, red:[], reset:Date.now() }); save(); updateStars(); updatePlay(); toast('Lernstand von ' + P.name + ' zurückgesetzt'); parentPanel(); };
   };
   if ($('#pfdel')) $('#pfdel').onclick = () => {
     $('#preset').innerHTML = `<p style="margin-top:0"><b>Profil «${esc(P.name)}» mit seinem ganzen Lernstand löschen?</b></p><div class="row" style="justify-content:flex-start"><button class="btn" id="pfdel2" style="background:var(--bad);border-color:var(--bad);color:#fff">Ja, Profil löschen</button><button class="btn" id="pfdel0">Abbrechen</button></div>`;
@@ -3289,12 +3395,10 @@ function profileSettings(id){
 function familyPage(){
   app.innerHTML = parentTabs() + `${isHosted() ? familyBox() : ''}
   ${listsPanelHTML()}
-  <h2 class="h2">Eltern-PIN</h2><div class="card"><p class="small" style="margin-top:0">Der Eltern-PIN schützt den Eltern-Bereich und gilt für die ganze Familie.</p><button class="btn" id="ppin">Eltern-PIN ändern</button></div>
+  <h2 class="h2">Mein PIN</h2><div class="card"><p class="small" style="margin-top:0">Dein persönlicher Eltern-PIN für das Elternprofil${curParent() ? ' (' + curParent().icon + ' ' + esc(curParent().name) + ')' : ''}. Er öffnet auch Profile mit Profil-PIN.</p><button class="btn" id="ppin">Meinen PIN ändern</button></div>
   <div class="row"><button class="btn" id="pdone">Zur Lern-App</button></div>`;
   bindTabs(); bindListsPanel(); LISTCTX = { kid:false };
-  $('#ppin').onclick = () => pinForm('Eltern-PIN ändern', 'Neuen 4-stelligen PIN eingeben.', true, (a, b) => {
-    if (!/^\d{4}$/.test(a)) return toast('Der PIN muss 4 Ziffern haben.'); if (a !== b) return toast('Die beiden PINs sind nicht gleich.');
-    DB.settings.pin = a; DB.settings.t = Date.now(); if (DEV.pin) { DEV.pin = a; saveDev(); } save(); toast('Eltern-PIN geändert'); parentPanel(); });
+  $('#ppin').onclick = () => { const P = curParent(); if (!P) return; pinForm('Meinen PIN ändern', 'Neuen 4-stelligen PIN eingeben.', true, (a, b) => { PTAB = 'family'; setOwnPin(P.id, a, b); PTAB = 'family'; }); };
   $('#pdone').onclick = showHome;
   if ($('#fNew')) $('#fNew').onclick = () => { const c = newFamilyCode(); try { localStorage.setItem(FAM_KEY, c); } catch (e) {} location.href = familyLink(c); };
   if ($('#fJoin')) $('#fJoin').onclick = () => { const c = ($('#fCode').value || '').trim().toLowerCase().replace(/^.*[?&]f=/, '').replace(/[^a-z0-9]/g, '');
@@ -3305,7 +3409,7 @@ function familyPage(){
 }
 function devicePage(){
   app.innerHTML = parentTabs() + `<div class="card">
-    <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:0"><input type="checkbox" id="dpar" ${DEV.parent ? 'checked' : ''}> <span><b>Eltern-Gerät:</b> Die App öffnet direkt den Eltern-Bereich.</span></label>
+    <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:0"><input type="checkbox" id="dpar" ${DEV.parent ? 'checked' : ''}> <span><b>Eltern-Gerät:</b> Die App öffnet direkt das Elternprofil.</span></label>
     <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="drem" ${DEV.remember ? 'checked' : ''} ${DEV.parent ? '' : 'disabled'}> <span><b>PIN auf diesem Gerät merken.</b> Nur einschalten, wenn die Kinder dieses Gerät nicht benutzen.</span></label>
     <div id="dbio" style="margin-top:14px"></div>
     <p style="margin-bottom:6px"><b>Lernen auf diesem Gerät als</b></p>
@@ -3313,17 +3417,144 @@ function devicePage(){
   <div class="row"><button class="btn" id="pdone">Zur Lern-App</button></div>`;
   bindTabs();
   $('#dpar').onchange = e => { DEV.parent = e.target.checked; if (!DEV.parent) { DEV.remember = false; delete DEV.pin; } saveDev(); parentPanel(); };
-  $('#drem').onchange = e => { DEV.remember = e.target.checked; if (DEV.remember) DEV.pin = DB.settings.pin; else delete DEV.pin; saveDev(); toast(DEV.remember ? 'PIN wird auf diesem Gerät gemerkt' : 'PIN wird wieder abgefragt'); };
+  $('#drem').onchange = e => { DEV.remember = e.target.checked; if (DEV.remember) { DEV.pin = (curParent() || {}).pin; DEV.who = PARENT_WHO; } else delete DEV.pin; saveDev(); toast(DEV.remember ? 'PIN wird auf diesem Gerät gemerkt' : 'PIN wird wieder abgefragt'); };
   app.querySelectorAll('.menu .mitem').forEach(b => b.onclick = () => { switchProfile(b.dataset.k, true); parentPanel(); });
   bioAvailable().then(ok => { const el = $('#dbio'); if (!el) return;
     el.innerHTML = DEV.bio
-      ? '<p style="margin:0"><b>🔓 Fingerabdruck / Gesicht:</b> eingeschaltet. Der Eltern-PIN funktioniert weiterhin.</p><div class="row" style="justify-content:flex-start"><button class="btn" id="dbiooff">Ausschalten</button></div>'
+      ? `<p style="margin:0"><b>🔓 Fingerabdruck / Gesicht:</b> eingeschaltet für ${esc(((DB.parents || {})[DEV.who || 'e1'] || {}).name || 'Eltern')}. Der Eltern-PIN funktioniert weiterhin.</p>` + '<div class="row" style="justify-content:flex-start"><button class="btn" id="dbiooff">Ausschalten</button></div>'
       : ok ? '<p style="margin:0"><b>🔓 Fingerabdruck / Gesicht</b> zum Öffnen des Eltern-Bereichs verwenden. Es gilt die Entsperrung dieses Geräts: Kennt ein Kind den Code deines Handys, kommt es so auch hinein.</p><div class="row" style="justify-content:flex-start"><button class="btn primary" id="dbioon">Einschalten</button></div>'
       : '<p class="small" style="margin:0">Fingerabdruck oder Gesicht sind in diesem Browser nicht verfügbar. Auf dem Handy geht es in Chrome (Android) und Safari (iPhone).</p>';
-    if ($('#dbioon')) $('#dbioon').onclick = async () => { try { await bioRegister(); toast('Fingerabdruck / Gesicht eingeschaltet'); parentPanel(); } catch (e) { toast(e && e.name === 'NotAllowedError' ? 'Abgebrochen' : 'Einschalten ging nicht: ' + ((e && e.message) || e)); } };
+    if ($('#dbioon')) $('#dbioon').onclick = async () => { try { await bioRegister(); DEV.who = PARENT_WHO || 'e1'; saveDev(); toast('Fingerabdruck / Gesicht eingeschaltet'); parentPanel(); } catch (e) { toast(e && e.name === 'NotAllowedError' ? 'Abgebrochen' : 'Einschalten ging nicht: ' + ((e && e.message) || e)); } };
     if ($('#dbiooff')) $('#dbiooff').onclick = () => { delete DEV.bio; saveDev(); toast('Fingerabdruck / Gesicht ausgeschaltet'); parentPanel(); };
   });
   $('#pdone').onclick = showHome;
+}
+
+/* =====================================================================
+   Auswertung pro Kind (Dashboard) und Belohnungen
+   ===================================================================== */
+const dayStr = dt => { const z = n => String(n).padStart(2, '0'); return dt.getFullYear() + '-' + z(dt.getMonth() + 1) + '-' + z(dt.getDate()); };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const weekStart = d => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); return addDays(x, -((x.getDay() + 6) % 7)); };
+const subjOf = k => CATALOG.find(s => k.startsWith(s.id + '-'));
+const fmtDur = sec => sec >= 3600 ? Math.floor(sec / 3600) + ' h ' + Math.round(sec % 3600 / 60) + ' Min' : Math.round(sec / 60) + ' Min';
+const pct = (a, n) => n ? Math.round(100 * a / n) : 0;
+function weekSum(log, from){ const o = { s:0, n:0, ok:0, days:0 }; for (let i = 0; i < 7; i++) { const e = log[dayStr(addDays(from, i))]; if (e && e.n) { o.s += e.s || 0; o.n += e.n; o.ok += e.ok || 0; o.days++; } } return o; }
+function statsOf(id){
+  const D = profPD(id), log = D.log || {}, now = new Date(), w0 = weekStart(now), names = unitNames();
+  const cur = weekSum(log, w0), prev = weekSum(log, addDays(w0, -7));
+  const days = []; for (let i = 13; i >= 0; i--) { const k = dayStr(addDays(now, -i)), e = log[k] || {}; days.push({ k, s:e.s || 0, n:e.n || 0, ok:e.ok || 0 }); }
+  const units = {}; Object.values(log).forEach(e => Object.entries(e.u || {}).forEach(([k, v]) => { const u = units[k] = units[k] || [0, 0]; u[0] += v[0]; u[1] += v[1]; }));
+  const subj = {}; Object.entries(units).forEach(([k, v]) => { const S = subjOf(k); if (!S) return; const o = subj[S.id] = subj[S.id] || { S, n:0, ok:0, best:0, units:0 }; o.n += v[0]; o.ok += v[1]; });
+  Object.entries(D.tests || {}).forEach(([k, arr]) => { const S = subjOf(k); if (!S) return; const o = subj[S.id] = subj[S.id] || { S, n:0, ok:0, best:0, units:0 }; o.best = Math.max(o.best, ...arr.map(t => t.note || 0)); if (arr.some(t => t.note >= 5)) o.units++; });
+  const ranked = Object.entries(units).filter(([, v]) => v[0] >= 10).map(([k, v]) => ({ k, name:names[k] || k, n:v[0], p:pct(v[1], v[0]) })).sort((a, b) => b.p - a.p);
+  const notes = Object.entries(D.tests || {}).flatMap(([k, arr]) => arr.map(t => ({ d:t.d, note:t.note, name:names[k] || k }))).sort((a, b) => a.d - b.d).slice(-20);
+  const errs = {}; (D.err || []).forEach(e => { const x = errs[e.k + '|' + e.q] = errs[e.k + '|' + e.q] || Object.assign({ cnt:0 }, e); x.cnt++; x.a = e.a; });
+  return { D, cur, prev, days, subj:Object.values(subj).sort((a, b) => b.n - a.n), top:ranked.slice(0, 3), low:ranked.slice(Math.max(3, ranked.length - 3)).reverse(), notes,
+    errs:Object.values(errs).sort((a, b) => b.cnt - a.cnt || b.d - a.d), names };
+}
+function trend(a, b, unit){ if (!b) return ''; const d = a - b; return d === 0 ? ' <span class="small">= Vorwoche</span>' : ` <span class="small" style="color:var(${d > 0 ? '--ok' : '--bad'})">${d > 0 ? '▲' : '▼'} ${Math.abs(d)}${unit || ''}</span>`; }
+function barsSVG(days){
+  const mx = Math.max(10, ...days.map(d => d.s / 60)), W = 14 * 22;
+  return `<svg viewBox="0 0 ${W} 96" class="dbars" role="img" aria-label="Lernminuten der letzten 14 Tage">${days.map((d, i) => { const h = Math.round(68 * (d.s / 60) / mx), x = i * 22 + 3, wd = new Date(d.k + 'T12:00').getDay();
+    return `<rect x="${x}" y="${74 - h}" width="16" height="${Math.max(h, d.n ? 2 : 0)}" rx="3" fill="var(--c)" opacity="${i >= 7 ? 1 : .45}"><title>${new Date(d.k + 'T12:00').toLocaleDateString('de-CH', { weekday:'short', day:'numeric', month:'numeric' })}: ${Math.round(d.s / 60)} Min, ${d.n} Aufgaben</title></rect>
+      <text x="${x + 8}" y="90" text-anchor="middle" font-size="10" fill="currentColor" opacity=".7">${'SMDMDFS'[wd]}</text>`; }).join('')}<line x1="0" y1="74.5" x2="${W}" y2="74.5" stroke="currentColor" opacity=".2"/></svg>`;
+}
+function notesSVG(notes){
+  if (notes.length < 2) return notes.length ? `<p class="small">Bisher ein Probetest: Note ${fmtNote(notes[0].note)} (${esc(notes[0].name)}).</p>` : '<p class="small">Noch keine Probetests.</p>';
+  const W = 300, y = n => 8 + (6 - n) / 5 * 64, x = i => 10 + i * (W - 20) / (notes.length - 1);
+  return `<svg viewBox="0 0 ${W} 84" class="dbars" role="img" aria-label="Notenverlauf">${[6, 5, 4].map(n => `<line x1="0" x2="${W}" y1="${y(n)}" y2="${y(n)}" stroke="currentColor" opacity=".12"/><text x="${W - 2}" y="${y(n) - 2}" text-anchor="end" font-size="9" fill="currentColor" opacity=".6">${n}</text>`).join('')}
+    <polyline fill="none" stroke="var(--c)" stroke-width="2.5" points="${notes.map((t, i) => x(i) + ',' + y(t.note)).join(' ')}"/>
+    ${notes.map((t, i) => `<circle cx="${x(i)}" cy="${y(t.note)}" r="4" fill="${t.note >= 5 ? 'var(--ok)' : t.note >= 4 ? 'var(--c)' : 'var(--bad)'}"><title>${new Date(t.d).toLocaleDateString('de-CH')} · ${esc(t.name)} · Note ${fmtNote(t.note)}</title></circle>`).join('')}</svg>`;
+}
+function weekReport(P, st){
+  const c = st.cur, lines = [`Lernsprung – Wochenbericht für ${P.name}`, `Woche ab ${weekStart(new Date()).toLocaleDateString('de-CH')}`, '',
+    `Lernzeit: ${fmtDur(c.s)} an ${c.days} Tag${c.days === 1 ? '' : 'en'} (Vorwoche: ${fmtDur(st.prev.s)})`, `Aufgaben: ${c.n}, davon ${pct(c.ok, c.n)} % richtig`];
+  const wk = weekStart(new Date()).getTime(), tests = st.notes.filter(t => t.d >= wk);
+  if (tests.length) lines.push('Probetests: ' + tests.map(t => `${t.name} (Note ${fmtNote(t.note)})`).join(', '));
+  if (st.top.length) lines.push('Stark: ' + st.top.map(t => t.name).join(', '));
+  if (st.low.length) lines.push('Noch üben: ' + st.low.map(t => t.name).join(', '));
+  lines.push(`Lernpunkte: ${pointsOf(st.D)} 🏅`);
+  return lines.join('\n');
+}
+function dashboard(id){
+  const P = DB.profiles[id]; if (!P || P.del) { PTAB = 'home'; return parentPanel(); }
+  const st = statsOf(id), c = st.cur, p = st.prev, open = (st.D.red || []).filter(r => r.st === 'offen');
+  const errSubj = {}; st.errs.forEach(e => { const S = subjOf(e.k); if (S) (errSubj[S.id] = errSubj[S.id] || { S, list:[] }).list.push(e); });
+  app.innerHTML = parentTabs() + `<div class="pchead" style="margin:4px 0 12px"><span class="uicon">${P.icon}</span><div><b>${esc(P.name)}</b><span class="small">${P.grade ? P.grade + '. Klasse · ' : ''}🏅 ${pointsOf(st.D)} Lernpunkte</span></div></div>
+    ${open.length ? `<div class="card" style="border-color:var(--c)"><b>🏆 ${open.length} Belohnung${open.length > 1 ? 'en' : ''} gewünscht</b> <button class="btn primary" id="dred" style="margin-left:8px">Ansehen</button></div>` : ''}
+    <h2 class="h2">Diese Woche</h2><div class="card"><div class="kpi kpi4">
+      <div><b>${fmtDur(c.s)}</b>Lernzeit${trend(Math.round(c.s / 60), Math.round(p.s / 60), ' Min')}</div><div><b>${c.days}</b>aktive Tage${trend(c.days, p.days)}</div>
+      <div><b>${c.n}</b>Aufgaben${trend(c.n, p.n)}</div><div><b>${c.n ? pct(c.ok, c.n) + ' %' : '–'}</b>richtig${p.n && c.n ? trend(pct(c.ok, c.n), pct(p.ok, p.n), ' %') : ''}</div></div>
+      ${barsSVG(st.days)}<p class="small" style="margin:0">Lernminuten der letzten 14 Tage (diese Woche kräftig).</p></div>
+    <h2 class="h2">Fächer</h2>${st.subj.length ? `<div class="card"><div class="dtab">${st.subj.map(o => `<div><span>${o.S.icon} ${esc(o.S.name)}</span><span>${o.n} Aufg.</span><span class="dbar"><i style="width:${pct(o.ok, o.n)}%"></i></span><b>${pct(o.ok, o.n)} %</b><span class="small">${o.best ? 'Bestnote ' + fmtNote(o.best) + ' · ' + o.units + ' Thema' + (o.units === 1 ? '' : 'en') + ' ≥ 5' : 'kein Probetest'}</span></div>`).join('')}</div></div>` : '<p class="small">Noch keine Übungen erfasst. Die Auswertung beginnt mit dieser App-Version.</p>'}
+    <h2 class="h2">Notenverlauf</h2><div class="card">${notesSVG(st.notes)}</div>
+    ${st.top.length ? `<h2 class="h2">Stärken und Schwächen</h2><div class="card dsw"><div><b>💪 Stark</b>${st.top.map(t => `<p>${esc(t.name)} <span class="small">${t.p} %</span></p>`).join('')}</div>
+      ${st.low.length ? `<div><b>🔁 Noch üben</b>${st.low.map(t => `<p>${esc(t.name)} <span class="small">${t.p} %</span></p>`).join('')}</div>` : ''}</div><p class="small">Ab 10 Aufgaben pro Thema.</p>` : ''}
+    <h2 class="h2">Häufige Fehler</h2>${st.errs.length ? Object.values(errSubj).map(g => `<div class="card"><b>${g.S.icon} ${esc(g.S.name)}</b>
+      <div class="derr">${g.list.slice(0, 8).map(e => `<div><b>${esc(e.q)}</b>${e.cnt > 1 ? ` <span class="nb">${e.cnt}×</span>` : ''}<span class="small">${e.a ? 'geschrieben: <s>' + esc(e.a) + '</s> · ' : ''}richtig: <b style="color:var(--ok)">${esc(e.c)}</b></span></div>`).join('')}</div>
+      <div class="row" style="justify-content:flex-start"><button class="btn primary" data-elist="${g.S.id}">✨ Daraus Übungsliste machen</button></div></div>`).join('') : '<p class="small">Keine Fehler gespeichert.</p>'}
+    <h2 class="h2">Wochenbericht</h2><div class="card"><pre class="wrep">${esc(weekReport(P, st))}</pre><div class="row" style="justify-content:flex-start"><button class="btn primary" id="dshare">Teilen / kopieren</button></div></div>
+    <div class="row"><button class="btn" data-prof="${id}">⚙️ Einstellungen</button><button class="btn" id="pback">Zurück zur Übersicht</button></div>`;
+  bindTabs();
+  $('#pback').onclick = () => { PTAB = 'home'; parentPanel(); };
+  app.querySelector('[data-prof]').onclick = () => { PTAB = 'prof:' + id; parentPanel(); };
+  if ($('#dred')) $('#dred').onclick = () => { PTAB = 'rew'; parentPanel(); };
+  $('#dshare').onclick = async () => { const t = weekReport(P, st);
+    try { if (navigator.share) await navigator.share({ title:'Wochenbericht ' + P.name, text:t }); else { await navigator.clipboard.writeText(t); toast('Bericht kopiert'); } }
+    catch (e) { try { await navigator.clipboard.writeText(t); toast('Bericht kopiert'); } catch (e2) {} } };
+  app.querySelectorAll('[data-elist]').forEach(b => b.onclick = () => { const g = errSubj[b.dataset.elist], seen = new Set(), items = [];
+    g.list.forEach(e => { const q = e.q.slice(0, 100); if (!q || seen.has(q)) return; seen.add(q); items.push([q, e.c]); });
+    const nid = 'l' + Date.now().toString(36), gr = P.grade || (NAV.n || allGrades()[0]);
+    DB.custom[nid] = { id:nid, t:Date.now(), c:Date.now(), s:g.S.id, g:gr, title:'Fehler üben ' + P.name + ' ' + new Date().toLocaleDateString('de-CH'), kind:'qa', goals:'', by:'eltern', ok:true, items:items.slice(0, 40) };
+    save(); applyCustom(); toast(`Lernliste mit ${Math.min(40, items.length)} Fragen erstellt (${g.S.name}, ${gr}. Klasse, Eigene Lernlisten)`); });
+}
+
+const REWARD_IDEAS = [
+  ['🌙', '30 Min länger aufbleiben (Wochenende)', 40], ['🍝', 'Abendessen aussuchen', 25], ['🎲', 'Spieleabend mit der Familie', 30], ['🎬', 'Filmabend mit Popcorn', 35],
+  ['📚', 'Neues Buch aussuchen (Bibliothek oder Laden)', 30], ['🧁', 'Zusammen backen', 30], ['🚲', 'Velotour zu zweit', 40], ['💬', 'Eine Stunde nur mit Mama oder Papa', 40],
+  ['🎵', 'Musik im Auto bestimmen (eine Woche)', 15], ['🧺', 'Picknick', 35], ['🛏️', 'Freundin oder Freund übernachtet', 80], ['🦁', 'Ausflug (Zoo, Badi, Kletterhalle)', 120]];
+const liveRewards = () => Object.values(DB.rewards || {}).filter(r => r && !r.del).sort((a, b) => a.cost - b.cost);
+function rewardsPage(){
+  DB.rewards = DB.rewards || {};
+  const kids = liveProfiles(), R = liveRewards(), have = new Set(R.map(r => r.name));
+  const reqs = kids.flatMap(K => (profPD(K.id).red || []).map(r => Object.assign({ K }, r))).sort((a, b) => b.d - a.d);
+  const open = reqs.filter(r => r.st === 'offen'), done = reqs.filter(r => r.st !== 'offen').slice(0, 10);
+  app.innerHTML = parentTabs() + `<p class="lead">Lernpunkte 🏅 gibt es für gute Leistung: Übung mit Note 5,5 oder 6 = 1 Punkt, Probetest 5,5 = 2, Probetest 6 = 3, und 1 Punkt für 10 Minuten Lernen am Tag. Dafür kann sich das Kind Belohnungen wünschen, ihr entscheidet.</p>
+    ${open.length ? `<h2 class="h2">Wünsche</h2>${open.map(r => `<div class="card pcard"><div class="pchead"><span class="uicon">${r.icon || '🏆'}</span><div><b>${esc(r.name)}</b><span class="small">${r.K.icon} ${esc(r.K.name)} · ${r.cost} 🏅 · ${new Date(r.d).toLocaleDateString('de-CH')}</span></div></div>
+      <div class="row" style="justify-content:flex-start"><button class="btn good" data-rok="${r.K.id}|${r.id}">Ja, einlösen</button><button class="btn" data-rno="${r.K.id}|${r.id}">Nein (Punkte zurück)</button></div></div>`).join('')}` : ''}
+    <h2 class="h2">Punkte</h2><div class="card"><div class="dtab">${kids.map(K => `<div><span>${K.icon} ${esc(K.name)}</span><b>${pointsOf(profPD(K.id))} 🏅</b><span></span><span></span><span class="small">diese Woche +${Object.entries(profPD(K.id).pt || {}).filter(([d]) => d >= dayStr(weekStart(new Date()))).reduce((a, [, v]) => a + v, 0)}</span></div>`).join('')}</div></div>
+    <h2 class="h2">Eure Belohnungen</h2>${R.length ? `<div class="card"><div class="rlist">${R.map(r => `<div><span>${r.icon}</span><span>${esc(r.name)}</span><b>${r.cost} 🏅</b><button class="btn sm" data-rdel="${r.id}" aria-label="Entfernen">✕</button></div>`).join('')}</div></div>` : '<p class="small">Noch keine Belohnungen. Wähle unten Vorschläge aus oder lege eigene an.</p>'}
+    <div class="card" id="radd"><b>Eigene Belohnung</b>
+      <input id="rname" class="inp fld" maxlength="50" placeholder="z.B. Ausflug in den Seilpark" aria-label="Belohnung">
+      <div class="inrow" style="margin-top:8px;flex-wrap:wrap"><label class="small">Bild <input id="ricon" class="inp" style="width:3.4em;text-align:center" maxlength="2" value="🎁"></label><label class="small">Punkte <input id="rcost" class="inp" type="number" inputmode="numeric" min="1" max="999" value="30" style="width:5em"></label><button class="btn primary" id="raddok">Hinzufügen</button></div></div>
+    <h2 class="h2">Vorschläge</h2><p class="small">Gemeinsame Zeit und Erlebnisse statt Süssigkeiten oder Geld: Das stärkt die Freude am Lernen, nicht nur am Preis. Punkte sind ein Vorschlag, ihr könnt sie anpassen. Bei rund 3 bis 6 Punkten pro guten Lerntag reichen sie für etwa 1 bis 2 kleine Belohnungen pro Woche.</p>
+    <div class="card"><div class="rlist">${REWARD_IDEAS.filter(x => !have.has(x[1])).map((x, i) => `<div><span>${x[0]}</span><span>${esc(x[1])}</span><b>${x[2]} 🏅</b><button class="btn sm" data-ridea="${REWARD_IDEAS.indexOf(x)}">+</button></div>`).join('') || '<p class="small">Alle Vorschläge übernommen.</p>'}</div></div>
+    ${done.length ? `<h2 class="h2">Erledigt</h2><div class="hist">${done.map(r => `<div><span>${new Date(r.d).toLocaleDateString('de-CH')}</span><span class="hn">${r.K.icon} ${esc(r.name)}</span><b>${r.st === 'ok' ? '✅' : '✕'} ${r.cost} 🏅</b></div>`).join('')}</div>` : ''}
+    <div class="row"><button class="btn" id="pdone">Zur Lern-App</button></div>`;
+  bindTabs(); $('#pdone').onclick = showHome;
+  const add = (icon, name, cost) => { const id = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); DB.rewards[id] = { id, icon, name, cost, t:Date.now() }; save(); };
+  app.querySelectorAll('[data-ridea]').forEach(b => b.onclick = () => { const x = REWARD_IDEAS[+b.dataset.ridea]; add(x[0], x[1], x[2]); toast('Hinzugefügt: ' + x[1]); parentPanel(); });
+  $('#raddok').onclick = () => { const n = $('#rname').value.trim(), c = Math.max(1, Math.min(999, Math.round(+$('#rcost').value || 0))); if (!n) return toast('Bitte einen Namen eingeben.'); add($('#ricon').value.trim() || '🎁', n, c); toast('Belohnung gespeichert'); parentPanel(); };
+  app.querySelectorAll('[data-rdel]').forEach(b => b.onclick = () => { DB.rewards[b.dataset.rdel] = { id:b.dataset.rdel, del:true, t:Date.now() }; save(); parentPanel(); });
+  const decide = (v, st) => { const [kid, rid] = v.split('|'), D = profPD(kid), r = (D.red || []).find(x => x.id === rid); if (!r) return; r.st = st; r.t = Date.now(); save(); toast(st === 'ok' ? 'Viel Spass! 🎉' : 'Abgelehnt, Punkte zurückgegeben'); parentPanel(); };
+  app.querySelectorAll('[data-rok]').forEach(b => b.onclick = () => decide(b.dataset.rok, 'ok'));
+  app.querySelectorAll('[data-rno]').forEach(b => b.onclick = () => decide(b.dataset.rno, 'nein'));
+}
+function showRewards(){
+  stop(); NAV.n = NAV.s = NAV.g = NAV.b = NAV.u = null; setColor(); crumbs();
+  const pts = pointsOf(DB), R = liveRewards(), mine = (DB.red || []).slice().sort((a, b) => b.d - a.d).slice(0, 8);
+  app.innerHTML = `<h1 class="h1">🏆 Belohnungen</h1><p class="lead">Du hast <b>${pts} 🏅 Lernpunkte</b>. Punkte gibt es für Note 5,5 und 6 und wenn du 10 Minuten am Tag lernst.</p>
+    ${R.length ? `<div class="menu">${R.map(r => `<button class="mitem rew ${pts < r.cost ? 'off' : ''}" data-r="${r.id}"><span class="mi">${r.icon}</span><span><b>${esc(r.name)}</b><small>${r.cost} 🏅${pts < r.cost ? ' · noch ' + (r.cost - pts) + ' Punkte' : ' · wünschen'}</small><span class="dbar"><i style="width:${Math.min(100, pct(Math.max(0, pts), r.cost))}%"></i></span></span></button>`).join('')}</div>`
+      : '<div class="card"><p style="margin:0">Deine Eltern haben noch keine Belohnungen festgelegt. Frag sie doch mal! 😊</p></div>'}
+    ${mine.length ? `<h2 class="h2">Deine Wünsche</h2><div class="hist">${mine.map(r => `<div><span>${r.icon || '🏆'}</span><span class="hn">${esc(r.name)}</span><b>${r.st === 'offen' ? '⏳ wartet' : r.st === 'ok' ? '✅ ja' : '✕ nein'}</b></div>`).join('')}</div>` : ''}
+    <div class="row"><button class="btn" id="rhome">Zurück</button></div>`;
+  $('#rhome').onclick = showHome;
+  app.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { const r = DB.rewards[b.dataset.r]; if (!r) return;
+    if (pointsOf(DB) < r.cost) return toast(`Dir fehlen noch ${r.cost - pointsOf(DB)} Punkte.`);
+    const card = b; card.outerHTML = `<div class="card" id="rconf"><b>${r.icon} ${esc(r.name)} für ${r.cost} 🏅 wünschen?</b><p class="small">Deine Eltern bekommen den Wunsch und entscheiden.</p><div class="row" style="justify-content:flex-start"><button class="btn good" id="ryes">Ja, wünschen</button><button class="btn" id="rno">Abbrechen</button></div></div>`;
+    $('#rno').onclick = showRewards;
+    $('#ryes').onclick = () => { DB.red = (DB.red || []).concat({ id:'w' + Date.now().toString(36), rid:r.id, name:r.name, icon:r.icon, cost:r.cost, d:Date.now(), st:'offen', t:Date.now() }); save(); toast('Wunsch geschickt! 🎉'); showRewards(); }; });
 }
 
 function syncInfo(){
@@ -3353,19 +3584,20 @@ function familyBox(){
 function openMenu(){
   const P = activeProfile(), many = liveProfiles().length > 1, d = document.getElementById('drawer');
   const it = (k, i, l, sub) => `<button class="ditem" data-m="${k}"><span>${i}</span><span><b>${l}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
-  d.innerHTML = `<div class="dhead"><span class="uicon">${P.icon}</span><div><b>${esc(P.name)}</b><small>⭐ ${DB.stars} · 🎮 ${fmtRest()} Min übrig</small></div><button class="btn dclose" data-m="close" aria-label="Menü schliessen">✕</button></div>
+  d.innerHTML = `<div class="dhead"><span class="uicon">${P.icon}</span><div><b>${esc(P.name)}</b><small>⭐ ${DB.stars} · 🏅 ${pointsOf(DB)} · 🎮 ${fmtRest()} Min</small></div><button class="btn dclose" data-m="close" aria-label="Menü schliessen">✕</button></div>
     ${it('home', '🏠', 'Start', 'Klasse und Fach wählen')}
     ${NAV.s && NAV.g ? it('units', NAV.s.icon, NAV.s.name, NAV.g.grade + '. Klasse: alle Themen') : ''}
     ${many ? it('prof', '👤', 'Profil wechseln', liveProfiles().map(x => x.icon).join(' ')) : ''}
     ${it('game', '🎮', 'Känguru-Spiel', fmtRest() + ' Minuten übrig')}
+    ${it('rew', '🏆', 'Belohnungen', pointsOf(DB) + ' Lernpunkte 🏅')}
     ${kidListsOn() ? it('list', '✨', 'Lernliste erstellen', 'Eigene Wörter oder Fragen') : ''}
-    <hr>${it('parents', '👪', 'Eltern-Bereich', DEV.parent ? 'Dieses Gerät ist ein Eltern-Gerät' : 'Mit Eltern-PIN')}
+    <hr>${it('parents', '👪', 'Elternprofil', DEV.parent ? 'Dieses Gerät ist ein Eltern-Gerät' : 'Mit Eltern-PIN')}
     <p class="small dver">Lernsprung · Version ${APP_VERSION}</p>`;
   d.hidden = false; document.getElementById('drawerbg').hidden = false; document.body.classList.add('menuopen');
   document.getElementById('menuBtn').setAttribute('aria-expanded', 'true');
   d.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { const m = b.dataset.m; closeMenu();
     if (m === 'home') showHome(); else if (m === 'units') showUnits(); else if (m === 'prof') showProfiles(); else if (m === 'game') showGame();
-    else if (m === 'list') startKidList(); else if (m === 'parents') showParents(); });
+    else if (m === 'list') startKidList(); else if (m === 'rew') showRewards(); else if (m === 'parents') showParents(); });
   const f = d.querySelector('.ditem'); if (f) f.focus();
 }
 function closeMenu(){ const d = document.getElementById('drawer'); d.hidden = true; document.getElementById('drawerbg').hidden = true; document.body.classList.remove('menuopen'); document.getElementById('menuBtn').setAttribute('aria-expanded', 'false'); }
@@ -3380,7 +3612,7 @@ updateStars(); updatePlay();
 /* Zurück-Taste (Android, Browser): eine Ebene zurück statt App schliessen */
 const SCREENS = { showHome:'home', showSubjects:'subjects', showUnits:'units', showUnit:'unit', showLearn:'learn', showLearnGen:'learnGen',
   flash:'sub', wordList:'sub', abcBoard:'sub', showGrammar:'sub', showPractice:'practice', showCustomTest:'testIntro', showTestIntro:'testIntro',
-  run:'run', showProfiles:'sub0', showBlitz:'lgame', showMemory:'lgame', showSort:'lgame', showClock:'lgame', showMap:'lgame', showGame:'game', showParents:'parents' };
+  run:'run', showProfiles:'sub0', showBlitz:'lgame', showMemory:'lgame', showSort:'lgame', showClock:'lgame', showMap:'lgame', showGame:'game', showParents:'parents', showRewards:'sub0' };
 let CUR = 'home', RET = null, ARMED = false, SKIP = false, BACKWARN = 0;
 const hist = (fn, ...a) => { try { history[fn](...a); } catch (e) {} };
 Object.entries(SCREENS).forEach(([n, id]) => {
@@ -3420,7 +3652,7 @@ window.addEventListener('popstate', () => {
 if (DEV.parent) showParents(); else showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-9';
+const APP_VERSION = '2026-11-06-10';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {

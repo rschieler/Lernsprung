@@ -83,7 +83,7 @@ setTimeout(() => { try {
   if (w.eval('DB.stars') !== s1 || w.eval('JSON.stringify(DB.known)') !== k1) throw new Error('Lernstand von Profil 1 verändert');
   w.eval("PTAB = 'home'; parentPanel()"); d.querySelector('#pfadd').click(); d.querySelector('#pfname').value = 'Noah'; d.querySelector('#pfsave').click();
   if (w.eval('liveProfiles().length') !== 3 || w.eval('ACTIVE') !== 'p1') throw new Error('Neues Profil falsch angelegt');
-  w.eval("showProfiles()"); if (d.querySelectorAll('.mitem').length !== 3) throw new Error('Profilwahl zeigt nicht alle Profile');
+  w.eval("showProfiles()"); if (d.querySelectorAll('.mitem:not([data-k="__par"])').length !== 3 || !d.querySelector('[data-k="__par"]')) throw new Error('Profilwahl zeigt nicht alle Profile');
   const tid = w.eval("liveProfiles().find(p => p.test).id"); w.eval(`PTAB = 'prof:${tid}'; parentPanel()`); d.querySelector('#pfdel').click(); d.querySelector('#pfdel2').click();
   if (w.eval('liveProfiles().length') !== 2 || w.eval(`!!DB.pd['${tid}']`)) throw new Error('Profil nicht gelöscht');
   console.log('OK: Profile (Testprofil, Geschwister, alte App-Version)');
@@ -173,5 +173,44 @@ setTimeout(() => { try {
     return JSON.stringify(o); })()`);
   if (em !== JSON.stringify([6, 5.5, 4.5, 2.5, 0, 0, 4, 3, 0, 0, 12, 'repeat', true, false])) throw new Error('Spielminuten-Regeln falsch: ' + em);
   console.log('OK: Spielminuten nach Note');
+  // Auswertung: Erfassen, Fehler, Lernpunkte, Zusammenführen
+  w.eval("NAV.s = CATALOG[0]; NAV.g = NAV.s.grades[0]; NAV.b = NAV.g.books[0]; NAV.u = NAV.b.units[1]; NAV.n = NAV.g.grade; DB.log = {}; DB.err = []; DB.pt = {}; DB.red = []");
+  w.eval("track(true, 4000); track(false, 5000, { q:'<b>dog</b>', a:'dgo', c:'Hund' }); track(false, 3000, { q:'cat', a:'kat', c:'Katze' }); addPoints(50)");
+  const lg = w.eval('JSON.stringify([DB.log[today()].n, DB.log[today()].ok, DB.log[today()].s, DB.err.length, DB.err[0].q, pointsOf(DB)])');
+  if (lg !== JSON.stringify([3, 1, 12, 2, 'dog', 50])) throw new Error('Erfassung falsch: ' + lg);
+  const mg = w.eval(`(() => { const a = toCanon(DB), b = JSON.parse(JSON.stringify(a)); b.log[today()].n = 9; b.err.push({ d:Date.now() + 5, k:'x', q:'q', a:'a', c:'c' }); b.pt[today()] = 70;
+    const m = mergeDB(a, b, true); return JSON.stringify([m.log[today()].n, m.err.length, m.pt[today()]]); })()`);
+  if (mg !== '[9,3,70]') throw new Error('Auswertung wird falsch zusammengeführt: ' + mg);
+  // Dashboard mit Fehler-Liste und Wochenbericht
+  w.eval("PARENT_OK = true; PTAB = 'dash:' + ACTIVE; parentPanel()"); if (!d.querySelector('.dbars') || !d.querySelector('.wrep')) throw new Error('Dashboard fehlt');
+  const ncl = w.eval('Object.keys(DB.custom).length'); d.querySelector('[data-elist]').click();
+  const nlist = w.eval('Object.values(DB.custom).filter(L => !L.del && L.title.startsWith("Fehler üben"))');
+  if (w.eval('Object.keys(DB.custom).length') !== ncl + 1 || !nlist.length || nlist[0].items.length !== 2) throw new Error('Fehler-Übungsliste nicht erstellt');
+  console.log('OK: Auswertung und Dashboard');
+  // Belohnungen: Eltern legen fest, Kind wünscht, Eltern geben frei
+  w.eval("PTAB = 'rew'; parentPanel()"); d.querySelector('[data-ridea="1"]').click(); if (w.eval('liveRewards().length') !== 1) throw new Error('Belohnung nicht angelegt');
+  w.eval('showRewards()'); d.querySelector('.mitem.rew').click(); d.querySelector('#ryes').click();
+  if (w.eval('pointsOf(DB)') !== 25 || w.eval('DB.red[0].st') !== 'offen') throw new Error('Wunsch nicht gespeichert');
+  w.eval("PARENT_OK = true; PTAB = 'rew'; parentPanel()"); d.querySelector('[data-rno]').click();
+  if (w.eval('pointsOf(DB)') !== 50 || w.eval('DB.red[0].st') !== 'nein') throw new Error('Ablehnen gibt Punkte nicht zurück');
+  w.eval('showRewards()'); d.querySelector('.mitem.rew').click(); d.querySelector('#ryes').click(); w.eval("PTAB = 'rew'; parentPanel()"); d.querySelector('[data-rok]').click();
+  if (w.eval('pointsOf(DB)') !== 25) throw new Error('Einlösen zieht Punkte nicht ab');
+  console.log('OK: Belohnungen');
+  // Elternprofile: Admin legt Mama an, Mama setzt eigenen PIN, Profil-PIN mit Mamas PIN
+  w.eval("PARENT_OK = true; PARENT_WHO = liveParents()[0].id; PTAB = 'parents'; parentPanel()");
+  if (!d.querySelector('#paddok')) throw new Error('Admin sieht Elternverwaltung nicht');
+  d.querySelector('#pnm').value = 'Mama'; d.querySelector('#ppn').value = '5555'; d.querySelector('#paddok').click();
+  if (w.eval('liveParents().length') !== 2) throw new Error('Elternprofil nicht angelegt');
+  w.eval("PARENT_OK = false; PARENT_WHO = null; showParents()"); d.querySelector('#p1').value = '5555'; d.querySelector('#pf').dispatchEvent(new w.Event('submit', { cancelable: true }));
+  if (!d.querySelector('#p2')) throw new Error('Mama muss eigenen PIN festlegen');
+  d.querySelector('#p1').value = '1234'; d.querySelector('#p2').value = '1234'; d.querySelector('#pf').dispatchEvent(new w.Event('submit', { cancelable: true }));
+  if (!d.querySelector('#p2')) throw new Error('Doppelter PIN wurde angenommen');
+  d.querySelector('#p1').value = '7777'; d.querySelector('#p2').value = '7777'; d.querySelector('#pf').dispatchEvent(new w.Event('submit', { cancelable: true }));
+  if (w.eval('curParent().name') !== 'Mama' || w.eval('curParent().tmp') || !d.querySelector('.pcard')) throw new Error('Mama-Login falsch');
+  if (d.querySelector('[data-tab="parents"]')) throw new Error('Nicht-Admin sieht Elternverwaltung');
+  if (!w.eval("anyParentPin('7777') && anyParentPin('1234') && !anyParentPin('5555')")) throw new Error('Eltern-PINs falsch');
+  if (w.eval('DB.settings.pin') !== '1234') throw new Error('Admin-PIN für alte Versionen fehlt');
+  console.log('OK: Elternprofile');
+  if (errs.length) throw new Error('JS-Fehler: ' + errs.slice(0, 3).join(' | '));
   console.log('OK: alles durchgeklickt'); process.exit(0);
 } catch (e) { console.log('FEHLER:', e.message); process.exit(1); } }, 300);
