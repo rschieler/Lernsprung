@@ -31,10 +31,15 @@ Alles steckt in **einer Datei: `index.html`** (HTML, CSS, JS, keine Build-Schrit
 - Spielminuten nur nach Note (`noteOf`, Tabellen `MIN_PRACTICE` und `MIN_TEST`, `earnNote`). Lernkarten geben keine Minuten, «Fehler üben» 1 Min wenn alles korrigiert, unter 2 s Denkzeit pro Aufgabe (`tooFast`) 0 Min, Verbesserung im Probetest +2 Min. Jede Übung zählt höchstens zweimal pro Tag.
 - Spielminuten-Technik: `earn()`, `playState()`, Spiel `showGame()`, Eltern-Bereich `showParents()` (PIN, Tagesmaximum Standard 30 Min, änderbar).
 
+## Profile
+- Mehrere Profile pro Familie (Geschwister, Testprofil `test:true` für Eltern). Pro Profil: `known`, `tests`, `stars`, `play`, `best`, `games`, `reset` (Liste `PF`). Gemeinsam: `settings`, `custom`, `profiles`.
+- Gespeichert wird **kanonisch** (`toCanon`): oben der Lernstand von Profil `p1` (kompatibel mit älteren App-Versionen), weitere Profile in `pd`. Im Speicher steht oben das aktive Profil (`fromCanon`, `ACTIVE`, pro Gerät in localStorage `lernsprung-profil`). `mergeDB` = `mergeCore` für p1 plus pro Profil in `pd`. Fehlt `pd` in der Cloud (altes Gerät), lädt ein neues Gerät es wieder hoch.
+- Oberfläche: Profil-Knopf in der Kopfzeile (`profBtn`, nur bei mehreren Profilen), «Wer lernt?» (`showProfiles`), Verwaltung im Eltern-Bereich (`profilesPanelHTML`, `showProfileEditor`). Zurücksetzen betrifft nur das aktive Profil.
+
 ## Synchronisation
 - Auf GitHub Pages: **Firebase Firestore**, Dokument `families/{Familien-Code}` (Projekt `lernsprung-ea1d2`, Anonym-Login). Der Code steckt im Link `?f=…` und im localStorage.
 - Als claude.ai-Artefakt: Artifact-Capability `db`, Dokument `lernstand/familie`.
-- Gespeicherte Felder: `known`, `tests`, `stars`, `play`, `settings`, `best`, `games`, `custom` (eigene Lernlisten, pro Liste gewinnt die neuere `t`, gelöscht = `del:true`; in Firestore als Objekte `{a,b,w}` über `customToCloud`/`customFromCloud`, weil Firestore keine Listen in Listen erlaubt), `reset` (Zeitstempel des letzten Zurücksetzens; Geräte mit älterem Stand verwerfen ihren Lernstand beim Zusammenführen). Neue Felder in `mergeDB`, `snapshotOf`, `remoteOf` und `pushCloud` ergänzen.
+- Gespeicherte Felder: `profiles`, `pd`, `known`, `tests`, `stars`, `play`, `settings`, `best`, `games`, `custom` (eigene Lernlisten, pro Liste gewinnt die neuere `t`, gelöscht = `del:true`; in Firestore als Objekte `{a,b,w}` über `customToCloud`/`customFromCloud`, weil Firestore keine Listen in Listen erlaubt), `reset` (Zeitstempel des letzten Zurücksetzens; Geräte mit älterem Stand verwerfen ihren Lernstand beim Zusammenführen). Neue Felder in `mergeDB`, `snapshotOf`, `remoteOf` und `pushCloud` ergänzen.
 
 ## Vor jedem Push testen
 ```

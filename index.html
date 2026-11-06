@@ -256,6 +256,12 @@ mark{background:#ffe27a;color:#1b2238;border-radius:6px;padding:0 4px}
 .spin{display:inline-block;width:18px;height:18px;border:3px solid var(--line);border-top-color:var(--c);border-radius:50%;animation:spin 1s linear infinite;vertical-align:-4px;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
 label.btn{display:inline-flex;align-items:center;cursor:pointer}
+
+.profchip{border:none;border-radius:999px;padding:6px 12px;font:inherit;font-weight:800;background:#fff;color:var(--ink);box-shadow:0 0 0 1.5px var(--line) inset;cursor:pointer;white-space:nowrap;max-width:9rem;overflow:hidden;text-overflow:ellipsis}
+.picon{font-size:1.4rem;padding:6px 10px;min-width:48px}
+.mitem.mine{box-shadow:0 0 0 2.5px var(--c) inset}
+
+@media(max-width:560px){.hasprof .brand .bt{display:none}.hasprof .profchip{max-width:7rem}}
 </style>
 </head>
 <body>
@@ -263,6 +269,7 @@ label.btn{display:inline-flex;align-items:center;cursor:pointer}
   <button class="brand" id="homeBtn" aria-label="Zur Klassenauswahl">🦘 <span class="bt">Lernsprung</span></button>
   <nav class="crumbs" id="crumbs" aria-label="Pfad"></nav>
   <span class="sync" id="sync" hidden></span>
+  <button class="profchip" id="profBtn" aria-label="Profil wechseln" hidden></button>
   <button class="playchip" id="playBtn" aria-label="Spielminuten">🎮 0 Min</button>
   <span class="stars" id="stars" aria-label="Gesammelte Sterne">⭐ 0</span>
 </header>
@@ -1744,10 +1751,29 @@ CATALOG.forEach(s => s.grades.forEach(g => g.books.forEach(b => b.units.forEach(
 }))));
 
 const STORE = 'lernheft-v1';
-let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0, reset:0, games:{}, custom:{} };
+/* Profile: Gespeichert (localStorage, Cloud) wird «kanonisch»: oben der Lernstand von Profil p1 (wie in älteren Versionen),
+   in pd die weiteren Profile. Im Speicher steht oben immer das aktive Profil dieses Geräts. */
+const PF = ['known','tests','stars','play','best','games','reset'];
+const ACTIVE_STORE = 'lernsprung-profil';
+let ACTIVE = (() => { try { return localStorage.getItem(ACTIVE_STORE) || 'p1'; } catch (e) { return 'p1'; } })();
+const pickPF = d => { const o = {}; PF.forEach(k => { o[k] = d[k]; }); return o; };
+const emptyPF = () => ({ known:{}, tests:{}, stars:0, play:null, best:0, games:{}, reset:0 });
+const DEF_PROFILES = () => ({ p1:{ id:'p1', name:'Kind 1', icon:'🦘', t:0 } });
+function toCanon(d){ const c = Object.assign({}, d, { pd:Object.assign({}, d.pd || {}) });
+  if (ACTIVE !== 'p1') { const act = pickPF(d); Object.assign(c, Object.assign(emptyPF(), c.pd.p1 || {})); c.pd[ACTIVE] = act; }
+  delete c.pd.p1; return c; }
+function fromCanon(c){ const d = Object.assign({}, c, { pd:Object.assign({}, c.pd || {}) });
+  if (!d.profiles || !d.profiles.p1) d.profiles = Object.assign(DEF_PROFILES(), d.profiles || {});
+  if (ACTIVE !== 'p1' && (!d.profiles[ACTIVE] || d.profiles[ACTIVE].del)) { ACTIVE = 'p1'; try { localStorage.setItem(ACTIVE_STORE, 'p1'); } catch (e) {} }
+  if (ACTIVE !== 'p1') { d.pd.p1 = pickPF(c); Object.assign(d, Object.assign(emptyPF(), d.pd[ACTIVE] || {})); delete d.pd[ACTIVE]; }
+  return d; }
+const liveProfiles = () => Object.values(DB.profiles || {}).filter(x => !x.del).sort((a, b) => (a.id === 'p1' ? -1 : b.id === 'p1' ? 1 : (a.c || 0) - (b.c || 0)));
+const activeProfile = () => (DB.profiles || {})[ACTIVE] || DEF_PROFILES().p1;
+let DB = { known:{}, tests:{}, stars:0, play:null, settings:{ max:30, pin:'' }, best:0, reset:0, games:{}, custom:{}, profiles:DEF_PROFILES(), pd:{} };
 try { const r = localStorage.getItem(STORE); if (r) DB = Object.assign(DB, JSON.parse(r)); } catch (e) {}
+DB = fromCanon(DB);
 applyCustom();
-function save(){ try { localStorage.setItem(STORE, JSON.stringify(DB)); } catch (e) {} scheduleCloud(); }
+function save(){ try { localStorage.setItem(STORE, JSON.stringify(toCanon(DB))); } catch (e) {} scheduleCloud(); updateProfileChip(); }
 
 /* ---- Online-Sync: nur aktiv im claude.ai-Link, die HTML-Datei speichert lokal ---- */
 let CLOUD = null, cloudBusy = false, cloudDirty = false, cloudTimer = null, VIEW = null;
@@ -1760,6 +1786,15 @@ function setSync(state, err){
   el.title = state === 'off' ? 'Online-Speicherung im Moment nicht möglich. Der Lernstand bleibt auf diesem Gerät.' : 'Lernstand wird online gespeichert';
 }
 function mergeDB(local, remote, remoteWins){
+  const out = mergeCore(local, remote, remoteWins);
+  const lpf = local.profiles || {}, rpf = remote.profiles || {}; out.profiles = DEF_PROFILES();
+  new Set([...Object.keys(lpf), ...Object.keys(rpf)]).forEach(k => { const a = lpf[k], b = rpf[k]; out.profiles[k] = !a ? b : !b ? a : ((b.t || 0) > (a.t || 0) ? b : a); });
+  const lpd = local.pd || {}, rpd = remote.pd || {}; out.pd = {};
+  new Set([...Object.keys(lpd), ...Object.keys(rpd)]).forEach(k => { if (k === 'p1' || (out.profiles[k] && out.profiles[k].del)) return;
+    out.pd[k] = pickPF(mergeCore(Object.assign(emptyPF(), lpd[k] || {}), Object.assign(emptyPF(), rpd[k] || {}), remoteWins)); });
+  return out;
+}
+function mergeCore(local, remote, remoteWins){
   // Zurücksetzen: Wer einen älteren Stand als das letzte Zurücksetzen hat, verliert seinen Lernstand (Einstellungen bleiben)
   const R = Math.max(local.reset || 0, remote.reset || 0), blank = d => ({ known:{}, tests:{}, stars:0, best:0, play:null, games:{}, settings:d.settings, custom:d.custom, reset:R });
   if ((local.reset || 0) < R) local = blank(local);
@@ -1789,9 +1824,9 @@ function mergeDB(local, remote, remoteWins){
 // Firestore erlaubt keine Listen in Listen: Einträge der eigenen Lernlisten als Objekte speichern
 const customToCloud = c => Object.fromEntries(Object.entries(c || {}).map(([k, L]) => [k, L && L.items ? Object.assign({}, L, { items:L.items.map(x => Array.isArray(x) ? { a:x[0], b:x[1], w:x.slice(2) } : x) }) : L]));
 const customFromCloud = c => Object.fromEntries(Object.entries(c || {}).map(([k, L]) => [k, L && L.items ? Object.assign({}, L, { items:L.items.map(x => Array.isArray(x) ? x : [x.a, x.b, ...(x.w || [])]) }) : L]));
-const cloudPayload = () => ({ known:DB.known, tests:DB.tests, stars:DB.stars, play:DB.play || null, settings:DB.settings || null, best:DB.best || 0, reset:DB.reset || 0, games:DB.games || {}, custom:customToCloud(DB.custom), updated:Date.now() });
-const snapshotOf = d => JSON.stringify({ known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0, reset:d.reset || 0, games:d.games || {}, custom:d.custom || {} });
-const remoteOf = r => ({ known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0, games:r.games || {}, custom:customFromCloud(r.custom) });
+const cloudPayload = () => { const c = toCanon(DB); return { known:c.known, tests:c.tests, stars:c.stars || 0, play:c.play || null, settings:c.settings || null, best:c.best || 0, reset:c.reset || 0, games:c.games || {}, custom:customToCloud(c.custom), profiles:c.profiles || DEF_PROFILES(), pd:c.pd || {}, updated:Date.now() }; };
+const snapshotOf = d => JSON.stringify({ profiles:d.profiles || {}, pd:d.pd || {}, known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0, reset:d.reset || 0, games:d.games || {}, custom:d.custom || {} });
+const remoteOf = r => ({ profiles:r.profiles || {}, pd:r.pd || {}, known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0, games:r.games || {}, custom:customFromCloud(r.custom) });
 function scheduleCloud(){ if (!CLOUD) return; cloudDirty = true; clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 1500); }
 async function pushCloud(){
   if (!CLOUD || cloudBusy || !cloudDirty) return;
@@ -1843,19 +1878,21 @@ async function firebaseRef(code){
   if (!ref) return;
   let first = true; setSync('saving');
   ref.onSnapshot(snap => {
-    const before = snapshotOf(DB);
+    const before = snapshotOf(toCanon(DB));
     if (snap.exists) {
       const r = snap.data() || {};
-      DB = mergeDB(DB, remoteOf(r), true); applyCustom();
-      try { localStorage.setItem(STORE, JSON.stringify(DB)); } catch (e) {}
-      updateStars(); updatePlay();
+      DB = fromCanon(mergeDB(toCanon(DB), remoteOf(r), true)); applyCustom();
+      try { localStorage.setItem(STORE, JSON.stringify(toCanon(DB))); } catch (e) {}
+      updateStars(); updatePlay(); updateProfileChip();
+      // Ein Gerät mit älterer App-Version kennt keine Profile: fehlende Teile wieder hochladen
+      if (!first && !snap.metadata.hasPendingWrites && snapshotOf(toCanon(DB)) !== snapshotOf(remoteOf(r))) scheduleCloud();
     }
     if (first) {
       first = false; CLOUD = ref; setSync('ok');
       const r = snap.exists ? snap.data() || {} : null;
-      if (!r || snapshotOf(DB) !== snapshotOf(remoteOf(r))) scheduleCloud();
+      if (!r || snapshotOf(toCanon(DB)) !== snapshotOf(remoteOf(r))) scheduleCloud();
     }
-    if (VIEW && !snap.metadata.hasPendingWrites && snapshotOf(DB) !== before) VIEW();
+    if (VIEW && !snap.metadata.hasPendingWrites && snapshotOf(toCanon(DB)) !== before) VIEW();
   }, e => { CLOUD = null; setSync('off', (e && (e.code || e.message)) || 'Verbindung fehlgeschlagen'); });
 })();
 
@@ -1920,9 +1957,12 @@ const gradeOf = (s,n) => s.grades.find(g => g.grade === n && g.books.length);
 
 function showHome(){
   stop(); NAV.n = NAV.s = NAV.g = NAV.b = NAV.u = null; setColor(); crumbs();
-  app.innerHTML = `<h1 class="h1">In welche Klasse gehst du?</h1><p class="lead">Wähle deine Klasse.</p>
+  const P = activeProfile(), many = liveProfiles().length > 1;
+  app.innerHTML = `<h1 class="h1">${many ? 'Hallo ' + esc(P.name) + '! ' : ''}In welche Klasse gehst du?</h1><p class="lead">Wähle deine Klasse.${many ? ` <button class="btn" id="hprof" style="padding:4px 12px;margin-left:6px">${P.icon} Profil wechseln</button>` : ''}</p>
   <div class="menu">${allGrades().map(n => mbtn(n, n + '.', n + '. Klasse', CATALOG.filter(s => gradeOf(s,n)).map(s => s.name).join(', '))).join('')}</div>`;
   app.querySelectorAll('.mitem').forEach(b => b.onclick = () => { NAV.n = +b.dataset.k; showSubjects(); });
+  if ($('#hprof')) $('#hprof').onclick = showProfiles;
+  if (P.grade) { const m = app.querySelector(`.mitem[data-k="${P.grade}"]`); if (m) m.classList.add('mine'); }
 }
 
 function showSubjects(){
@@ -2431,6 +2471,69 @@ function showAiImport(){
   $('#pman').onclick = () => { const x = sel(); showListEditor(null, { s:x.sid, g:x.g, kind:'', title:'', items:[] }); };
   $('#pback').onclick = listBack;
 }
+/* =====================================================================
+   PROFILE: mehrere Kinder pro Familie, Testprofil für Eltern
+   Pro Profil: Lernstand, Noten, Sterne, Spielminuten, Rekorde. Gemeinsam: PIN, Tagesmaximum, eigene Lernlisten.
+   Welches Profil aktiv ist, merkt sich jedes Gerät selbst (localStorage).
+   ===================================================================== */
+const PROFILE_ICONS = ['🦘','🦊','🐼','🦄','🐯','🐸','🐙','🦁','🐢','🐬','🧪'];
+function updateProfileChip(){
+  const b = document.getElementById('profBtn'); if (!b) return; const many = liveProfiles().length > 1, P = activeProfile();
+  b.hidden = !many; if (many) b.textContent = P.icon + ' ' + P.name;
+  document.body.classList.toggle('hasprof', many);
+}
+function switchProfile(id){
+  if (id === ACTIVE) return;
+  const c = toCanon(DB); ACTIVE = id; try { localStorage.setItem(ACTIVE_STORE, id); } catch (e) {}
+  DB = fromCanon(c); updateStars(); updatePlay(); updateProfileChip(); toast('Hallo ' + activeProfile().name + '!');
+}
+function showProfiles(){
+  stop(); NAV.n = NAV.s = NAV.g = NAV.b = NAV.u = null; setColor(); crumbs();
+  app.innerHTML = `<h1 class="h1">Wer lernt?</h1><p class="lead">Wähle dein Profil. Jedes Profil hat seinen eigenen Lernstand und eigene Spielminuten.</p>
+  <div class="menu">${liveProfiles().map(P => mbtn(P.id, P.icon, P.name + (P.id === ACTIVE ? ' ✓' : ''), P.test ? 'Testprofil für Eltern' : (P.grade ? P.grade + '. Klasse' : ''))).join('')}</div>
+  <div class="row"><button class="btn" id="pmanage">👪 Profile verwalten</button></div>`;
+  app.querySelectorAll('.mitem').forEach(b => b.onclick = () => { switchProfile(b.dataset.k); showHome(); });
+  $('#pmanage').onclick = () => showParents();
+}
+function profilesPanelHTML(){
+  return `<h2 class="h2">Profile</h2><div class="card"><p class="small" style="margin-top:0">Für jedes Kind ein eigenes Profil mit eigenem Lernstand, Noten und Spielminuten. Jedes Gerät merkt sich sein Profil. Zum Ausprobieren eignet sich ein Testprofil, dann bleibt der Lernstand der Kinder unberührt.</p>
+    <div class="menu">${liveProfiles().map(P => `<button class="mitem" data-prof="${P.id}"><span class="mi">${P.icon}</span><span><b>${esc(P.name)}${P.id === ACTIVE ? ' · auf diesem Gerät aktiv' : ''}</b><span>${P.test ? 'Testprofil' : (P.grade ? P.grade + '. Klasse' : 'Profil')} · antippen zum Bearbeiten</span></span></button>`).join('')}</div>
+    <div class="row" style="justify-content:flex-start"><button class="btn primary" id="pfadd">+ Kind hinzufügen</button>${liveProfiles().some(P => P.test) ? '' : '<button class="btn" id="pftest">🧪 Testprofil anlegen</button>'}</div></div>`;
+}
+function bindProfilesPanel(){
+  app.querySelectorAll('[data-prof]').forEach(b => b.onclick = () => showProfileEditor(b.dataset.prof));
+  $('#pfadd').onclick = () => showProfileEditor(null);
+  if ($('#pftest')) $('#pftest').onclick = () => {
+    const id = 'p' + Date.now().toString(36); DB.profiles[id] = { id, name:'Testprofil', icon:'🧪', test:true, t:Date.now(), c:Date.now() };
+    DB.pd = DB.pd || {}; DB.pd[id] = emptyPF(); switchProfile(id); save(); parentPanel();
+  };
+}
+function showProfileEditor(id){
+  stop();
+  const P = id ? DB.profiles[id] : { name:'', icon:PROFILE_ICONS[liveProfiles().length % 10], grade:null }, grades = allGrades();
+  let icon = P.icon;
+  app.innerHTML = `<h1 class="h1">${id ? 'Profil bearbeiten' : 'Neues Profil'}</h1><div class="card" id="led">
+    <label for="pfname"><b>Name oder Spitzname</b></label><input id="pfname" class="inp fld" maxlength="20" value="${esc(P.name)}" placeholder="z.B. Lea">
+    <p style="margin-bottom:6px"><b>Bild</b></p><div class="row" style="justify-content:flex-start;margin-top:0" id="pficons">${PROFILE_ICONS.map(i => `<button class="btn picon ${i === icon ? 'primary' : ''}" data-i="${i}" aria-label="Bild ${i}">${i}</button>`).join('')}</div>
+    <label for="pfgrade" style="display:block;margin-top:12px"><b>Klasse</b></label><select id="pfgrade" class="inp fld"><option value="">–</option>${grades.map(g => `<option value="${g}" ${P.grade === g ? 'selected' : ''}>${g}. Klasse</option>`).join('')}</select>
+    <div class="row">${id && id !== ACTIVE ? '<button class="btn good" id="pfuse">Auf diesem Gerät verwenden</button>' : ''}<button class="btn primary" id="pfsave">Speichern</button>${id && id !== 'p1' ? '<button class="btn" id="pfdel">Löschen</button>' : ''}<button class="btn" id="pfback">Zurück</button></div>
+  </div>`;
+  app.querySelectorAll('.picon').forEach(b => b.onclick = () => { icon = b.dataset.i; app.querySelectorAll('.picon').forEach(x => x.classList.toggle('primary', x.dataset.i === icon)); });
+  const store = () => { const name = $('#pfname').value.trim(); if (!name) { toast('Bitte einen Namen eingeben.'); $('#pfname').focus(); return null; }
+    const pid = id || ('p' + Date.now().toString(36)), g = $('#pfgrade').value;
+    DB.profiles[pid] = Object.assign({}, DB.profiles[pid] || { id:pid, c:Date.now() }, { id:pid, name, icon, grade: g ? +g : null, t:Date.now() });
+    if (!id) { DB.pd = DB.pd || {}; DB.pd[pid] = emptyPF(); }
+    return pid; };
+  $('#pfsave').onclick = () => { if (store()) { save(); toast('Profil gespeichert'); parentPanel(); } };
+  if ($('#pfuse')) $('#pfuse').onclick = () => { const pid = store(); if (pid) { switchProfile(pid); save(); parentPanel(); } };
+  $('#pfback').onclick = parentPanel;
+  if ($('#pfdel')) $('#pfdel').onclick = () => {
+    $('#led').querySelector('.row:last-child').innerHTML = `<p style="margin:0"><b>Profil «${esc(P.name)}» mit seinem ganzen Lernstand löschen?</b></p><button class="btn" id="pfdel2" style="background:var(--bad);border-color:var(--bad);color:#fff">Ja, löschen</button><button class="btn" id="pfdel0">Abbrechen</button>`;
+    $('#pfdel0').onclick = () => showProfileEditor(id);
+    $('#pfdel2').onclick = () => { if (id === ACTIVE) switchProfile('p1'); DB.profiles[id] = { id, del:true, t:Date.now() }; delete DB.pd[id]; save(); toast('Profil gelöscht'); parentPanel(); };
+  };
+}
+
 /* =====================================================================
    6b) LERNSPIELE: Blitz-Sprung, Memory, Sortieren
    ===================================================================== */
@@ -3103,12 +3206,13 @@ function parentPanel(){
   ${isHosted() ? familyBox() : ''}
   <h2 class="h2">Letzte Probetests</h2>
   ${res.length ? `<div class="hist">${res.map(r => `<div><span>${new Date(r.d).toLocaleDateString('de-CH')}</span><span class="hn">${esc(names[r.k] || r.k)}</span><b>Note ${fmtNote(r.note)}</b></div>`).join('')}</div>` : '<p class="small">Noch keine Probetests gemacht.</p>'}
+  ${profilesPanelHTML()}
   ${listsPanelHTML()}
   <h2 class="h2">Lernstand zurücksetzen</h2>
-  <div class="card" id="preset"><p class="small" style="margin-top:0">Löscht auf allen verbundenen Geräten: gelernte Wörter, Probetest-Noten, Sterne, Spiel-Rekorde und die heute verdienten Spielminuten. PIN, Tagesmaximum und eigene Lernlisten bleiben.</p>
+  <div class="card" id="preset"><p class="small" style="margin-top:0">Löscht für das Profil «${esc(activeProfile().name)}» auf allen verbundenen Geräten: gelernte Wörter, Probetest-Noten, Sterne, Spiel-Rekorde und die heute verdienten Spielminuten. Andere Profile, PIN, Tagesmaximum und eigene Lernlisten bleiben.</p>
     <button class="btn" id="pr1">Lernstand zurücksetzen</button></div>
   <div class="row"><button class="btn" id="ppin">PIN ändern</button><button class="btn primary" id="pdone">Fertig</button></div>`;
-  bindListsPanel();
+  bindProfilesPanel(); bindListsPanel();
   $('#pr1').onclick = () => {
     $('#preset').innerHTML = `<p style="margin-top:0"><b>Wirklich alles löschen?</b> Das kann nicht rückgängig gemacht werden.</p>
       <div class="row" style="justify-content:flex-start"><button class="btn" id="pr2" style="background:var(--bad);border-color:var(--bad);color:#fff;box-shadow:0 4px 0 #a51e1e">Ja, alles löschen</button><button class="btn" id="pr0">Abbrechen</button></div>`;
@@ -3155,11 +3259,13 @@ function familyBox(){
 /* Start */
 $('#homeBtn').onclick = () => showHome();
 $('#playBtn').onclick = () => showGame();
+$('#profBtn').onclick = () => showProfiles();
+updateProfileChip();
 updateStars(); updatePlay();
 /* Zurück-Taste (Android, Browser): eine Ebene zurück statt App schliessen */
 const SCREENS = { showHome:'home', showSubjects:'subjects', showUnits:'units', showUnit:'unit', showLearn:'learn', showLearnGen:'learnGen',
   flash:'sub', wordList:'sub', abcBoard:'sub', showGrammar:'sub', showPractice:'practice', showCustomTest:'testIntro', showTestIntro:'testIntro',
-  run:'run', showBlitz:'lgame', showMemory:'lgame', showSort:'lgame', showClock:'lgame', showMap:'lgame', showGame:'game', showParents:'parents' };
+  run:'run', showProfiles:'sub0', showBlitz:'lgame', showMemory:'lgame', showSort:'lgame', showClock:'lgame', showMap:'lgame', showGame:'game', showParents:'parents' };
 let CUR = 'home', RET = null, ARMED = false, SKIP = false, BACKWARN = 0;
 const hist = (fn, ...a) => { try { history[fn](...a); } catch (e) {} };
 Object.entries(SCREENS).forEach(([n, id]) => {
@@ -3173,7 +3279,7 @@ Object.entries(SCREENS).forEach(([n, id]) => {
   };
 });
 const PARENT = { subjects:'showHome', units:'showSubjects', unit:'showUnits', learn:'showUnit', learnGen:'showUnit', sub:'showLearn',
-  practice:'showUnit', testIntro:'showUnit', lgame:'showPractice' };
+  practice:'showUnit', testIntro:'showUnit', lgame:'showPractice', sub0:'showHome' };
 function appBack(){
   if (CUR === 'run') {
     const done = $('.bigstars') || $('.note');
@@ -3198,7 +3304,7 @@ window.addEventListener('popstate', () => {
 showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-6';
+const APP_VERSION = '2026-11-06-7';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {

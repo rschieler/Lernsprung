@@ -69,6 +69,24 @@ setTimeout(() => { try {
   if (w.eval(`DB.custom['${kidId}'].ok`) !== false) throw new Error('Nach Änderung durch das Kind bleibt die Freigabe bestehen');
   w.eval("DB.play = null; LISTCTX = { kid:false }");
   console.log('OK: Kinder-Listen mit Freigabe');
+  // Profile: Testprofil verändert den Lernstand von Profil 1 nicht, ältere App-Version (ohne Profile) löscht nichts
+  w.eval("DB.settings.pin = ''; parentPanel()"); const s1 = w.eval('DB.stars'), k1 = w.eval('JSON.stringify(DB.known)');
+  d.querySelector('#pftest').click();
+  if (w.eval('ACTIVE') === 'p1' || w.eval('DB.stars') !== 0 || w.eval('liveProfiles().length') !== 2) throw new Error('Testprofil nicht aktiv oder nicht leer');
+  w.eval("DB.stars = 42; DB.known = { x:{ a:1 } }; save()");
+  const canon = w.eval('JSON.stringify([toCanon(DB).stars, Object.values(toCanon(DB).pd)[0].stars])');
+  if (canon !== JSON.stringify([s1, 42])) throw new Error('Speicherformat der Profile falsch: ' + canon);
+  const old = w.eval(`(() => { const c = toCanon(DB), r = { known:c.known, tests:c.tests, stars:c.stars + 1, play:c.play, settings:c.settings, best:c.best, reset:c.reset, games:c.games, custom:c.custom };
+    const m = mergeDB(c, r, true); return JSON.stringify([m.stars, Object.values(m.pd)[0].stars, Object.keys(m.profiles).length]); })()`);
+  if (old !== JSON.stringify([s1 + 1, 42, 2])) throw new Error('Gerät mit alter Version zerstört Profile: ' + old);
+  w.eval("switchProfile('p1')");
+  if (w.eval('DB.stars') !== s1 || w.eval('JSON.stringify(DB.known)') !== k1) throw new Error('Lernstand von Profil 1 verändert');
+  w.eval("parentPanel()"); d.querySelector('#pfadd').click(); d.querySelector('#pfname').value = 'Noah'; d.querySelector('#pfsave').click();
+  if (w.eval('liveProfiles().length') !== 3 || w.eval('ACTIVE') !== 'p1') throw new Error('Neues Profil falsch angelegt');
+  w.eval("showProfiles()"); if (d.querySelectorAll('.mitem').length !== 3) throw new Error('Profilwahl zeigt nicht alle Profile');
+  const tid = w.eval("liveProfiles().find(p => p.test).id"); w.eval(`showProfileEditor('${tid}')`); d.querySelector('#pfdel').click(); d.querySelector('#pfdel2').click();
+  if (w.eval('liveProfiles().length') !== 2 || w.eval(`!!DB.pd['${tid}']`)) throw new Error('Profil nicht gelöscht');
+  console.log('OK: Profile (Testprofil, Geschwister, alte App-Version)');
   const cat = w.eval('CATALOG'), games = {};
   for (let si = 0; si < cat.length; si++) for (let gi = 0; gi < cat[si].grades.length; gi++) {
     w.eval(`NAV.s=CATALOG[${si}];NAV.g=NAV.s.grades[${gi}];NAV.n=NAV.g.grade;setColor();showUnits()`);
