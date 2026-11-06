@@ -10,10 +10,12 @@ const srv = http.createServer((q, r) => { r.writeHead(200, { 'Content-Type':'tex
   await p.evaluate(() => { DB.settings.pin = '1234'; save(); PARENT_OK = true; PTAB = 'device'; parentPanel(); });
   await p.waitForSelector('#dbioon'); 
   await p.click('#dbioon'); await p.waitForSelector('#dbiooff'); console.log('Eingeschaltet, DEV.bio:', !!(await p.evaluate(() => DEV.bio)));
-  await p.evaluate(() => { PARENT_OK = false; showHome(); showParents(); }); await p.waitForSelector('#pbio'); 
-  await p.click('#pbio'); await p.waitForSelector('.pcard', { timeout:5000 }).then(() => console.log('Mit Fingerabdruck entsperrt: ja')).catch(() => console.log('Mit Fingerabdruck entsperrt: NEIN'));
+  await p.evaluate(() => { PARENT_OK = false; showHome(); showParents(); });
+  const auto = await p.waitForSelector('.pcard', { timeout:5000 }).then(() => true).catch(() => false); console.log('Ohne Tippen mit Fingerabdruck entsperrt:', auto ? 'ja' : 'NEIN'); if (!auto) errs.push('kein automatisches Entsperren');
   await cdp.send('WebAuthn.setUserVerified', { authenticatorId, isUserVerified:false });
-  await p.evaluate(() => { PARENT_OK = false; showHome(); showParents(); }); await p.click('#pbio'); await p.waitForTimeout(1500);
-  console.log('Falscher Finger abgewiesen:', !(await p.$('.pcard')));
+  await p.evaluate(() => { PARENT_OK = false; showHome(); showParents(); }); await p.waitForTimeout(1500);
+  const rej = !(await p.$('.pcard')) && !!(await p.$('#pbio')) && !!(await p.$('#p1')); console.log('Falscher Finger abgewiesen, Knopf und PIN bleiben:', rej); if (!rej) errs.push('falscher Finger');
+  await cdp.send('WebAuthn.setUserVerified', { authenticatorId, isUserVerified:true }); await p.click('#pbio');
+  const btn = await p.waitForSelector('.pcard', { timeout:5000 }).then(() => true).catch(() => false); console.log('Mit Knopf entsperrt:', btn); if (!btn) errs.push('Knopf');
   await b.close(); srv.close(); if (errs.length) { console.log('FEHLER', errs); process.exit(1); } console.log('OK: Biometrie');
 })();

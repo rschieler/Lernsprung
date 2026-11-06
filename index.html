@@ -3439,9 +3439,14 @@ function showParents(){
   if (bioP && !bioP.del) {
     const tk = TOKEN;
     $('#pf').insertAdjacentHTML('beforebegin', `<div class="row" style="justify-content:flex-start;margin-top:0;margin-bottom:12px"><button class="btn primary" id="pbio">🔓 ${esc(bioP.icon + ' ' + bioP.name)}: Fingerabdruck / Gesicht</button></div>`);
-    const go = async () => { try { if (await bioVerify()) { if (tk !== TOKEN) return; parentLogin(DB.parents[bioP.id]); } else toast('Nicht bestätigt. Bitte PIN eingeben.'); }
-      catch (e) { if (tk === TOKEN) toast(e && e.name === 'NotAllowedError' ? 'Abgebrochen. Du kannst auch den PIN eingeben.' : 'Entsperren ging nicht. Bitte PIN eingeben.'); } };
-    $('#pbio').onclick = go;
+    let busy = false;
+    const go = async auto => { if (busy) return; busy = true;
+      try { if (await bioVerify()) { if (tk !== TOKEN) return; parentLogin(DB.parents[bioP.id]); } else if (!auto) toast('Nicht bestätigt. Bitte PIN eingeben.'); }
+      catch (e) { if (tk === TOKEN && !auto) toast(e && e.name === 'NotAllowedError' ? 'Abgebrochen. Du kannst auch den PIN eingeben.' : 'Entsperren ging nicht. Bitte PIN eingeben.'); }
+      finally { busy = false; } };
+    $('#pbio').onclick = () => go(false);
+    // Fingerabdruck/Gesicht sofort abfragen; bricht man ab, bleiben Knopf und PIN
+    go(true);
   }
 }
 function parentTabs(){
@@ -4077,7 +4082,7 @@ window.addEventListener('popstate', () => {
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-25';
+const APP_VERSION = '2026-11-06-26';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
