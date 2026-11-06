@@ -36,7 +36,7 @@ Alles steckt in **einer Datei: `index.html`** (HTML, CSS, JS, keine Build-Schrit
 - Gespeichert wird **kanonisch** (`toCanon`): oben der Lernstand von Profil `p1` (kompatibel mit älteren App-Versionen), weitere Profile in `pd`. Im Speicher steht oben das aktive Profil (`fromCanon`, `ACTIVE`, pro Gerät in localStorage `lernsprung-profil`). `mergeDB` = `mergeCore` für p1 plus pro Profil in `pd`. Fehlt `pd` in der Cloud (altes Gerät), lädt ein neues Gerät es wieder hoch.
 - Pro Profil in `DB.profiles[id]` (familienweit synchronisiert): `name`, `icon`, `grade`, `max` (Tagesmaximum, `profMax`), `pin` (Profil-PIN, beim Wechseln abgefragt, Eltern-PIN gilt immer), `kidLists` (darf Lernlisten erstellen, `kidListsOn`). Zugriff auf Daten eines anderen Profils mit `profPD(id)`, Spielzeit `playOf`, `restOf`.
 - Oberfläche: Hamburger-Menü ☰ (`openMenu`: Start, Fach, Profil wechseln, Spiel, Lernliste erstellen, Eltern-Bereich), Profil-Knopf in der Kopfzeile (`profBtn`), «Wer lernt?» (`showProfiles`).
-- Eltern-Bereich (`showParents` → `parentPanel` mit `PTAB`): «Kinder» (Übersicht aller Profile), `prof:<id>` (`profileSettings`: Name, Bild, Klasse, Tagesmaximum, Bonus, Profil-PIN, Lernlisten-Recht, Probetests, Zurücksetzen, Löschen), «Familie» (`familyPage`: Geräte verbinden, Lernlisten, Eltern-PIN), «Dieses Gerät» (`devicePage`: Eltern-Gerät `DEV.parent` öffnet direkt den Eltern-Bereich, `DEV.remember` merkt den PIN, Profil für dieses Gerät; localStorage `lernsprung-geraet`). `PARENT_OK` = Eltern-Bereich entsperrt, wird beim Start-Bildschirm zurückgesetzt.
+- Eltern-Bereich (`showParents` → `parentPanel` mit `PTAB`): «Kinder» (Übersicht aller Profile), `prof:<id>` (`profileSettings`: Name, Bild, Klasse, Tagesmaximum, Bonus, Profil-PIN, Lernlisten-Recht, Probetests, Zurücksetzen, Löschen), «Familie» (`familyPage`: Geräte verbinden, Lernlisten, Eltern-PIN), «Dieses Gerät» (`devicePage`: Eltern-Gerät `DEV.parent` öffnet direkt den Eltern-Bereich, `DEV.remember` merkt den PIN, Profil für dieses Gerät; localStorage `lernsprung-geraet`). `PARENT_OK` = Eltern-Bereich entsperrt, wird beim Start-Bildschirm zurückgesetzt. Biometrie (Fingerabdruck/Gesicht) über WebAuthn als Ergänzung zum PIN, pro Gerät (`DEV.bio` = Credential-ID, `bioRegister`, `bioVerify` prüft das UV-Flag), nur in sicherem Kontext (https/localhost).
 
 ## Synchronisation
 - Auf GitHub Pages: **Firebase Firestore**, Dokument `families/{Familien-Code}` (Projekt `lernsprung-ea1d2`, Anonym-Login). Der Code steckt im Link `?f=…` und im localStorage.
@@ -47,6 +47,7 @@ Alles steckt in **einer Datei: `index.html`** (HTML, CSS, JS, keine Build-Schrit
 ```
 cd tests && npm install --silent && node generators.js && node walk.js
 ```
+- Zusätzlich bei Änderungen am Entsperren: `node bio.js` (Playwright, virtueller Fingerabdruck-Sensor über CDP).
 - `generators.js` ruft jeden Generator 3000-mal auf und prüft Antworten und Auswahlmöglichkeiten.
 - `walk.js` klickt in jedem Fach jede Unit, jede Übung und jeden Probetest durch, dazu Spiel und Eltern-Bereich.
 - Beide müssen ohne Fehler durchlaufen. Bei Layout-Änderungen zusätzlich Screenshots in Handy-Grösse (390 px) mit Playwright prüfen.

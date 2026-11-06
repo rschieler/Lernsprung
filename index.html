@@ -3156,6 +3156,28 @@ const DEV_STORE = 'lernsprung-geraet';
 let DEV = (() => { try { return JSON.parse(localStorage.getItem(DEV_STORE) || '{}'); } catch (e) { return {}; } })();
 const saveDev = () => { try { localStorage.setItem(DEV_STORE, JSON.stringify(DEV)); } catch (e) {} };
 let PTAB = 'home', PARENT_OK = false;
+/* Biometrie (Fingerabdruck, Gesicht, Bildschirmsperre) über WebAuthn – nur auf diesem Gerät, ergänzt den Eltern-PIN.
+   Die App prüft lokal, dass das Gerät die Person bestätigt hat (UV-Bit). Biometrische Daten verlassen das Gerät nie. */
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+const rnd32 = () => crypto.getRandomValues(new Uint8Array(32));
+async function bioAvailable(){
+  try { return !!(window.PublicKeyCredential && isSecureContext && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch (e) { return false; }
+}
+async function bioRegister(){
+  const cred = await navigator.credentials.create({ publicKey:{ challenge:rnd32(), rp:{ name:'Lernsprung', id:location.hostname },
+    user:{ id:crypto.getRandomValues(new Uint8Array(16)), name:'eltern', displayName:'Eltern-Bereich Lernsprung' },
+    pubKeyCredParams:[{ type:'public-key', alg:-7 }, { type:'public-key', alg:-257 }],
+    authenticatorSelection:{ authenticatorAttachment:'platform', userVerification:'required', residentKey:'discouraged' }, timeout:60000, attestation:'none' } });
+  if (!cred) throw new Error('abgebrochen');
+  DEV.bio = b64u(cred.rawId); saveDev();
+}
+async function bioVerify(){
+  const a = await navigator.credentials.get({ publicKey:{ challenge:rnd32(), rpId:location.hostname, allowCredentials:[{ type:'public-key', id:unb64u(DEV.bio) }], userVerification:'required', timeout:60000 } });
+  const ad = new Uint8Array(a.response.authenticatorData);
+  return !!(a && ad.length > 32 && (ad[32] & 0x04)); // Flag «User Verified»
+}
+
 const profPD = id => id === ACTIVE ? DB : (DB.pd[id] = DB.pd[id] || emptyPF());
 function playOf(d){ const t = today(); if (!d.play || d.play.day !== t) d.play = { day:t, earned:0, used:0, bonus:0, cnt:{} }; return d.play; }
 const profMax = id => { const P = (DB.profiles || {})[id] || {}; if (typeof P.max === 'number') return P.max; const m = DB.settings && DB.settings.max; return typeof m === 'number' ? m : 30; };
@@ -3179,7 +3201,14 @@ function showParents(){
     if (!/^\d{4}$/.test(a)) return toast('Der PIN muss 4 Ziffern haben.'); if (a !== b) return toast('Die beiden PINs sind nicht gleich.');
     S.pin = a; S.t = Date.now(); save(); PARENT_OK = true; PTAB = 'home'; parentPanel(); });
   if (PARENT_OK || (DEV.parent && DEV.remember && DEV.pin === S.pin)) { PARENT_OK = true; return parentPanel(); }
-  pinForm('👪 Eltern-Bereich', 'Bitte Eltern-PIN eingeben.', false, a => { if (a === S.pin) { PARENT_OK = true; if (DEV.parent && DEV.remember) { DEV.pin = a; saveDev(); } PTAB = 'home'; parentPanel(); } else { toast('Falscher PIN'); $('#p1').value = ''; } });
+  pinForm('👪 Eltern-Bereich', DEV.bio ? 'Mit Fingerabdruck oder Gesicht entsperren, oder Eltern-PIN eingeben.' : 'Bitte Eltern-PIN eingeben.', false, a => { if (a === S.pin) { PARENT_OK = true; if (DEV.parent && DEV.remember) { DEV.pin = a; saveDev(); } PTAB = 'home'; parentPanel(); } else { toast('Falscher PIN'); $('#p1').value = ''; } });
+  if (DEV.bio) {
+    const tk = TOKEN;
+    $('#pf').insertAdjacentHTML('beforebegin', '<div class="row" style="justify-content:flex-start;margin-top:0;margin-bottom:12px"><button class="btn primary" id="pbio">🔓 Mit Fingerabdruck / Gesicht öffnen</button></div>');
+    const go = async () => { try { if (await bioVerify()) { if (tk !== TOKEN) return; PARENT_OK = true; PTAB = 'home'; parentPanel(); } else toast('Nicht bestätigt. Bitte PIN eingeben.'); }
+      catch (e) { if (tk === TOKEN) toast(e && e.name === 'NotAllowedError' ? 'Abgebrochen. Du kannst auch den PIN eingeben.' : 'Entsperren ging nicht. Bitte PIN eingeben.'); } };
+    $('#pbio').onclick = go;
+  }
 }
 function parentTabs(){
   const t = (k, l) => `<button class="btn ${PTAB === k || (k === 'home' && PTAB.startsWith('prof:')) ? 'primary' : ''}" data-tab="${k}">${l}</button>`;
@@ -3278,6 +3307,7 @@ function devicePage(){
   app.innerHTML = parentTabs() + `<div class="card">
     <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:0"><input type="checkbox" id="dpar" ${DEV.parent ? 'checked' : ''}> <span><b>Eltern-Gerät:</b> Die App öffnet direkt den Eltern-Bereich.</span></label>
     <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="drem" ${DEV.remember ? 'checked' : ''} ${DEV.parent ? '' : 'disabled'}> <span><b>PIN auf diesem Gerät merken.</b> Nur einschalten, wenn die Kinder dieses Gerät nicht benutzen.</span></label>
+    <div id="dbio" style="margin-top:14px"></div>
     <p style="margin-bottom:6px"><b>Lernen auf diesem Gerät als</b></p>
     <div class="menu">${liveProfiles().map(P => mbtn(P.id, P.icon, P.name + (P.id === ACTIVE ? ' ✓' : ''), P.test ? 'Testprofil' : P.grade ? P.grade + '. Klasse' : '')).join('')}</div></div>
   <div class="row"><button class="btn" id="pdone">Zur Lern-App</button></div>`;
@@ -3285,6 +3315,14 @@ function devicePage(){
   $('#dpar').onchange = e => { DEV.parent = e.target.checked; if (!DEV.parent) { DEV.remember = false; delete DEV.pin; } saveDev(); parentPanel(); };
   $('#drem').onchange = e => { DEV.remember = e.target.checked; if (DEV.remember) DEV.pin = DB.settings.pin; else delete DEV.pin; saveDev(); toast(DEV.remember ? 'PIN wird auf diesem Gerät gemerkt' : 'PIN wird wieder abgefragt'); };
   app.querySelectorAll('.menu .mitem').forEach(b => b.onclick = () => { switchProfile(b.dataset.k, true); parentPanel(); });
+  bioAvailable().then(ok => { const el = $('#dbio'); if (!el) return;
+    el.innerHTML = DEV.bio
+      ? '<p style="margin:0"><b>🔓 Fingerabdruck / Gesicht:</b> eingeschaltet. Der Eltern-PIN funktioniert weiterhin.</p><div class="row" style="justify-content:flex-start"><button class="btn" id="dbiooff">Ausschalten</button></div>'
+      : ok ? '<p style="margin:0"><b>🔓 Fingerabdruck / Gesicht</b> zum Öffnen des Eltern-Bereichs verwenden. Es gilt die Entsperrung dieses Geräts: Kennt ein Kind den Code deines Handys, kommt es so auch hinein.</p><div class="row" style="justify-content:flex-start"><button class="btn primary" id="dbioon">Einschalten</button></div>'
+      : '<p class="small" style="margin:0">Fingerabdruck oder Gesicht sind in diesem Browser nicht verfügbar. Auf dem Handy geht es in Chrome (Android) und Safari (iPhone).</p>';
+    if ($('#dbioon')) $('#dbioon').onclick = async () => { try { await bioRegister(); toast('Fingerabdruck / Gesicht eingeschaltet'); parentPanel(); } catch (e) { toast(e && e.name === 'NotAllowedError' ? 'Abgebrochen' : 'Einschalten ging nicht: ' + ((e && e.message) || e)); } };
+    if ($('#dbiooff')) $('#dbiooff').onclick = () => { delete DEV.bio; saveDev(); toast('Fingerabdruck / Gesicht ausgeschaltet'); parentPanel(); };
+  });
   $('#pdone').onclick = showHome;
 }
 
@@ -3382,7 +3420,7 @@ window.addEventListener('popstate', () => {
 if (DEV.parent) showParents(); else showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-8';
+const APP_VERSION = '2026-11-06-9';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
