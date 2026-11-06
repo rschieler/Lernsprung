@@ -1,11 +1,11 @@
 # Lernsprung – Hinweise für Claude
 
-Lern-App für die Tochter von Ronny und für Familien im Bekanntenkreis (über Einladungen, siehe Synchronisation) (Schuljahr 2026/27 in der 4. Klasse, ab August 2027 5. Klasse, Primarschule, Kanton St. Gallen). Inhalte für die 4. und 5. Klasse, **später auch für ältere Kinder** (höhere Klassen über neue `grade`-Einträge im `CATALOG`; Design und Texte nicht nur auf Primarschul-Alter auslegen).
+Lern-App für die Tochter von Ronny und für Familien im Bekanntenkreis (über Einladungen, siehe Synchronisation) (Schuljahr 2026/27 in der 4. Klasse, ab August 2027 5. Klasse, Primarschule, Kanton St. Gallen). Inhalte für die 3. bis 6. Klasse (nur Lehrplan Volksschule St. Gallen), **später auch für ältere Kinder** (höhere Klassen über neue `grade`-Einträge im `CATALOG`; Design und Texte nicht nur auf Primarschul-Alter auslegen).
 Live: https://rschieler.github.io/Lernsprung/ (GitHub Pages, Branch `main`, Root).
 
 ## Grundsätze
 - Inhalte immer nach **Lehrplan 21 (Lehrplan Volksschule St. Gallen)**. Bringt Ronny Lernziel-Blätter oder Arbeitsblätter als Scan, werden Übungen und Probetests darauf abgestimmt.
-- Englisch folgt **Young World 2** (4. Klasse) und **Young World 3** (5. Klasse, Ausgabe 2020) von Klett und Balmer. Französisch (ab 5. Klasse) folgt den Themen von **dis donc! 5** (LMVZ). Mathe, Deutsch und NMG folgen dem Lehrplan 21, nicht einem Lehrmittel.
+- Englisch folgt **Young World 1–4** (3. bis 6. Klasse, Bücher `yw1`–`yw4`) von Klett und Balmer. Französisch (ab 5. Klasse) folgt den Themen von **dis donc! 5** und **dis donc! 6** (LMVZ, `dd5`, `dd6`). Bücher Mathe/Deutsch/NMG: `ma3`, `zb4`, `ma5`, `ma6`, `de3`, `gram4`, `de5`, `de6`, `nmg3`–`nmg6`. Generatoren 3./6. Klasse enden auf `3` bzw. `6` (z.B. `schriftl3`, `dez6`). Mathe, Deutsch und NMG folgen dem Lehrplan 21, nicht einem Lehrmittel.
 - Französisch: Der Kantonsrat hat im September 2025 beschlossen, Französisch in die Oberstufe zu verschieben; Umsetzung offen (Stand Nov. 2026, Vorarbeiten bis Q1 2027). Bei Änderung das Fach `fr` entfernen oder ausblenden.
 - Zyklus 2: Plusquamperfekt und die vier Fälle nur entdecken, nicht abfragen; indirekte Rede erst Zyklus 3.
 - **Keine Inhalte aus Lehrmitteln abschreiben** (Klett untersagt die Nutzung in KI-Systemen). Nur Struktur und Themen übernehmen, Aufgaben selbst formulieren.

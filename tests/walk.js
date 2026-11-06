@@ -59,11 +59,11 @@ setTimeout(() => { try {
   const kid = w.eval("JSON.stringify(Object.values(DB.custom).find(x => x.title === 'Kinder-Liste'))");
   if (!kid || !kid.includes('"by":"kind"') || !kid.includes('"ok":false') || !d.querySelector('.unit')) throw new Error('Kinder-Liste falsch gespeichert: ' + kid);
   const kidId = JSON.parse(kid).id;
-  const e1 = w.eval(`DB.play = null; NAV.u = CATALOG.find(x => x.id === 'en').grades[0].books.find(b => b.id === 'eigene').units.find(u => u.custom === '${kidId}'); earn(3, 'kidtest').why`);
+  const e1 = w.eval(`DB.play = null; NAV.u = CATALOG.find(x => x.id === 'en').grades.flatMap(g => g.books).find(b => b.id === 'eigene').units.find(u => u.custom === '${kidId}'); earn(3, 'kidtest').why`);
   if (e1 !== 'unapproved') throw new Error('Kinder-Liste gibt ohne Freigabe Spielminuten: ' + e1);
   w.eval(`LISTCTX = { kid:false }; showListEditor('${kidId}')`); if (!d.querySelector('#lsave').textContent.includes('freigeben')) throw new Error('Eltern sehen keinen Freigabe-Knopf');
   d.querySelector('#lsave').click();
-  const e2 = w.eval(`NAV.u = CATALOG.find(x => x.id === 'en').grades[0].books.find(b => b.id === 'eigene').units.find(u => u.custom === '${kidId}'); earn(3, 'kidtest2').add`);
+  const e2 = w.eval(`NAV.u = CATALOG.find(x => x.id === 'en').grades.flatMap(g => g.books).find(b => b.id === 'eigene').units.find(u => u.custom === '${kidId}'); earn(3, 'kidtest2').add`);
   if (e2 !== 3) throw new Error('Freigegebene Liste gibt keine Spielminuten: ' + e2);
   w.eval(`LISTCTX = { kid:true }; showListEditor('${kidId}')`); d.querySelector('#lsave').click();
   if (w.eval(`DB.custom['${kidId}'].ok`) !== false) throw new Error('Nach Änderung durch das Kind bleibt die Freigabe bestehen');
