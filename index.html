@@ -12,11 +12,6 @@
 <meta name="application-name" content="Lernsprung">
 <meta name="theme-color" content="#3b6ef5">
 <link rel="manifest" href="manifest.json">
-<script>/* Betreiber-Zugang als eigene App: anderer Name und anderes Symbol */
-if (/[?&]admin\b/.test(location.search)) { document.querySelector('link[rel=manifest]').href = 'manifest-admin.json';
-  document.title = 'Lernsprung Betreiber'; document.querySelector('meta[name=apple-mobile-web-app-title]').content = 'LS Betreiber';
-  document.querySelector('meta[name=application-name]').content = 'Lernsprung Betreiber'; document.querySelector('meta[name=theme-color]').content = '#16181d';
-  document.querySelector('link[rel=apple-touch-icon]').href = 'icon-admin-180.png'; }</script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3925,6 +3920,7 @@ async function showAdmin(){
       try { await firebase.auth().signInWithPopup(pr); showAdmin(); } catch (e) { if (e && /popup/.test(e.code || '')) firebase.auth().signInWithRedirect(pr); else toast('Anmelden ging nicht: ' + ((e && (e.code || e.message)) || e)); } };
     return;
   }
+  try { localStorage.setItem('lernsprung-betreiber', '1'); } catch (e) {}
   let invs = [], fams = [];
   try { invs = (await fs.collection('invites').get()).docs.map(d => Object.assign({ id:d.id }, d.data())); fams = (await fs.collection('fam2').get()).docs.map(d => { const x = d.data(); return { id:d.id, inv:x.inv, created:x.created, updated:x.updated, ver:x.ver, kids:x.kids, parents:x.parents, kb:Math.round(((x.c || '').length * .75) / 1024) }; }); }
   catch (e) { app.innerHTML = `<h1 class="h1">🛠️ Betreiber-Bereich</h1><div class="card"><p><b>Kein Zugriff:</b> ${esc((e && (e.code || e.message)) || '')}</p><p class="small">Sind die Firestore-Regeln aus <code>firestore.rules</code> in der Firebase-Konsole veröffentlicht?</p></div>`; return; }
@@ -3944,7 +3940,7 @@ async function showAdmin(){
     <p class="small">Inhalte der Familien (Namen, Noten, Listen) sind verschlüsselt und hier nicht sichtbar. «Sperren» stoppt die Synchronisation dieser Familie, «Löschen» entfernt ihre Online-Daten.</p>
     <div class="row"><button class="btn" id="aback">Zur App</button></div>`;
   $('#aback').onclick = showHome;
-  $('#aout').onclick = async e => { e.preventDefault(); await firebase.auth().signOut(); showAdmin(); };
+  $('#aout').onclick = async e => { e.preventDefault(); try { localStorage.removeItem('lernsprung-betreiber'); } catch (x) {} await firebase.auth().signOut(); showAdmin(); };
   const share = async id => { const l = inviteLink(id), n = (byInv[id] || {}).name || '';
     const t = `Hallo! Hier ist eure Einladung für Lernsprung, die Lern-App für die 4. und 5. Klasse: ${l}`;
     try { if (navigator.share) await navigator.share({ title:'Lernsprung für ' + n, text:t }); else { await navigator.clipboard.writeText(t); toast('Einladung kopiert'); } }
@@ -3996,13 +3992,14 @@ function openMenu(){
     ${it('exam', '📅', 'Prüfung eintragen', (() => { const e = liveExams(ACTIVE).find(x => daysTo(x.d) >= 0); return e ? 'Nächste: ' + whenTxt(daysTo(e.d)) : 'Damit die App beim Lernen hilft'; })())}
     ${kidListsOn() ? it('list', '✨', 'Lernliste erstellen', 'Eigene Wörter oder Fragen') : ''}
     <hr>${it('parents', '👪', 'Elternprofil', DEV.parent ? 'Dieses Gerät ist ein Eltern-Gerät' : 'Mit Eltern-PIN')}
+    ${(() => { try { return localStorage.getItem('lernsprung-betreiber') ? it('admin', '🛠️', 'Betreiber-Bereich', 'Einladungen und Familien') : ''; } catch (e) { return ''; } })()}
     ${it('privacy', '🔒', 'Datenschutz', '')}${it('mail', '✉️', 'Problem melden', 'E-Mail an den Betreiber')}
     <p class="small dver">Lernsprung · Version ${APP_VERSION}</p>`;
   d.hidden = false; document.getElementById('drawerbg').hidden = false; document.body.classList.add('menuopen');
   document.getElementById('menuBtn').setAttribute('aria-expanded', 'true');
   d.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { const m = b.dataset.m; closeMenu();
     if (m === 'home') showHome(); else if (m === 'units') showUnits(); else if (m === 'prof') showProfiles(); else if (m === 'game') showGame();
-    else if (m === 'list') startKidList(); else if (m === 'privacy') showPrivacy(); else if (m === 'mail') feedbackMail(); else if (m === 'rew') showRewards(); else if (m === 'exam') showExamForm(ACTIVE, showHome); else if (m === 'parents') showParents(); });
+    else if (m === 'list') startKidList(); else if (m === 'privacy') showPrivacy(); else if (m === 'admin') showAdmin(); else if (m === 'mail') feedbackMail(); else if (m === 'rew') showRewards(); else if (m === 'exam') showExamForm(ACTIVE, showHome); else if (m === 'parents') showParents(); });
   const f = d.querySelector('.ditem'); if (f) f.focus();
 }
 function closeMenu(){ const d = document.getElementById('drawer'); d.hidden = true; document.getElementById('drawerbg').hidden = true; document.body.classList.remove('menuopen'); document.getElementById('menuBtn').setAttribute('aria-expanded', 'false'); }
@@ -4061,7 +4058,7 @@ window.addEventListener('popstate', () => {
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-18';
+const APP_VERSION = '2026-11-06-19';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
