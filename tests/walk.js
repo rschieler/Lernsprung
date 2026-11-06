@@ -252,6 +252,18 @@ setTimeout(() => { try {
     parseList('vok', 'Begriffe in diesem Set (4)\\nnose\\ndie Nase\\nto taste\\nschmecken\\nfoot\\nder Fuß\\ncan’t\\nkann nicht').items ])`);
   if (qz !== JSON.stringify([[['nose','die Nase'],['fruity','fruchtig, süss'],['hello','Hallo']], [['nose','die Nase'],['to taste','schmecken'],['foot','der Fuss'],["can't",'kann nicht']]])) throw new Error('Quizlet-Import falsch: ' + qz);
   console.log('OK: Quizlet-Import');
+  // Mathe: Paare finden mit offenen Karten
+  { const u = w.eval("(() => { for (const s of CATALOG) for (const g of s.grades) for (const b of g.books) for (const u of b.units) if (u.gen && !u.words.length && memoryPairs(u)) { NAV.s = s; NAV.g = g; NAV.b = b; NAV.u = u; NAV.n = g.grade; return u.id; } })()");
+    w.eval('showMemory()'); if (d.querySelectorAll('.pc.pt').length !== 6 || d.querySelector('.mcard')) throw new Error('Mathe-Memory nicht offen: ' + u);
+    let guard = 0;
+    while (!d.querySelector('#lgend') && guard++ < 200) {
+      const l = d.querySelector('.pc.pt:not(.done)'); if (!l) break;
+      for (const r of d.querySelectorAll('.pc.pr:not(.done)')) { l.click(); r.click(); w.eval('LG && (LG.lock = false)'); if (l.classList.contains('done')) break; }
+    }
+    if (d.querySelectorAll('.pc.done').length !== 12 || w.eval('LG.found') !== 6) throw new Error('Paare finden: nicht alle Paare'); w.eval('LG.finish()');
+    if (!d.querySelector('#lgend')) throw new Error('Paare finden endet nicht');
+    w.eval('showPairs()'); d.querySelector('#mhard').click(); if (!d.querySelector('.mcard.mk-a') || !d.querySelector('.mcard.mk-r') || !d.querySelector('#measy')) throw new Error('Verdeckt-Modus für Mathe fehlt');
+    console.log('OK: Mathe-Paare'); }
   // Eigene Tastatur
   w.eval("touchProfile(ACTIVE, { kbd:'on' }); NAV.s = CATALOG[0]; NAV.g = NAV.s.grades[0]; NAV.b = NAV.g.books[0]; NAV.u = NAV.b.units[1]; NAV.n = NAV.g.grade; run([B.write(NAV.u.words[0])], { restart:null })");
   if (!d.querySelector('#kbd') || !d.querySelector('#inp').readOnly) throw new Error('Eigene Tastatur fehlt');

@@ -227,6 +227,13 @@ mark{background:#ffe27a;color:#1b2238;border-radius:6px;padding:0 4px}
 .memgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
 @media(min-width:600px){.memgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .mcard{min-height:86px;display:flex;align-items:center;justify-content:center;overflow-wrap:anywhere;hyphens:auto;line-height:1.2;border-radius:14px;border:none;background:var(--c);color:#fff;font:inherit;font-weight:800;font-size:1rem;padding:8px;cursor:pointer;box-shadow:0 4px 0 color-mix(in srgb,var(--c) 70%,#000)}
+.mcard.mk-r{background:var(--ok)}.mcard.mk-r::before{content:"="}
+.pairgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pcol{display:flex;flex-direction:column;gap:10px}
+.pc{min-height:58px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:1.15rem;padding:8px;cursor:pointer;touch-action:manipulation}
+.pc.pt{border-color:color-mix(in srgb,var(--c) 45%,var(--line))}.pc.pr{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.pc.sel{background:#fff3c4;color:var(--ink);border-color:#f5b800;box-shadow:0 0 0 3px #f5b800 inset}.pc.done{background:color-mix(in srgb,var(--ok) 14%,var(--card));border-color:var(--ok);color:var(--muted);opacity:.7}
+.pc.no{background:color-mix(in srgb,var(--bad) 16%,var(--card));border-color:var(--bad);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 .mcard span{display:none}.mcard::before{content:"?";font-size:1.6rem}
 .mcard.open,.mcard.done{background:#fff;color:var(--ink);border:2px solid var(--c);box-shadow:none}.mcard.open::before,.mcard.done::before{content:none}
 .mcard.open span,.mcard.done span{display:block}.mcard.done{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,#fff)}
@@ -2682,7 +2689,7 @@ function sortData(u){
 function gameTypes(u){
   const t = [];
   if (blitzPool(u)) t.push({ k:'g-blitz', icon:'⚡', name:'Blitz-Sprung', desc:'60 Sekunden: Jede richtige Antwort ist ein Sprung' + ((DB.games || {})[gkey('blitz')] ? ` · Rekord ${DB.games[gkey('blitz')]}` : '') });
-  if (memoryPairs(u)) t.push({ k:'g-mem', icon:'🃏', name:'Memory', desc:'Finde die Paare' });
+  if (memoryPairs(u)) t.push(u.gen && !u.words.length ? { k:'g-mem', icon:'🧩', name:'Paare finden', desc:'Welches Ergebnis gehört zu welcher Aufgabe?' } : { k:'g-mem', icon:'🃏', name:'Memory', desc:'Finde die Paare' });
   if (sortData(u)) t.push({ k:'g-sort', icon:'🧺', name:'Sortieren', desc:'Leg jede Karte in die richtige Kiste' });
   if (u.clockGame) t.push({ k:'g-clock', icon:'🕒', name:'Uhr stellen', desc:'Dreh die Zeiger auf die richtige Zeit' });
   if (u.mapGame) t.push({ k:'g-map', icon:'🗺️', name:'Kantonskarte', desc: u.mapGame === 'sg1' ? 'Finde Nachbarkantone und Seen' : u.mapGame === 'ch' ? 'Finde Kantone, Hauptorte und Seen' : 'Finde Wahlkreise, Orte und Seen' });
@@ -2735,13 +2742,42 @@ function showBlitz(){
 }
 
 /* ---- Memory ---- */
-function showMemory(){
+/* Mathe: offene Karten statt verdeckt. Rechnen und Merken gleichzeitig ist für Kinder zu viel.
+   Links die Aufgaben, rechts die Ergebnisse; Aufgabe antippen, dann das passende Ergebnis. «Verdeckt» bleibt als Herausforderung. */
+function showPairs(){
   stop(); crumbs();
-  const pairs = memoryPairs(NAV.u), tk = TOKEN;
-  const cards = shuffle(pairs.flatMap((p, i) => [{ t:p[0], p:i }, { t:p[1], p:i }]));
+  const pairs = memoryPairs(NAV.u), tk = TOKEN, L = shuffle(pairs.map((p, i) => ({ t:p[0], p:i }))), R = shuffle(pairs.map((p, i) => ({ t:p[1], p:i })));
+  LG = { sel:null, found:0, err:0, t0:Date.now() };
+  app.innerHTML = `<div id="lg"><h1 class="h1">Paare finden</h1><p class="lead">Tippe eine Aufgabe und dann das richtige Ergebnis. Fehler: <span id="merr">0</span></p>
+    <div class="pairgrid"><div class="pcol">${L.map((c, i) => `<button class="pc pt" data-s="L" data-i="${i}">${esc(c.t)}</button>`).join('')}</div>
+      <div class="pcol">${R.map((c, i) => `<button class="pc pr" data-s="R" data-i="${i}">${esc(c.t)}</button>`).join('')}</div></div>
+    <div class="row"><button class="linkbtn" id="mhard">🙈 Schwieriger: verdeckt spielen (Memory)</button></div></div>`;
+  $('#mhard').onclick = () => showMemory(true);
+  LG.finish = () => {
+    const sec = Math.round((Date.now() - LG.t0) / 1000), rec = saveGame(gkey('pair'), LG.err * 1000 + sec, true), best = DB.games[gkey('pair')];
+    lgEnd(['🧩', 'Alle Paare gefunden!'], `<p class="word">${LG.err} Fehler · ${sec} s</p><p>${rec ? '🏆 Neuer Rekord!' : 'Rekord: ' + Math.floor(best / 1000) + ' Fehler · ' + best % 1000 + ' s'}</p><p class="earn off">Spielminuten gibt es beim Üben und im Probetest.</p>`, null, showPairs);
+  };
+  app.querySelectorAll('.pc').forEach(b => b.onclick = () => {
+    if (LG.lock || b.classList.contains('done')) return;
+    const side = b.dataset.s, c = (side === 'L' ? L : R)[+b.dataset.i];
+    if (!LG.sel || LG.sel.side === side) { if (LG.sel) LG.sel.b.classList.remove('sel'); LG.sel = { b, c, side }; b.classList.add('sel'); return; }
+    const a = LG.sel; LG.sel = null; a.b.classList.remove('sel');
+    if (a.c.p === c.p) { a.b.classList.add('done'); b.classList.add('done'); LG.found++; if (LG.found === pairs.length) setTimeout(() => { if (tk === TOKEN) LG.finish(); }, 500); }
+    else { LG.err++; $('#merr').textContent = LG.err; LG.lock = true; a.b.classList.add('no'); b.classList.add('no');
+      setTimeout(() => { if (tk !== TOKEN) return; a.b.classList.remove('no'); b.classList.remove('no'); LG.lock = false; }, 700); }
+  });
+}
+function showMemory(hard){
+  if (NAV.u.gen && !NAV.u.words.length && !hard) return showPairs();
+  stop(); crumbs();
+  const pairs = memoryPairs(NAV.u), tk = TOKEN, math = !!(NAV.u.gen && !NAV.u.words.length);
+  const cards = shuffle(pairs.flatMap((p, i) => [{ t:p[0], p:i, k:'a' }, { t:p[1], p:i, k:'r' }]));
   LG = { open:[], found:0, tries:0 };
   app.innerHTML = `<div id="lg"><h1 class="h1">Memory</h1><p class="lead">Finde die ${pairs.length} Paare. Versuche: <span id="mtries">0</span></p>
-    <div class="memgrid">${cards.map((c, i) => `<button class="mcard" data-i="${i}" aria-label="Karte ${i + 1}"><span>${esc(c.t)}</span></button>`).join('')}</div></div>`;
+    ${math ? '<p class="small" style="margin-top:-8px">Karten mit «?» sind Aufgaben, Karten mit «=» sind Ergebnisse. Ein Paar ist immer eine Aufgabe und ihr Ergebnis.</p>' : ''}
+    <div class="memgrid">${cards.map((c, i) => `<button class="mcard ${math ? 'mk-' + c.k : ''}" data-i="${i}" aria-label="Karte ${i + 1}"><span>${esc(c.t)}</span></button>`).join('')}</div>
+    ${math ? '<div class="row"><button class="linkbtn" id="measy">🧩 Einfacher: Karten offen</button></div>' : ''}</div>`;
+  if ($('#measy')) $('#measy').onclick = () => showPairs();
   LG.finish = () => {
     const rec = saveGame(gkey('mem'), LG.tries, true);
     lgEnd(['🃏', 'Alle Paare gefunden!'], `<p class="word">${LG.tries} Versuche</p><p>${rec ? '🏆 Neuer Rekord!' : 'Rekord: ' + DB.games[gkey('mem')] + ' Versuche'}</p><p class="earn off">Memory trainiert dein Gedächtnis. Spielminuten gibt es beim Üben und im Probetest.</p>`, null, showMemory);
@@ -2752,6 +2788,7 @@ function showMemory(){
     if (LG.open.length < 2) return;
     LG.tries++; $('#mtries').textContent = LG.tries;
     const [[b1, c1], [b2, c2]] = LG.open; LG.open = [];
+    if (math && c1.k === c2.k) { LG.lock = true; setTimeout(() => { if (tk !== TOKEN) return; b1.classList.remove('open'); b2.classList.remove('open'); LG.lock = false; }, 900); return; }
     if (c1.p === c2.p) { b1.classList.add('done'); b2.classList.add('done'); LG.found++; if (LG.found === pairs.length) setTimeout(() => { if (tk === TOKEN) LG.finish(); }, 600); }
     else { LG.lock = true; setTimeout(() => { if (tk !== TOKEN) return; b1.classList.remove('open'); b2.classList.remove('open'); LG.lock = false; }, 1000); }
   });
@@ -4038,7 +4075,7 @@ updateStars(); updatePlay();
 /* Zurück-Taste (Android, Browser): eine Ebene zurück statt App schliessen */
 const SCREENS = { showHome:'home', showSubjects:'subjects', showUnits:'units', showUnit:'unit', showLearn:'learn', showLearnGen:'learnGen',
   flash:'sub', wordList:'sub', abcBoard:'sub', showGrammar:'sub', showPractice:'practice', showCustomTest:'testIntro', showTestIntro:'testIntro',
-  run:'run', showProfiles:'sub0', showBlitz:'lgame', showMemory:'lgame', showSort:'lgame', showClock:'lgame', showMap:'lgame', showGame:'game', showParents:'parents', showRewards:'sub0', showExamForm:'sub0', showPrivacy:'sub0', showAdmin:'sub0', showInvite:'sub0' };
+  run:'run', showProfiles:'sub0', showBlitz:'lgame', showMemory:'lgame', showPairs:'lgame', showSort:'lgame', showClock:'lgame', showMap:'lgame', showGame:'game', showParents:'parents', showRewards:'sub0', showExamForm:'sub0', showPrivacy:'sub0', showAdmin:'sub0', showInvite:'sub0' };
 let CUR = 'home', RET = null, ARMED = false, SKIP = false, BACKWARN = 0;
 const hist = (fn, ...a) => { try { history[fn](...a); } catch (e) {} };
 Object.entries(SCREENS).forEach(([n, id]) => {
@@ -4082,7 +4119,7 @@ window.addEventListener('popstate', () => {
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-26';
+const APP_VERSION = '2026-11-06-27';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
