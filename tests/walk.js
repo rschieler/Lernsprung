@@ -30,6 +30,22 @@ setTimeout(() => { try {
   const qa = w.eval(`JSON.stringify([inputCheck({ alts:qaAlts("4'500 m").split('|') }, '4500').ok, inputCheck({ alts:qaAlts("4'500 m").split('|') }, '4500 m').ok, inputCheck({ alts:qaAlts("4'500 m").split('|') }, '450').ok])`);
   if (qa !== '[true,true,false]') throw new Error('Einheiten-Alternativen falsch: ' + qa);
   console.log('OK: Eigene Lernlisten angelegt (inkl. Foto-Entwurf)');
+  // KI-Antworten einlesen (ChatGPT/Claude/Gemini schreiben unterschiedlich)
+  const F = '`'.repeat(3), cases = [
+    ['Hier ist deine Liste:\n' + F + 'json\n{"lernsprung":1,"title":"Unit 3","kind":"vok","goals":["Ich kann Orte nennen."],"items":[{"a":"bakery","b":"die Bäckerei","wrong":[]},{"a":"library","b":"die Bibliothek"}]}\n' + F + '\nViel Erfolg!', 'en'],
+    ['{“title”:“Längen”,“kind”:“qa”,“items”:[{“a”:“1 m = ? cm”,“b”:“100 cm”,“wrong”:[“10 cm”,“1000 cm”,“100 cm”]},{“a”:“1 km = ? m”,“b”:“1000 m”}]}', 'ma'],
+    ['the dog = der Hund\nthe cat = die Katze', 'en'], ['Leider kann ich das Bild nicht lesen.', 'nmg']];
+  const pa = w.eval(`JSON.stringify(${JSON.stringify(cases)}.map(([t, s]) => parseAiAnswer(t, s)))`);
+  const P = JSON.parse(pa);
+  if (P[0].kind !== 'vok' || P[0].items.length !== 2 || P[0].goals[0] !== 'Ich kann Orte nennen.' || P[1].kind !== 'qa' || P[1].items[0].length !== 4 || P[2].items.length !== 2 || P[3] !== null)
+    throw new Error('KI-Antwort falsch eingelesen: ' + pa);
+  // Variante B (eigener Gemini-Schlüssel) mit simulierter Antwort
+  w.eval(`window.__gk = geminiKey; window.geminiKey = () => 'TEST'; window.__aiMock = async () => '{"title":"Test","kind":"qa","items":[{"a":"A?","b":"1","wrong":["2","3","4"]},{"a":"B?","b":"5","wrong":["6","7","8"]}]}'; parentPanel()`);
+  d.querySelector('#plcam').click(); if (!d.querySelector('#pcam') || !d.querySelector('#acopy')) throw new Error('KI-Seite unvollständig');
+  d.querySelector('#apaste').value = F + 'json\n{"kind":"qa","title":"Einfügen","items":[{"a":"X?","b":"1"},{"a":"Y?","b":"2"}]}\n' + F; d.querySelector('#atake').click();
+  if (!d.querySelector('#lsave') || !d.querySelector('#ltext').value.includes('X? = 1')) throw new Error('Einfügen öffnet keinen Entwurf');
+  w.eval("window.geminiKey = window.__gk; delete window.__aiMock");
+  console.log('OK: Mit KI erstellen (Einfügen und Gemini-Schlüssel)');
   const cat = w.eval('CATALOG'), games = {};
   for (let si = 0; si < cat.length; si++) for (let gi = 0; gi < cat[si].grades.length; gi++) {
     w.eval(`NAV.s=CATALOG[${si}];NAV.g=NAV.s.grades[${gi}];NAV.n=NAV.g.grade;setColor();showUnits()`);

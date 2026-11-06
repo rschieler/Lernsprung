@@ -2280,11 +2280,11 @@ function listsPanelHTML(){
   const L = Object.values(DB.custom || {}).filter(x => !x.del).sort((a, b) => b.t - a.t), sn = id => (CATALOG.find(s => s.id === id) || {}).name || id;
   return `<h2 class="h2">Eigene Lernlisten</h2><div class="card"><p class="small" style="margin-top:0">Wörter oder Fragen vom Lernziel-Blatt erfassen. Die App macht daraus Übungen, Lernspiele und einen Probetest. Die Listen erscheinen im Fach unter «Eigene Lernlisten».</p>
     ${L.length ? `<div class="menu">${L.map(x => `<button class="mitem" data-list="${x.id}"><span class="mi">📝</span><span><b>${esc(x.title)}</b><span>${esc(sn(x.s))}, ${x.g}. Klasse · ${x.items.length} Einträge</span></span></button>`).join('')}</div>` : ''}
-    <div class="row" style="justify-content:flex-start">${aiReady() ? '<button class="btn primary" id="plcam">📷 Lernziele fotografieren</button><button class="btn" id="plnew">✏️ Selbst eingeben</button>' : '<button class="btn primary" id="plnew">+ Neue Lernliste</button>'}</div></div>`;
+    <div class="row" style="justify-content:flex-start"><button class="btn primary" id="plcam">✨ Mit KI erstellen</button><button class="btn" id="plnew">✏️ Selbst eingeben</button></div>${geminiKeyHTML()}</div>`;
 }
 function bindListsPanel(){
   $('#plnew').onclick = () => showListEditor(null);
-  if ($('#plcam')) $('#plcam').onclick = showPhotoImport;
+  $('#plcam').onclick = showAiImport; bindGeminiKey();
   app.querySelectorAll('[data-list]').forEach(b => b.onclick = () => showListEditor(b.dataset.list));
 }
 function showListEditor(id, draft){
@@ -2294,7 +2294,7 @@ function showListEditor(id, draft){
   const opts = CATALOG.flatMap(s => grades.map(g => `<option value="${s.id}|${g}" ${s.id === cur.s && g === cur.g ? 'selected' : ''}>${esc(s.name)}, ${g}. Klasse</option>`)).join('');
   const toText = (k, items) => items.map(([a, b]) => k === 'diktat' ? a : `${a} = ${b}`).join('\n');
   app.innerHTML = `<h1 class="h1">${L ? 'Lernliste bearbeiten' : 'Neue Lernliste'}</h1>
-  ${draft && draft.ai ? '<div class="tip">✨ Gemini hat das Blatt gelesen. Bitte kurz prüfen und bei Bedarf korrigieren, dann speichern.</div>' : ''}
+  ${draft && draft.ai ? '<div class="tip">✨ Die KI hat das Blatt gelesen. Bitte kurz prüfen und bei Bedarf korrigieren, dann speichern.</div>' : ''}
   <div class="card" id="led">
     <label for="lsg"><b>Fach und Klasse</b></label><select id="lsg" class="inp fld">${opts}</select>
     <label for="lkind" style="display:block;margin-top:12px"><b>Art</b></label><select id="lkind" class="inp fld"></select>
@@ -2314,7 +2314,7 @@ function showListEditor(id, draft){
     const r = parseList(k, txt.value); $('#lstat').innerHTML = `${r.items.length} Einträge erkannt${r.bad.length ? ` · <b>${r.bad.length} Zeilen ohne «=»</b>: ${esc(r.bad.slice(0, 3).join(' | '))}` : ''}${k !== 'diktat' && r.items.length && r.items.length < 4 ? ' · Für das Quiz braucht es mindestens 4 Einträge.' : ''}`; };
   if (cur.items && cur.items.length) txt.value = toText(cur.kind, cur.items);
   $('#lsg').onchange = fillKinds; kindSel.onchange = upd; txt.oninput = upd; fillKinds();
-  $('#lback').onclick = draft && draft.ai ? showPhotoImport : parentPanel;
+  $('#lback').onclick = draft && draft.ai ? showAiImport : parentPanel;
   $('#lsave').onclick = () => {
     const [s, g] = $('#lsg').value.split('|'), kind = kindSel.value, r = parseList(kind, txt.value), title = $('#ltitle').value.trim();
     if (!title) { toast('Bitte einen Titel eingeben.'); $('#ltitle').focus(); return; }
@@ -2333,50 +2333,67 @@ function showListEditor(id, draft){
 }
 
 /* =====================================================================
-   FOTO → GEMINI → LERNLISTE (Firebase AI Logic, Gemini Developer API, Spark-Plan)
-   App Check mit reCAPTCHA Enterprise ist seit 2.11.2026 Pflicht. RECAPTCHA_KEY = Web-Schlüssel aus der Google Cloud Console.
+   MIT KI ERSTELLEN: jede Familie nutzt ihre eigene KI
+   A) Auftrag kopieren → in eigene KI-App (ChatGPT, Claude, Gemini …) mit Foto → Antwort zurück einfügen
+   B) optional eigener Gemini-Schlüssel (Google AI Studio, gratis), nur lokal auf dem Gerät gespeichert
    ===================================================================== */
-const RECAPTCHA_KEY = '';
-const AI_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash'];
-const FB_V = '13.1.0';
-let AIM = null;
-const aiReady = () => !!(window.__aiMock || (RECAPTCHA_KEY && isHosted()));
-async function aiModel(){
-  if (AIM) return AIM;
-  const base = `https://www.gstatic.com/firebasejs/${FB_V}/`;
-  const [A, C, G] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-app-check.js'), import(base + 'firebase-ai.js')]);
-  const app = A.getApps().find(a => a.name === 'ai') || A.initializeApp(FB_CONFIG, 'ai');
-  try { C.initializeAppCheck(app, { provider:new C.ReCaptchaEnterpriseProvider(RECAPTCHA_KEY), isTokenAutoRefreshEnabled:true }); } catch (e) {}
-  const ai = G.getAI(app, { backend:new G.GoogleAIBackend() }), S = G.Schema;
-  const schema = S.object({ properties:{
-    title:S.string(), kind:S.enumString({ enum:['vok','diktat','qa'] }), goals:S.array({ items:S.string() }),
-    items:S.array({ items:S.object({ properties:{ a:S.string(), b:S.string(), wrong:S.array({ items:S.string() }) }, optionalProperties:['wrong'] }) })
-  }, optionalProperties:['goals'] });
-  AIM = AI_MODELS.map(m => G.getGenerativeModel(ai, { model:m, generationConfig:{ responseMimeType:'application/json', responseSchema:schema, temperature:0.3 } }));
-  return AIM;
-}
-function aiPrompt(s, g){
+const GEMINI_STORE = 'lernsprung-gemini';
+const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+function geminiKey(){ try { return localStorage.getItem(GEMINI_STORE) || ''; } catch (e) { return ''; } }
+function aiRules(s, g){
   const kinds = listKindsFor(s.id);
   const rule = s.id === 'en' || s.id === 'fr'
-    ? `Enthält das Blatt eine Wörterliste, wähle kind "vok" und übernimm ALLE Wörter genau wie auf dem Blatt: a = ${s.name}, b = Deutsch (mit Artikel bei Nomen). Sonst kind "qa".`
+    ? `Enthält das Blatt eine Wörterliste, nimm kind "vok" und übernimm ALLE Wörter genau wie auf dem Blatt: a = ${s.name}, b = Deutsch (Nomen mit Artikel). Sonst kind "qa".`
     : s.id === 'de'
-    ? 'Sind es Lernwörter oder ein Diktat, wähle kind "diktat" und übernimm alle Wörter genau (a = Wort, b = ""). Sonst kind "qa" mit Aufgaben zu den Lernzielen (z.B. Wortart bestimmen, Mehrzahl bilden, Zeitform setzen).'
+    ? 'Sind es Lernwörter oder ein Diktat, nimm kind "diktat" und übernimm alle Wörter genau (a = Wort, b = ""). Sonst kind "qa" mit Aufgaben zu den Lernzielen (z.B. Wortart bestimmen, Mehrzahl bilden, Zeitform setzen).'
     : s.id === 'ma'
-    ? 'Wähle kind "qa". Erstelle konkrete Rechenaufgaben zu jedem Lernziel (z.B. «4,5 km = ? m»). Die Antwort ist nur das Ergebnis mit Einheit, wenn nötig.'
-    : 'Wähle kind "qa". Erstelle Wissensfragen zu jedem Lernziel und zu den Fakten auf dem Blatt.';
-  return `Du hilfst einer Lern-App für die Primarschule im Kanton St.Gallen (Schweiz, Lehrplan 21). Fach: ${s.name}, ${g}. Klasse.
+    ? 'Nimm kind "qa". Erstelle konkrete Rechenaufgaben zu jedem Lernziel (z.B. «4.5 km = ? m»). Die Antwort ist nur das Ergebnis, mit Einheit wenn nötig.'
+    : 'Nimm kind "qa". Erstelle Wissensfragen zu jedem Lernziel und zu den Fakten auf dem Blatt.';
+  return `Du hilfst bei einer Lern-App für die Primarschule im Kanton St.Gallen (Schweiz, Lehrplan 21). Fach: ${s.name}, ${g}. Klasse.
 Auf dem Foto ist ein Lernziel-Blatt, ein Arbeitsblatt oder eine Wörterliste. Erstelle daraus Übungsmaterial für ein Kind.
 ${rule}
-Erlaubte Arten: ${kinds.join(', ')}.
-Bei kind "qa": 15 bis 25 Fragen, die genau die Lernziele des Blatts abdecken. Jede Antwort ist kurz und eindeutig (höchstens 4 Wörter oder eine Zahl). Gib zu jeder Frage in «wrong» 3 plausible, aber eindeutig falsche Antworten im gleichen Format.
-«goals»: die Lernziele vom Blatt als kurze Sätze für das Kind (falls vorhanden). «title»: kurzer Titel (z.B. Thema oder Unit).
-Schreibe Schweizer Hochdeutsch: immer «ss», nie «ß». Zahlen wie in der Schweizer Schule: Tausender mit Apostroph (4'500), Dezimalpunkt (4.5). Erfinde keine Inhalte, die nicht zum Blatt passen. Ignoriere Namen, Noten und Unterschriften.`;
+Erlaubte Werte für kind: ${kinds.map(k => '"' + k + '"').join(', ')}.
+Bei kind "qa": 15 bis 25 Fragen, die genau die Lernziele des Blatts abdecken. Jede Antwort ist kurz und eindeutig (höchstens 4 Wörter oder eine Zahl). Gib zu jeder Frage in "wrong" 3 plausible, aber eindeutig falsche Antworten im gleichen Format.
+"goals": die Lernziele vom Blatt als kurze Sätze für das Kind (falls vorhanden). "title": kurzer Titel (Thema oder Unit).
+Schreibe Schweizer Hochdeutsch: immer «ss», nie «ß». Zahlen wie in der Schweizer Schule: Tausender mit Apostroph (4'500), Dezimalpunkt (4.5).
+Erfinde nichts, was nicht zum Blatt passt. Ignoriere Namen, Noten und Unterschriften.`;
 }
-async function aiExtract(s, g, images){
+function aiPromptCopy(s, g){
+  return aiRules(s, g) + `
+
+Antworte NUR mit einem JSON-Codeblock in genau diesem Format, ohne weiteren Text:
+\`\`\`json
+{"lernsprung":1,"title":"…","kind":"${listKindsFor(s.id)[0]}","goals":["…"],"items":[{"a":"…","b":"…","wrong":["…","…","…"]}]}
+\`\`\`
+Ich habe das Foto angehängt.`;
+}
+// Antwort einer KI einlesen: JSON (auch mit ```-Block oder Text drumherum) oder Zeilen «a = b»
+function parseAiAnswer(text, sid){
+  const t = String(text || '').trim(), kinds = listKindsFor(sid);
+  let j = null; const cands = [];
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i); if (fence) cands.push(fence[1]);
+  const a = t.indexOf('{'), b = t.lastIndexOf('}'); if (a >= 0 && b > a) cands.push(t.slice(a, b + 1));
+  for (const c of cands) { try { j = JSON.parse(c.replace(/[“”]/g, '"')); break; } catch (e) {} }
+  if (!j) { const k = kinds.includes('vok') ? 'vok' : 'qa', r = parseList(k, t); return r.items.length >= 2 ? { kind:k, title:'', items:r.items, goals:[] } : null; }
+  const kind = kinds.includes(j.kind) ? j.kind : kinds[kinds.length - 1];
+  const items = (Array.isArray(j.items) ? j.items : []).map(x => Array.isArray(x) ? x : [x.a, x.b, ...(x.wrong || [])])
+    .map(x => x.map(v => String(v == null ? '' : v).trim())).map(([q, ans, ...w]) => [q, ans, ...w.filter(v => v && v !== ans).slice(0, 3)])
+    .filter(x => x[0] && (kind === 'diktat' || x[1])).map(x => kind === 'diktat' ? [x[0], ''] : x).slice(0, 200);
+  return items.length >= 2 ? { kind, title:String(j.title || '').slice(0, 60), items, goals:(j.goals || []).map(String).filter(Boolean).slice(0, 12) } : null;
+}
+const AI_SCHEMA = { type:'OBJECT', properties:{ title:{ type:'STRING' }, kind:{ type:'STRING', enum:['vok','diktat','qa'] }, goals:{ type:'ARRAY', items:{ type:'STRING' } },
+  items:{ type:'ARRAY', items:{ type:'OBJECT', properties:{ a:{ type:'STRING' }, b:{ type:'STRING' }, wrong:{ type:'ARRAY', items:{ type:'STRING' } } }, required:['a','b'] } } }, required:['title','kind','items'] };
+async function geminiExtract(s, g, images){
   if (window.__aiMock) return window.__aiMock(s, g, images);
-  const models = await aiModel(), parts = [aiPrompt(s, g), ...images.map(d => ({ inlineData:{ data:d.split(',')[1], mimeType:'image/jpeg' } }))];
+  const key = geminiKey(); if (!key) throw new Error('kein Schlüssel');
+  const body = { contents:[{ parts:[{ text:aiRules(s, g) }, ...images.map(d => ({ inline_data:{ mime_type:'image/jpeg', data:d.split(',')[1] } }))] }],
+    generationConfig:{ responseMimeType:'application/json', responseSchema:AI_SCHEMA, temperature:0.3 } };
   let err;
-  for (const m of models) { try { const r = await m.generateContent(parts); return JSON.parse(r.response.text()); } catch (e) { err = e; if (!/not found|404|unsupported|deprecated/i.test(String(e && e.message))) break; } }
+  for (const m of GEMINI_MODELS) {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method:'POST', headers:{ 'Content-Type':'application/json', 'x-goog-api-key':key }, body:JSON.stringify(body) });
+    if (r.ok) { const d = await r.json(), txt = (((d.candidates || [])[0] || {}).content || {}).parts; return (txt || []).map(p => p.text || '').join(''); }
+    err = new Error(r.status + ' ' + ((await r.text()).slice(0, 200))); if (r.status !== 404) break;
+  }
   throw err;
 }
 function shrinkImage(file){
@@ -2386,50 +2403,66 @@ function shrinkImage(file){
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Bild konnte nicht gelesen werden')); }; img.src = url; });
 }
 function aiErrorText(e){
-  const m = String((e && (e.code || e.message)) || e);
-  if (/app-check|appCheck|attestation/i.test(m)) return 'Der Schutz (App Check) ist noch nicht richtig eingerichtet.';
-  if (/quota|429|resource.exhausted|rate/i.test(m)) return 'Das Gratis-Kontingent von Gemini ist für den Moment aufgebraucht. Bitte in ein paar Minuten nochmals versuchen.';
-  if (/network|fetch|offline|Failed to/i.test(m)) return 'Keine Internetverbindung zu Gemini.';
-  if (/JSON/i.test(m)) return 'Gemini hat keine brauchbare Antwort geliefert. Bitte ein schärferes Foto versuchen.';
-  return 'Das Foto konnte nicht ausgewertet werden (' + esc(m.slice(0, 120)) + ').';
+  const m = String((e && e.message) || e);
+  if (/^40[03]|API key|API_KEY|PERMISSION/i.test(m)) return 'Der Gemini-Schlüssel stimmt nicht. Bitte im Eltern-Bereich prüfen.';
+  if (/^429|quota|RESOURCE_EXHAUSTED/i.test(m)) return 'Das Gratis-Kontingent von Gemini ist im Moment aufgebraucht. Bitte in ein paar Minuten nochmals versuchen oder Variante A nutzen.';
+  if (/Failed to fetch|NetworkError|network/i.test(m)) return 'Keine Verbindung zu Gemini.';
+  return 'Das hat nicht geklappt (' + esc(m.slice(0, 120)) + '). Versuch es nochmals oder nutze Variante A.';
 }
-function showPhotoImport(){
+function showAiImport(){
   stop();
-  const grades = allGrades(), cur = { s:(NAV.s && NAV.s.id) || 'en', g:NAV.n || grades[0] }, pics = [];
+  const grades = allGrades(), cur = { s:(NAV.s && NAV.s.id) || 'en', g:NAV.n || grades[0] }, pics = [], key = geminiKey();
   const opts = CATALOG.flatMap(s => grades.map(g => `<option value="${s.id}|${g}" ${s.id === cur.s && g === cur.g ? 'selected' : ''}>${esc(s.name)}, ${g}. Klasse</option>`)).join('');
-  app.innerHTML = `<h1 class="h1">📷 Lernziele fotografieren</h1><p class="lead">Foto vom Lernziel-Blatt, Arbeitsblatt oder der Wörterliste. Gemini macht daraus eine Lernliste, die du prüfst und speicherst.</p>
-  <div class="card" id="led">
-    <label for="lsg"><b>Fach und Klasse</b></label><select id="lsg" class="inp fld">${opts}</select>
-    <div class="row" style="justify-content:flex-start;margin-top:14px">
-      <label class="btn primary" for="pcam">📷 Foto aufnehmen</label><input id="pcam" type="file" accept="image/*" capture="environment" hidden>
+  const sel = () => { const [sid, g] = $('#lsg').value.split('|'); return { s:CATALOG.find(x => x.id === sid), sid, g:+g }; };
+  app.innerHTML = `<h1 class="h1">✨ Mit KI erstellen</h1><p class="lead">Eine KI liest das Lernziel-Blatt und macht daraus eine Lernliste. Du prüfst sie und speicherst.</p>
+  <div class="card" id="led"><label for="lsg"><b>Fach und Klasse</b></label><select id="lsg" class="inp fld">${opts}</select></div>
+  ${key ? `<h2 class="h2">📷 Foto mit deinem Gemini-Schlüssel</h2><div class="card">
+    <div class="row" style="justify-content:flex-start;margin-top:0"><label class="btn primary" for="pcam">📷 Foto aufnehmen</label><input id="pcam" type="file" accept="image/*" capture="environment" hidden>
       <label class="btn" for="pgal">🖼️ Bild auswählen</label><input id="pgal" type="file" accept="image/*" multiple hidden></div>
-    <div id="pthumbs" class="pthumbs"></div>
-    <div id="pgo"></div>
-    <p class="small">Das Foto wird zur Auswertung an Google Gemini geschickt. Fotografiere nur das Blatt, ohne Namen und Noten. Für mehrseitige Blätter kannst du mehrere Fotos hinzufügen.</p>
-    <div class="row"><button class="btn" id="pman">✏️ Lieber selbst eingeben</button><button class="btn" id="pback">Zurück</button></div>
-  </div>`;
-  const addFiles = async files => { for (const f of [...files].slice(0, 4 - pics.length)) { try { pics.push(await shrinkImage(f)); } catch (e) { toast(e.message); } } draw(); };
-  const draw = () => {
-    $('#pthumbs').innerHTML = pics.map((p, i) => `<span class="pthumb"><img src="${p}" alt="Foto ${i + 1}"><button class="pdel" data-i="${i}" aria-label="Foto ${i + 1} entfernen">×</button></span>`).join('');
-    $('#pthumbs').querySelectorAll('.pdel').forEach(b => b.onclick = () => { pics.splice(+b.dataset.i, 1); draw(); });
-    $('#pgo').innerHTML = pics.length ? `<div class="row"><button class="btn good" id="prun">✨ Lernliste erstellen (${pics.length} Foto${pics.length > 1 ? 's' : ''})</button></div>` : '';
-    if (pics.length) $('#prun').onclick = run;
-  };
-  const run = async () => {
-    const [sid, g] = $('#lsg').value.split('|'), s = CATALOG.find(x => x.id === sid), tk = TOKEN;
-    $('#pgo').innerHTML = '<div class="fb center"><span class="spin" aria-hidden="true"></span> Gemini liest das Blatt … Das dauert etwa 10 bis 30 Sekunden.</div>';
-    try {
-      const r = await aiExtract(s, +g, pics); if (tk !== TOKEN) return;
-      const kinds = listKindsFor(sid), kind = kinds.includes(r.kind) ? r.kind : kinds[kinds.length - 1];
-      const items = (r.items || []).map(x => [String(x.a || '').trim(), String(x.b || '').trim(), ...((x.wrong || []).map(String).filter(w => w && w !== x.b).slice(0, 3))])
-        .filter(x => x[0] && (kind === 'diktat' || x[1])).map(x => kind === 'diktat' ? [x[0], ''] : x).slice(0, 200);
-      if (items.length < 2) throw new Error('JSON: zu wenig Inhalt');
-      showListEditor(null, { s:sid, g:+g, kind, title:String(r.title || 'Lernziele').slice(0, 60), items, goals:(r.goals || []).map(String).filter(Boolean).slice(0, 12), ai:true });
-    } catch (e) { if (tk !== TOKEN) return; $('#pgo').innerHTML = `<div class="fb wrong">${aiErrorText(e)}<button class="btn primary" id="prun2">Nochmals versuchen</button></div>`; $('#prun2').onclick = run; }
-  };
-  $('#pcam').onchange = e => addFiles(e.target.files); $('#pgal').onchange = e => addFiles(e.target.files);
-  $('#pman').onclick = () => { const [s, g] = $('#lsg').value.split('|'); showListEditor(null, { s, g:+g, kind:'', title:'', items:[] }); };
+    <div id="pthumbs" class="pthumbs"></div><div id="pgo"></div>
+    <p class="small">Das Foto geht direkt an dein Gemini-Konto. Fotografiere nur das Blatt, ohne Namen und Noten.</p></div>` : ''}
+  <h2 class="h2">${key ? 'Oder mit' : 'Mit'} deiner KI-App</h2><div class="card">
+    <p style="margin-top:0"><b>1.</b> Auftrag kopieren</p>
+    <div class="row" style="justify-content:flex-start;margin-top:0"><button class="btn primary" id="acopy">📋 Auftrag kopieren</button>${navigator.share ? '<button class="btn" id="ashare">📤 Teilen …</button>' : ''}</div>
+    <p><b>2.</b> In ChatGPT, Claude, Gemini oder Copilot einfügen, <b>Foto vom Blatt anhängen</b> und senden.</p>
+    <p><b>3.</b> Die ganze Antwort der KI kopieren und hier einfügen:</p>
+    <textarea id="apaste" class="inp fld" rows="6" style="width:100%;font:inherit;resize:vertical" placeholder="Antwort der KI hier einfügen" spellcheck="false"></textarea>
+    <div id="afb"></div><div class="row"><button class="btn good" id="atake">✅ Übernehmen</button></div></div>
+  <div class="row"><button class="btn" id="pman">✏️ Selbst eingeben</button><button class="btn" id="pback">Zurück</button></div>`;
+  const prompt = () => { const x = sel(); return aiPromptCopy(x.s, x.g); };
+  $('#acopy').onclick = async () => { try { await navigator.clipboard.writeText(prompt()); toast('Auftrag kopiert. Jetzt in deiner KI-App einfügen.'); }
+    catch (e) { $('#afb').innerHTML = `<p class="small">Kopieren ging nicht automatisch. Markiere den Text und kopiere ihn:</p><textarea class="inp fld" rows="6" readonly style="width:100%;font:inherit">${esc(prompt())}</textarea>`; } };
+  if ($('#ashare')) $('#ashare').onclick = () => navigator.share({ text:prompt() }).catch(() => {});
+  const open = (r, ai) => { const x = sel(); showListEditor(null, { s:x.sid, g:x.g, kind:r.kind, title:r.title || 'Lernziele', items:r.items, goals:r.goals, ai:true }); };
+  $('#atake').onclick = () => { const r = parseAiAnswer($('#apaste').value, sel().sid);
+    if (!r) { $('#afb').innerHTML = '<div class="fb wrong">Ich finde in der Antwort keine Lernliste. Bitte die ganze Antwort der KI einfügen.</div>'; return; } open(r); };
+  if (key) {
+    const draw = () => {
+      $('#pthumbs').innerHTML = pics.map((p, i) => `<span class="pthumb"><img src="${p}" alt="Foto ${i + 1}"><button class="pdel" data-i="${i}" aria-label="Foto ${i + 1} entfernen">×</button></span>`).join('');
+      $('#pthumbs').querySelectorAll('.pdel').forEach(b => b.onclick = () => { pics.splice(+b.dataset.i, 1); draw(); });
+      $('#pgo').innerHTML = pics.length ? `<div class="row"><button class="btn good" id="prun">✨ Lernliste erstellen</button></div>` : ''; if (pics.length) $('#prun').onclick = run;
+    };
+    const add = async fs => { for (const f of [...fs].slice(0, 4 - pics.length)) { try { pics.push(await shrinkImage(f)); } catch (e) { toast(e.message); } } draw(); };
+    const run = async () => { const x = sel(), tk = TOKEN;
+      $('#pgo').innerHTML = '<div class="fb center"><span class="spin" aria-hidden="true"></span> Gemini liest das Blatt … etwa 10 bis 30 Sekunden.</div>';
+      try { const raw = await geminiExtract(x.s, x.g, pics); if (tk !== TOKEN) return; const r = parseAiAnswer(typeof raw === 'string' ? raw : JSON.stringify(raw), x.sid);
+        if (!r) throw new Error('Keine Lernliste in der Antwort'); open(r); }
+      catch (e) { if (tk !== TOKEN) return; $('#pgo').innerHTML = `<div class="fb wrong">${aiErrorText(e)}<button class="btn primary" id="prun2">Nochmals versuchen</button></div>`; $('#prun2').onclick = run; } };
+    $('#pcam').onchange = e => add(e.target.files); $('#pgal').onchange = e => add(e.target.files);
+  }
+  $('#pman').onclick = () => { const x = sel(); showListEditor(null, { s:x.sid, g:x.g, kind:'', title:'', items:[] }); };
   $('#pback').onclick = parentPanel;
+}
+function geminiKeyHTML(){
+  const k = geminiKey();
+  return `<details class="card" style="margin-top:12px"><summary><b>Eigener Gemini-Schlüssel</b> <span class="small">(optional, für Foto mit einem Tippen)</span></summary>
+    <p class="small">Gratis-Schlüssel holen: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> → mit Google-Konto anmelden → «API-Schlüssel erstellen» → kopieren und hier einfügen. Der Schlüssel bleibt nur auf diesem Gerät. Bei der Gratis-Version kann Google die Inhalte zur Verbesserung nutzen.</p>
+    <div class="inrow"><input id="gkey" class="inp fld" type="password" autocomplete="off" placeholder="AIza…" value="${esc(k)}"><button class="btn primary" id="gsave">Speichern</button></div>
+    ${k ? '<button class="btn" id="gdel" style="margin-top:8px">Schlüssel entfernen</button>' : ''}</details>`;
+}
+function bindGeminiKey(){
+  $('#gsave').onclick = () => { const v = $('#gkey').value.trim(); try { v ? localStorage.setItem(GEMINI_STORE, v) : localStorage.removeItem(GEMINI_STORE); } catch (e) {} toast(v ? 'Gemini-Schlüssel gespeichert' : 'Schlüssel entfernt'); parentPanel(); };
+  if ($('#gdel')) $('#gdel').onclick = () => { try { localStorage.removeItem(GEMINI_STORE); } catch (e) {} toast('Schlüssel entfernt'); parentPanel(); };
 }
 
 /* =====================================================================
@@ -3197,7 +3230,7 @@ window.addEventListener('popstate', () => {
 showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-2';
+const APP_VERSION = '2026-11-06-3';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
