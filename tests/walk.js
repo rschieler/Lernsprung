@@ -46,6 +46,13 @@ setTimeout(() => { try {
   if (!d.querySelector('#lsave') || !d.querySelector('#ltext').value.includes('X? = 1')) throw new Error('Einfügen öffnet keinen Entwurf');
   w.eval("window.geminiKey = window.__gk; delete window.__aiMock");
   console.log('OK: Mit KI erstellen (Einfügen und Gemini-Schlüssel)');
+  // Firestore: keine Listen in Listen, Hin- und Rückweg verlustfrei
+  const nest = w.eval(`(() => { const bad = []; const walk = (v, p, inArr) => { if (Array.isArray(v)) { if (inArr) bad.push(p); v.forEach((x, i) => walk(x, p + '[' + i + ']', true)); }
+    else if (v && typeof v === 'object') Object.entries(v).forEach(([k, x]) => walk(x, p + '.' + k, false)); }; walk(cloudPayload(), 'doc', false); return bad.slice(0, 3).join(', '); })()`);
+  if (nest) throw new Error('Firestore lehnt Listen in Listen ab: ' + nest);
+  const rt = w.eval("JSON.stringify(customFromCloud(JSON.parse(JSON.stringify(customToCloud(DB.custom))))) === JSON.stringify(DB.custom)");
+  if (!rt) throw new Error('Eigene Lernlisten gehen beim Synchronisieren verloren');
+  console.log('OK: Cloud-Format (Firestore)');
   const cat = w.eval('CATALOG'), games = {};
   for (let si = 0; si < cat.length; si++) for (let gi = 0; gi < cat[si].grades.length; gi++) {
     w.eval(`NAV.s=CATALOG[${si}];NAV.g=NAV.s.grades[${gi}];NAV.n=NAV.g.grade;setColor();showUnits()`);

@@ -34,7 +34,7 @@ Alles steckt in **einer Datei: `index.html`** (HTML, CSS, JS, keine Build-Schrit
 ## Synchronisation
 - Auf GitHub Pages: **Firebase Firestore**, Dokument `families/{Familien-Code}` (Projekt `lernsprung-ea1d2`, Anonym-Login). Der Code steckt im Link `?f=…` und im localStorage.
 - Als claude.ai-Artefakt: Artifact-Capability `db`, Dokument `lernstand/familie`.
-- Gespeicherte Felder: `known`, `tests`, `stars`, `play`, `settings`, `best`, `games`, `custom` (eigene Lernlisten, pro Liste gewinnt die neuere `t`, gelöscht = `del:true`), `reset` (Zeitstempel des letzten Zurücksetzens; Geräte mit älterem Stand verwerfen ihren Lernstand beim Zusammenführen). Neue Felder in `mergeDB`, `snapshotOf`, `remoteOf` und `pushCloud` ergänzen.
+- Gespeicherte Felder: `known`, `tests`, `stars`, `play`, `settings`, `best`, `games`, `custom` (eigene Lernlisten, pro Liste gewinnt die neuere `t`, gelöscht = `del:true`; in Firestore als Objekte `{a,b,w}` über `customToCloud`/`customFromCloud`, weil Firestore keine Listen in Listen erlaubt), `reset` (Zeitstempel des letzten Zurücksetzens; Geräte mit älterem Stand verwerfen ihren Lernstand beim Zusammenführen). Neue Felder in `mergeDB`, `snapshotOf`, `remoteOf` und `pushCloud` ergänzen.
 
 ## Vor jedem Push testen
 ```

@@ -1786,13 +1786,17 @@ function mergeDB(local, remote, remoteWins){
   });
   return out;
 }
+// Firestore erlaubt keine Listen in Listen: Einträge der eigenen Lernlisten als Objekte speichern
+const customToCloud = c => Object.fromEntries(Object.entries(c || {}).map(([k, L]) => [k, L && L.items ? Object.assign({}, L, { items:L.items.map(x => Array.isArray(x) ? { a:x[0], b:x[1], w:x.slice(2) } : x) }) : L]));
+const customFromCloud = c => Object.fromEntries(Object.entries(c || {}).map(([k, L]) => [k, L && L.items ? Object.assign({}, L, { items:L.items.map(x => Array.isArray(x) ? x : [x.a, x.b, ...(x.w || [])]) }) : L]));
+const cloudPayload = () => ({ known:DB.known, tests:DB.tests, stars:DB.stars, play:DB.play || null, settings:DB.settings || null, best:DB.best || 0, reset:DB.reset || 0, games:DB.games || {}, custom:customToCloud(DB.custom), updated:Date.now() });
 const snapshotOf = d => JSON.stringify({ known:d.known, tests:d.tests, stars:d.stars, play:d.play || null, settings:d.settings || null, best:d.best || 0, reset:d.reset || 0, games:d.games || {}, custom:d.custom || {} });
-const remoteOf = r => ({ known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0, games:r.games || {}, custom:r.custom || {} });
+const remoteOf = r => ({ known:r.known || {}, tests:r.tests || {}, stars:r.stars || 0, play:r.play || null, settings:r.settings || null, best:r.best || 0, reset:r.reset || 0, games:r.games || {}, custom:customFromCloud(r.custom) });
 function scheduleCloud(){ if (!CLOUD) return; cloudDirty = true; clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 1500); }
 async function pushCloud(){
   if (!CLOUD || cloudBusy || !cloudDirty) return;
   cloudBusy = true; cloudDirty = false; setSync('saving');
-  try { await CLOUD.set({ known:DB.known, tests:DB.tests, stars:DB.stars, play:DB.play || null, settings:DB.settings || null, best:DB.best || 0, reset:DB.reset || 0, games:DB.games || {}, custom:DB.custom || {}, updated:Date.now() }); setSync('ok'); }
+  try { await CLOUD.set(cloudPayload()); setSync('ok'); }
   catch (e) { setSync('off'); if (e && e.code === 'unavailable') cloudDirty = true; else if (e && ['revoked','not_granted','capability_disabled','capability_removed'].includes(e.code)) CLOUD = null; }
   finally { cloudBusy = false; if (cloudDirty && CLOUD) { clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 4000 + Math.random() * 2000); } }
 }
@@ -3230,7 +3234,7 @@ window.addEventListener('popstate', () => {
 showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-3';
+const APP_VERSION = '2026-11-06-4';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
