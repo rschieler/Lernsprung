@@ -2297,13 +2297,13 @@ function listsPanelHTML(){
     ${L.length ? `<div class="menu">${L.map(x => `<button class="mitem" data-list="${x.id}"><span class="mi">${x.by === 'kind' ? '🧒' : '📝'}</span><span><b>${esc(x.title)}</b><span>${esc(sn(x.s))}, ${x.g}. Klasse · ${x.items.length} Einträge${x.by === 'kind' ? (x.ok ? ' · vom Kind, freigegeben' : ' · <b>vom Kind, wartet auf Freigabe</b>') : ''}</span></span></button>`).join('')}</div>` : ''}
     <div class="row" style="justify-content:flex-start"><button class="btn primary" id="plcam">✨ Mit KI erstellen</button><button class="btn" id="plnew">✏️ Selbst eingeben</button></div>
     <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="pkid" ${kidListsOn() ? 'checked' : ''}> Kinder dürfen eigene Lernlisten erstellen (ohne PIN). Spielminuten gibt es dafür erst nach deiner Freigabe.</label>
-    ${geminiKeyHTML()}</div>`;
+    </div>`;
 }
 function bindListsPanel(){
   LISTCTX = { kid:false };
   $('#plnew').onclick = () => showListEditor(null);
   $('#pkid').onchange = e => { DB.settings.kidLists = e.target.checked; DB.settings.t = Date.now(); save(); toast(e.target.checked ? 'Kinder dürfen Lernlisten erstellen' : 'Nur Eltern erstellen Lernlisten'); };
-  $('#plcam').onclick = showAiImport; bindGeminiKey();
+  $('#plcam').onclick = showAiImport;
   app.querySelectorAll('[data-list]').forEach(b => b.onclick = () => showListEditor(b.dataset.list));
 }
 function showListEditor(id, draft){
@@ -2358,11 +2358,8 @@ function showListEditor(id, draft){
 /* =====================================================================
    MIT KI ERSTELLEN: jede Familie nutzt ihre eigene KI
    A) Auftrag kopieren → in eigene KI-App (ChatGPT, Claude, Gemini …) mit Foto → Antwort zurück einfügen
-   B) optional eigener Gemini-Schlüssel (Google AI Studio, gratis), nur lokal auf dem Gerät gespeichert
+   Die App selbst ruft keine KI auf (Gemini-API-Bedingungen: keine Nutzung in Apps für unter 18-Jährige).
    ===================================================================== */
-const GEMINI_STORE = 'lernsprung-gemini';
-const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
-function geminiKey(){ try { return localStorage.getItem(GEMINI_STORE) || ''; } catch (e) { return ''; } }
 function aiRules(s, g){
   const kinds = listKindsFor(s.id);
   const rule = s.id === 'en' || s.id === 'fr'
@@ -2404,90 +2401,36 @@ function parseAiAnswer(text, sid){
     .filter(x => x[0] && (kind === 'diktat' || x[1])).map(x => kind === 'diktat' ? [x[0], ''] : x).slice(0, 200);
   return items.length >= 2 ? { kind, title:String(j.title || '').slice(0, 60), items, goals:(j.goals || []).map(String).filter(Boolean).slice(0, 12) } : null;
 }
-const AI_SCHEMA = { type:'OBJECT', properties:{ title:{ type:'STRING' }, kind:{ type:'STRING', enum:['vok','diktat','qa'] }, goals:{ type:'ARRAY', items:{ type:'STRING' } },
-  items:{ type:'ARRAY', items:{ type:'OBJECT', properties:{ a:{ type:'STRING' }, b:{ type:'STRING' }, wrong:{ type:'ARRAY', items:{ type:'STRING' } } }, required:['a','b'] } } }, required:['title','kind','items'] };
-async function geminiExtract(s, g, images){
-  if (window.__aiMock) return window.__aiMock(s, g, images);
-  const key = geminiKey(); if (!key) throw new Error('kein Schlüssel');
-  const body = { contents:[{ parts:[{ text:aiRules(s, g) }, ...images.map(d => ({ inline_data:{ mime_type:'image/jpeg', data:d.split(',')[1] } }))] }],
-    generationConfig:{ responseMimeType:'application/json', responseSchema:AI_SCHEMA, temperature:0.3 } };
-  let err;
-  for (const m of GEMINI_MODELS) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method:'POST', headers:{ 'Content-Type':'application/json', 'x-goog-api-key':key }, body:JSON.stringify(body) });
-    if (r.ok) { const d = await r.json(), txt = (((d.candidates || [])[0] || {}).content || {}).parts; return (txt || []).map(p => p.text || '').join(''); }
-    err = new Error(r.status + ' ' + ((await r.text()).slice(0, 200))); if (r.status !== 404) break;
-  }
-  throw err;
-}
-function shrinkImage(file){
-  return new Promise((res, rej) => { const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = () => { const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', .82)); };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Bild konnte nicht gelesen werden')); }; img.src = url; });
-}
-function aiErrorText(e){
-  const m = String((e && e.message) || e);
-  if (/^40[03]|API key|API_KEY|PERMISSION/i.test(m)) return 'Der Gemini-Schlüssel stimmt nicht. Bitte im Eltern-Bereich prüfen.';
-  if (/^429|quota|RESOURCE_EXHAUSTED/i.test(m)) return 'Das Gratis-Kontingent von Gemini ist im Moment aufgebraucht. Bitte in ein paar Minuten nochmals versuchen oder Variante A nutzen.';
-  if (/Failed to fetch|NetworkError|network/i.test(m)) return 'Keine Verbindung zu Gemini.';
-  return 'Das hat nicht geklappt (' + esc(m.slice(0, 120)) + '). Versuch es nochmals oder nutze Variante A.';
-}
 function showAiImport(){
   stop();
-  const grades = allGrades(), cur = { s:(NAV.s && NAV.s.id) || 'en', g:NAV.n || grades[0] }, pics = [], key = geminiKey();
+  const grades = allGrades(), cur = { s:(NAV.s && NAV.s.id) || 'en', g:NAV.n || grades[0] }, kid = LISTCTX.kid;
   const opts = CATALOG.flatMap(s => grades.map(g => `<option value="${s.id}|${g}" ${s.id === cur.s && g === cur.g ? 'selected' : ''}>${esc(s.name)}, ${g}. Klasse</option>`)).join('');
   const sel = () => { const [sid, g] = $('#lsg').value.split('|'); return { s:CATALOG.find(x => x.id === sid), sid, g:+g }; };
-  app.innerHTML = `<h1 class="h1">${LISTCTX.kid ? '✨ Eigene Lernliste' : '✨ Mit KI erstellen'}</h1><p class="lead">${LISTCTX.kid ? 'Mach aus deinem Lernziel-Blatt eine Lernliste: mit einer KI-App oder indem du die Wörter selbst eintippst.' : 'Eine KI liest das Lernziel-Blatt und macht daraus eine Lernliste. Du prüfst sie und speicherst.'}</p>
-  <div class="card" id="led"><label for="lsg"><b>Fach und Klasse</b></label><select id="lsg" class="inp fld">${opts}</select></div>
-  ${key ? `<h2 class="h2">📷 Foto mit deinem Gemini-Schlüssel</h2><div class="card">
-    <div class="row" style="justify-content:flex-start;margin-top:0"><label class="btn primary" for="pcam">📷 Foto aufnehmen</label><input id="pcam" type="file" accept="image/*" capture="environment" hidden>
-      <label class="btn" for="pgal">🖼️ Bild auswählen</label><input id="pgal" type="file" accept="image/*" multiple hidden></div>
-    <div id="pthumbs" class="pthumbs"></div><div id="pgo"></div>
-    <p class="small">Das Foto geht direkt an dein Gemini-Konto. Fotografiere nur das Blatt, ohne Namen und Noten.</p></div>` : ''}
-  <h2 class="h2">${key ? 'Oder mit' : 'Mit'} deiner KI-App</h2><div class="card">
-    <p style="margin-top:0"><b>1.</b> Auftrag kopieren</p>
+  const aiBox = `<p style="margin-top:0"><b>1.</b> Auftrag kopieren</p>
     <div class="row" style="justify-content:flex-start;margin-top:0"><button class="btn primary" id="acopy">📋 Auftrag kopieren</button>${navigator.share ? '<button class="btn" id="ashare">📤 Teilen …</button>' : ''}</div>
-    <p><b>2.</b> In ChatGPT, Claude, Gemini oder Copilot einfügen, <b>Foto vom Blatt anhängen</b> und senden.</p>
+    <p><b>2.</b> In deiner KI-App (z.B. ChatGPT, Claude, Gemini oder Copilot) einfügen, <b>Foto vom Blatt anhängen</b> und senden.</p>
     <p><b>3.</b> Die ganze Antwort der KI kopieren und hier einfügen:</p>
     <textarea id="apaste" class="inp fld" rows="6" style="width:100%;font:inherit;resize:vertical" placeholder="Antwort der KI hier einfügen" spellcheck="false"></textarea>
-    <div id="afb"></div><div class="row"><button class="btn good" id="atake">✅ Übernehmen</button></div></div>
-  <div class="row"><button class="btn" id="pman">✏️ Selbst eingeben</button><button class="btn" id="pback">Zurück</button></div>`;
+    <div id="afb"></div><div class="row"><button class="btn good" id="atake">✅ Übernehmen</button></div>
+    <p class="small">Die Lern-App selbst verbindet sich mit keiner KI. Fotografiere nur das Blatt, ohne Namen und Noten.</p>`;
+  app.innerHTML = `<h1 class="h1">${kid ? '✨ Eigene Lernliste' : '✨ Mit KI erstellen'}</h1>
+  <p class="lead">${kid ? 'Tipp die Wörter oder Fragen von deinem Lernziel-Blatt ein. Die App macht daraus Übungen, Spiele und einen Probetest.' : 'Deine eigene KI-App liest das Lernziel-Blatt und macht daraus eine Lernliste. Du prüfst sie und speicherst.'}</p>
+  <div class="card" id="led"><label for="lsg"><b>Fach und Klasse</b></label><select id="lsg" class="inp fld">${opts}</select>
+    ${kid ? '<div class="row" style="justify-content:flex-start"><button class="btn primary" id="pman">✏️ Lernliste eintippen</button></div>' : ''}</div>
+  ${kid ? `<details class="card" style="margin-top:12px"><summary><b>Mit einer KI-App</b> <span class="small">(nur zusammen mit Mama oder Papa)</span></summary>
+      <p class="small">Die meisten KI-Apps sind erst ab 13 oder 18 Jahren erlaubt. Frag deshalb zuerst Mama oder Papa.</p>${aiBox}</details>`
+    : `<h2 class="h2">Mit deiner KI-App</h2><div class="card">${aiBox}</div>`}
+  <div class="row">${kid ? '' : '<button class="btn" id="pman">✏️ Selbst eingeben</button>'}<button class="btn" id="pback">Zurück</button></div>`;
   const prompt = () => { const x = sel(); return aiPromptCopy(x.s, x.g); };
-  $('#acopy').onclick = async () => { try { await navigator.clipboard.writeText(prompt()); toast('Auftrag kopiert. Jetzt in deiner KI-App einfügen.'); }
+  $('#acopy').onclick = async () => { try { await navigator.clipboard.writeText(prompt()); toast('Auftrag kopiert. Jetzt in der KI-App einfügen.'); }
     catch (e) { $('#afb').innerHTML = `<p class="small">Kopieren ging nicht automatisch. Markiere den Text und kopiere ihn:</p><textarea class="inp fld" rows="6" readonly style="width:100%;font:inherit">${esc(prompt())}</textarea>`; } };
   if ($('#ashare')) $('#ashare').onclick = () => navigator.share({ text:prompt() }).catch(() => {});
-  const open = (r, ai) => { const x = sel(); showListEditor(null, { s:x.sid, g:x.g, kind:r.kind, title:r.title || 'Lernziele', items:r.items, goals:r.goals, ai:true }); };
-  $('#atake').onclick = () => { const r = parseAiAnswer($('#apaste').value, sel().sid);
-    if (!r) { $('#afb').innerHTML = '<div class="fb wrong">Ich finde in der Antwort keine Lernliste. Bitte die ganze Antwort der KI einfügen.</div>'; return; } open(r); };
-  if (key) {
-    const draw = () => {
-      $('#pthumbs').innerHTML = pics.map((p, i) => `<span class="pthumb"><img src="${p}" alt="Foto ${i + 1}"><button class="pdel" data-i="${i}" aria-label="Foto ${i + 1} entfernen">×</button></span>`).join('');
-      $('#pthumbs').querySelectorAll('.pdel').forEach(b => b.onclick = () => { pics.splice(+b.dataset.i, 1); draw(); });
-      $('#pgo').innerHTML = pics.length ? `<div class="row"><button class="btn good" id="prun">✨ Lernliste erstellen</button></div>` : ''; if (pics.length) $('#prun').onclick = run;
-    };
-    const add = async fs => { for (const f of [...fs].slice(0, 4 - pics.length)) { try { pics.push(await shrinkImage(f)); } catch (e) { toast(e.message); } } draw(); };
-    const run = async () => { const x = sel(), tk = TOKEN;
-      $('#pgo').innerHTML = '<div class="fb center"><span class="spin" aria-hidden="true"></span> Gemini liest das Blatt … etwa 10 bis 30 Sekunden.</div>';
-      try { const raw = await geminiExtract(x.s, x.g, pics); if (tk !== TOKEN) return; const r = parseAiAnswer(typeof raw === 'string' ? raw : JSON.stringify(raw), x.sid);
-        if (!r) throw new Error('Keine Lernliste in der Antwort'); open(r); }
-      catch (e) { if (tk !== TOKEN) return; $('#pgo').innerHTML = `<div class="fb wrong">${aiErrorText(e)}<button class="btn primary" id="prun2">Nochmals versuchen</button></div>`; $('#prun2').onclick = run; } };
-    $('#pcam').onchange = e => add(e.target.files); $('#pgal').onchange = e => add(e.target.files);
-  }
+  $('#atake').onclick = () => { const x = sel(), r = parseAiAnswer($('#apaste').value, x.sid);
+    if (!r) { $('#afb').innerHTML = '<div class="fb wrong">Ich finde in der Antwort keine Lernliste. Bitte die ganze Antwort der KI einfügen.</div>'; return; }
+    showListEditor(null, { s:x.sid, g:x.g, kind:r.kind, title:r.title || 'Lernziele', items:r.items, goals:r.goals, ai:true }); };
   $('#pman').onclick = () => { const x = sel(); showListEditor(null, { s:x.sid, g:x.g, kind:'', title:'', items:[] }); };
   $('#pback').onclick = listBack;
 }
-function geminiKeyHTML(){
-  const k = geminiKey();
-  return `<details class="card" style="margin-top:12px"><summary><b>Eigener Gemini-Schlüssel</b> <span class="small">(optional, für Foto mit einem Tippen)</span></summary>
-    <p class="small">Gratis-Schlüssel holen: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> → mit Google-Konto anmelden → «API-Schlüssel erstellen» → kopieren und hier einfügen. Der Schlüssel bleibt nur auf diesem Gerät. Bei der Gratis-Version kann Google die Inhalte zur Verbesserung nutzen.</p>
-    <div class="inrow"><input id="gkey" class="inp fld" type="password" autocomplete="off" placeholder="AIza…" value="${esc(k)}"><button class="btn primary" id="gsave">Speichern</button></div>
-    ${k ? '<button class="btn" id="gdel" style="margin-top:8px">Schlüssel entfernen</button>' : ''}</details>`;
-}
-function bindGeminiKey(){
-  $('#gsave').onclick = () => { const v = $('#gkey').value.trim(); try { v ? localStorage.setItem(GEMINI_STORE, v) : localStorage.removeItem(GEMINI_STORE); } catch (e) {} toast(v ? 'Gemini-Schlüssel gespeichert' : 'Schlüssel entfernt'); parentPanel(); };
-  if ($('#gdel')) $('#gdel').onclick = () => { try { localStorage.removeItem(GEMINI_STORE); } catch (e) {} toast('Schlüssel entfernt'); parentPanel(); };
-}
-
 /* =====================================================================
    6b) LERNSPIELE: Blitz-Sprung, Memory, Sortieren
    ===================================================================== */
@@ -3255,7 +3198,7 @@ window.addEventListener('popstate', () => {
 showHome();
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-5';
+const APP_VERSION = '2026-11-06-6';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {

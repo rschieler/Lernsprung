@@ -39,13 +39,11 @@ setTimeout(() => { try {
   const P = JSON.parse(pa);
   if (P[0].kind !== 'vok' || P[0].items.length !== 2 || P[0].goals[0] !== 'Ich kann Orte nennen.' || P[1].kind !== 'qa' || P[1].items[0].length !== 4 || P[2].items.length !== 2 || P[3] !== null)
     throw new Error('KI-Antwort falsch eingelesen: ' + pa);
-  // Variante B (eigener Gemini-Schlüssel) mit simulierter Antwort
-  w.eval(`window.__gk = geminiKey; window.geminiKey = () => 'TEST'; window.__aiMock = async () => '{"title":"Test","kind":"qa","items":[{"a":"A?","b":"1","wrong":["2","3","4"]},{"a":"B?","b":"5","wrong":["6","7","8"]}]}'; parentPanel()`);
-  d.querySelector('#plcam').click(); if (!d.querySelector('#pcam') || !d.querySelector('#acopy')) throw new Error('KI-Seite unvollständig');
+  // Antwort einfügen öffnet den Entwurf; die App selbst ruft keine KI auf
+  w.eval("parentPanel()"); d.querySelector('#plcam').click(); if (!d.querySelector('#acopy') || d.querySelector('#pcam')) throw new Error('KI-Seite falsch');
   d.querySelector('#apaste').value = F + 'json\n{"kind":"qa","title":"Einfügen","items":[{"a":"X?","b":"1"},{"a":"Y?","b":"2"}]}\n' + F; d.querySelector('#atake').click();
   if (!d.querySelector('#lsave') || !d.querySelector('#ltext').value.includes('X? = 1')) throw new Error('Einfügen öffnet keinen Entwurf');
-  w.eval("window.geminiKey = window.__gk; delete window.__aiMock");
-  console.log('OK: Mit KI erstellen (Einfügen und Gemini-Schlüssel)');
+  console.log('OK: Mit KI erstellen (Auftrag kopieren, Antwort einfügen)');
   // Firestore: keine Listen in Listen, Hin- und Rückweg verlustfrei
   const nest = w.eval(`(() => { const bad = []; const walk = (v, p, inArr) => { if (Array.isArray(v)) { if (inArr) bad.push(p); v.forEach((x, i) => walk(x, p + '[' + i + ']', true)); }
     else if (v && typeof v === 'object') Object.entries(v).forEach(([k, x]) => walk(x, p + '.' + k, false)); }; walk(cloudPayload(), 'doc', false); return bad.slice(0, 3).join(', '); })()`);
