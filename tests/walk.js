@@ -232,7 +232,7 @@ setTimeout(() => { try {
   console.log('OK: Elternprofile');
   // Papiertest: Blatt, Lösungen, Ergebnis mit Eltern-PIN, Übungsprüfung aus mehreren Themen
   for (const sid of ['en', 'ma', 'de', 'nmg', 'fr']) w.eval(`(() => { const s = CATALOG.find(x => x.id === '${sid}'); for (const g of s.grades) for (const b of g.books) for (const u of b.units) { NAV.s = s; NAV.g = g; NAV.b = b; NAV.u = u; NAV.n = g.grade; showPaper(paperUnit());
-    const n = document.querySelectorAll('.paper .ptask').length, ls = document.querySelectorAll('.psol ol li').length; if (!n || n !== ls) throw new Error('Papiertest ' + u.id + ': ' + n + '/' + ls); } })()`);
+    const n = document.querySelectorAll('.paper .ptask').length - document.querySelectorAll('.pmatch .ptask').length / 2, ls = document.querySelectorAll('.psol ol li').length; if (!n || n !== ls) throw new Error('Papiertest ' + u.id + ': ' + n + '/' + ls); } })()`);
   w.eval("PARENT_OK = false; NAV.s = CATALOG.find(x => x.id === 'ma'); NAV.g = NAV.s.grades[0]; NAV.b = NAV.g.books[0]; NAV.u = NAV.b.units[0]; NAV.n = NAV.g.grade; DB.tests[ukey()] = []; showPaper(paperUnit()); document.getElementById('pres').click()");
   d.querySelector('#pp0').value = '9'; d.querySelector('#ppin').value = '0000'; d.querySelector('#psave').click();
   if (w.eval('DB.tests[ukey()].length')) throw new Error('Papiertest ohne Eltern-PIN gespeichert');

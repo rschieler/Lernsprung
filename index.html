@@ -329,10 +329,10 @@ html.pixfont .h1,html.pixfont .brand .bt{font-family:var(--hfont);letter-spacing
 .pmeta{display:grid;grid-template-columns:auto;gap:6px;font-size:.92rem;min-width:200px}.pfill{display:inline-block;width:130px;border-bottom:1px solid currentColor;height:1em}.pfill.s{width:44px}
 .plp{font-size:.78rem;color:var(--muted);margin:0 0 6px}
 .punit{font-size:1.1rem;margin:18px 0 4px;padding-top:6px;border-top:1px dashed var(--line)}
-.ppart{font-size:1rem;margin:14px 0 6px}.ppart small{font-weight:600;color:var(--muted)}
+.ppart{font-size:1rem;margin:14px 0 6px;break-after:avoid;page-break-after:avoid}.ppart + .pprm{break-after:avoid;page-break-after:avoid}.ppart small{font-weight:600;color:var(--muted)}
 .ptask{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line);break-inside:avoid;page-break-inside:avoid}
 .pno{font-weight:900;min-width:1.6em}.pbody{flex:1;min-width:0}.ppt{font-size:.8rem;color:var(--muted);white-space:nowrap}
-.pprm{font-size:.82rem;color:var(--muted)}.pgrid{display:grid;grid-template-columns:1fr 1fr;column-gap:22px}.pgrid .pline span{max-width:none}.ptxt{font-weight:700;margin:2px 0 4px;overflow-wrap:anywhere}.ptxt svg{max-width:170px;height:auto}
+.pprm{font-size:.82rem;color:var(--muted)}.pgoals{font-size:.88rem;margin:6px 0 4px}.pgoals ul{margin:2px 0 0;padding-left:20px}.pmatch{display:grid;grid-template-columns:1fr 1fr;column-gap:22px}.pmatch .ptask{align-items:center}.pbox.big{width:26px;height:26px}.pscr{letter-spacing:.08em;font-size:1.1em}.psmall{font-weight:400;font-size:.8em;color:var(--muted)}.pgrid{display:grid;grid-template-columns:1fr 1fr;column-gap:22px}.pgrid .pline span{max-width:none}.ptxt{font-weight:700;margin:2px 0 4px;overflow-wrap:anywhere}.ptxt svg{max-width:170px;height:auto}
 .popts{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:4px}.popt{display:inline-flex;gap:6px;align-items:center}.popt.big{font-size:1.7rem}
 .pbox{display:inline-block;width:14px;height:14px;border:1.5px solid currentColor;border-radius:2px;flex:none}
 .pline{display:flex;align-items:flex-end;gap:8px;margin-top:10px}.pline span{flex:1;max-width:340px;border-bottom:1px solid currentColor;height:1.2em}
@@ -342,6 +342,7 @@ html.pixfont .h1,html.pixfont .brand .bt{font-family:var(--hfont);letter-spacing
 .pscale{border-collapse:collapse;font-size:.85rem;margin-top:4px}.pscale th,.pscale td{border:1px solid var(--line);padding:3px 7px;text-align:center}
 @media print{
   @page{size:A4;margin:14mm 14mm 12mm}
+  .phead{flex-wrap:nowrap}
   body{background:none!important;color:#000}
   body > :not(#app), #app > :not(.paper), .noprint, #kbd{display:none!important}
   #app{max-width:none!important;padding:0!important;margin:0!important}
@@ -3444,12 +3445,29 @@ function paperTasks(f, cap){
   const keep = { s:NAV.s, g:NAV.g, b:NAV.b, u:NAV.u, n:NAV.n };
   NAV.s = f.s; NAV.g = f.g; NAV.b = f.b; NAV.u = f.u; NAV.n = f.g.grade;
   try {
-    const plan = testPlan(f.u), total = plan.reduce((a, p) => a + p.n, 0), r = cap && total > cap ? cap / total : 1;
+    const wu = !f.u.gen && !f.u.quiz && (f.u.words || []).length >= 4;
+    const plan = testPlan(f.u).filter(p => !wu || /^(Sätze|Grammatik)/.test(p.name)), wp = wu ? paperWordPlan(f.u) : [];
+    const total = wp.concat(plan).reduce((a, p) => a + p.n, 0), r = cap && total > cap ? cap / total : 1;
     const seen = new Set();
-    return plan.map(p => { const want = Math.max(1, Math.round(p.n * r)), out = [];
+    return wp.map(p => p.make(Math.max(p.min || 1, Math.round(p.n * r)))).concat(plan.map(p => { const want = Math.max(1, Math.round(p.n * r)), out = [];
       for (let i = 0; i < 8 && out.length < want; i++) p.make().forEach(t => { const id = t.kind + '|' + (t.text || '') + '|' + (t.say || ''); if (out.length < want && (t.kind === 'choice' || t.kind === 'input') && !seen.has(id)) { seen.add(id); out.push(t); } });
-      return { label:p.name, tasks:out }; }).filter(p => p.tasks.length);
+      return { label:p.name, tasks:out }; })).filter(p => p.tasks.length);
   } finally { Object.assign(NAV, keep); }
+}
+/* Wort-Units auf Papier wie ein Schul-Wörtchentest: Zuordnen, Deutsch → Fremdsprache, Fremdsprache → Deutsch, Buchstabensalat */
+function paperWordPlan(u){
+  const first = x => String(x).split('|')[0].trim(), W = shuffle(u.words.filter(w => w.en && w.de)), lang = NAV.s.name, N = W.length;
+  const nM = Math.min(8, N), nA = Math.min(8, Math.ceil(N / 2)), nB = Math.min(6, N - nA) || Math.min(4, N);
+  const inp = (q, a, pr) => ({ kind:'input', prompt:pr, text:esc(q), answer:first(a), solution:first(a) });
+  const mix = w => { const c = [...w]; for (let i = 0; i < 20; i++) { const m = shuffle(c).join(''); if (m !== w) return m; } return c.reverse().join(''); };
+  const scr = W.filter(w => /^[a-zA-Zéèêàâçîôûëïü]{4,10}$/.test(first(w.en)));
+  return [
+    { name:'Zuordnen', n:nM, min:3, make:k => { const P = shuffle(W).slice(0, k); return { label:'Zuordnen', match:P.map(w => [first(w.en), first(w.de)]), tasks:P }; } },
+    { name:'Deutsch → ' + lang, n:nA, make:k => ({ label:'Deutsch → ' + lang, tasks:W.slice(0, k).map(w => inp(first(w.de), w.en, 'Schreib das Wort auf ' + lang + '.')) }) },
+    { name:lang + ' → Deutsch', n:nB, make:k => ({ label:lang + ' → Deutsch', tasks:W.slice(N - k).map(w => inp(first(w.en), w.de, 'Schreib das Wort auf Deutsch.')) }) },
+    ...(scr.length >= 2 ? [{ name:'Buchstabensalat', n:Math.min(4, scr.length), min:2, make:k => ({ label:'Buchstabensalat', tasks:shuffle(scr).slice(0, k).map(w => { const e = first(w.en);
+      return { kind:'input', prompt:'Ordne die Buchstaben zum richtigen Wort.', text:`<span class="pscr">${esc(mix(e.toLowerCase()).split('').join(' '))}</span> <span class="psmall">(${esc(first(w.de))})</span>`, plain:e, answer:e, solution:e }; }) }) }] : [])
+  ];
 }
 function paperScale(n){
   const rows = []; for (let p = n; p >= 0; p--) { const no = noteOf(p, n), r = rows[rows.length - 1]; if (r && r.no === no) r.lo = p; else rows.push({ no, hi:p, lo:p }); }
@@ -3464,7 +3482,11 @@ function showPaper(sel){
   const opt = (t, o) => `<span class="popt ${t.grid === 'pics' ? 'big' : ''}"><i class="pbox"></i>${esc(String(o.label))}</span>`;
   const prmOf = t => t.say && t.autoSay ? (t.kind === 'input' ? 'Hör zu und schreib das Wort.' : 'Hör zu und kreuze an.') : t.prompt;
   const small = t => (/monospace|<svg/.test(t.text || '') || String(t.plain || t.text || '').length <= 42) && (t.kind === 'input' || t.options.reduce((a, o) => a + String(o.label).length, 0) <= 34);
-  const part = p => { const same = p.tasks.every(t => prmOf(t) === prmOf(p.tasks[0])), grid = p.tasks.every(small);
+  const part = p => { if (p.match) { const L = 'ABCDEFGHIJ', R = shuffle(p.match.map((m, i) => i)), start = no;
+      p.match.forEach((m, i) => { no++; sol.push(`<li><b>${no}.</b> ${L[R.indexOf(i)]} (${esc(m[1])})</li>`); });
+      return `<h3 class="ppart">${esc(p.label)} <small>(${p.match.length} P.)</small></h3><p class="pprm">Schreib den passenden Buchstaben ins Kästchen.</p>
+        <div class="pmatch">${p.match.map((m, i) => `<div class="ptask"><span class="pno">${start + i + 1}</span><i class="pbox big"></i><b>${esc(m[0])}</b></div><div class="ptask"><span class="pno">${L[i]}</span><span>${esc(p.match[R[i]][1])}</span></div>`).join('')}</div>`; }
+    const same = p.tasks.every(t => prmOf(t) === prmOf(p.tasks[0])), grid = p.tasks.every(small);
     return `<h3 class="ppart">${esc(p.label)} <small>(${p.tasks.length} P.)</small></h3>${same && prmOf(p.tasks[0]) ? `<p class="pprm">${esc(prmOf(p.tasks[0]))}</p>` : ''}<div class="${grid ? 'pgrid' : ''}">${p.tasks.map(t => task(t, same)).join('')}</div>`; };
   const task = (t, same) => { no++;
     const rd = t.say && t.autoSay, prm = same ? '' : prmOf(t);
@@ -3487,6 +3509,7 @@ function showPaper(sel){
     <div class="phead"><div><b>${esc(S.icon)} ${esc(S.name)} · ${sel.groups[0].f.g.grade}. Klasse</b><h1>${esc(sel.title)}</h1>${sel.sub ? `<div class="psub">${esc(sel.sub)}</div>` : ''}</div>
       <div class="pmeta"><div>Name: <span class="pfill"></span></div><div>Datum: <span class="pfill"></span></div><div>Punkte: <span class="pfill s"></span> von ${n}</div><div>Note: <span class="pfill s"></span></div></div></div>
     ${sel.lp ? `<p class="plp">Lehrplan 21 St. Gallen: ${esc(sel.lp)}</p>` : ''}
+    ${(() => { const gl = sel.groups.flatMap(g => g.f.u.custom && DB.custom[g.f.u.custom] && DB.custom[g.f.u.custom].goals || []); return gl.length ? `<div class="pgoals"><b>Lernziele</b><ul>${gl.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''; })()}
     ${body}
     <p class="pfoot">Viel Erfolg! 🍀 · Lernsprung · ${today}</p>
     <div class="psol ${solOn ? '' : 'off'}"><h2>Lösungen (für die Eltern)</h2><p class="psub">${esc(sel.title)} · ${n} Punkte</p>
@@ -3520,7 +3543,7 @@ function showPaperResult(sel){
   };
 }
 function paperUnit(){ const u = NAV.u, k = ukey(), f = { s:NAV.s, g:NAV.g, b:NAV.b, u };
-  return { title:'Probetest ' + u.no + ': ' + u.title, sub:u.de, lp:u.lp, groups:[{ k, f }], back:showTestIntro }; }
+  return { title:u.custom ? u.title : 'Probetest ' + u.no + ': ' + u.title, sub:u.custom ? 'Übungstest' : u.de, lp:u.lp, groups:[{ k, f }], back:showTestIntro }; }
 function paperExam(e, back){ const R = e.units.map(k => ({ k, f:findUnit(k) })).filter(x => x.f); if (!R.length) return toast('Diese Prüfung hat keine Themen.');
   const S = R[0].f.s; showPaper({ title:e.title || S.name + '-Prüfung', sub:'Übungsprüfung für ' + new Date(e.d + 'T12:00').toLocaleDateString('de-CH'), groups:R, cap:R.length > 1 ? Math.max(8, Math.round(30 / R.length)) : 0, back }); }
 
@@ -4660,7 +4683,7 @@ try { applyTheme(); } catch (e) {}
   else if (DEV.parent) showParents(); else showHome(); }
 
 /* Update-Prüfung: lädt eine neue Version, sobald sie online ist */
-const APP_VERSION = '2026-11-06-32';
+const APP_VERSION = '2026-11-08-1';
 async function checkUpdate(){
   if (!isHosted()) return;
   try {
